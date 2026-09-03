@@ -1,10 +1,10 @@
 # Configuração local do Supabase CLI para o SynapseMed.
 #
-# ATENÇÃO: este arquivo foi escrito à mão nesta etapa porque o Supabase CLI
-# não está instalado neste ambiente (verificado: `npx --no-install supabase
-# --version` recusado). Ele segue o formato padrão gerado por `supabase init`,
-# mas deve ser revisado/regravado com `supabase init` assim que o CLI estiver
-# disponível, para garantir compatibilidade total com a versão instalada.
+# Validado em 2026-09-03 rodando de fato contra Supabase CLI 2.116.0 +
+# Docker local (`supabase start` / `supabase db reset` / `supabase test db`,
+# todos com sucesso). Escrito à mão originalmente (antes de o CLI estar
+# disponível neste ambiente), depois confirmado compatível com a versão
+# real instalada.
 
 project_id = "synapsemed"
 
@@ -26,7 +26,7 @@ major_version = 15
 enabled = true
 port = 54323
 
-[inbucket]
+[local_smtp]
 enabled = false
 
 [storage]

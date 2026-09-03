@@ -1,16 +1,18 @@
 -- ============================================================================
 -- SynapseMed — Testes pgTAP de RLS, integridade editorial e RPCs
 --
--- NÃO EXECUTADO NESTA ETAPA: requer Supabase CLI + Docker (ambos ausentes
--- neste ambiente, confirmado por `docker --version`, `docker info` e
--- `npx --no-install supabase --version`). Escrito e revisado estaticamente;
--- rodar com `supabase test db` (ou `supabase db test`) assim que houver
--- ambiente local disponível.
---
--- Pressupõe o schema padrão `auth.users` de uma instância Supabase local
--- (criado pelas migrações internas do serviço GoTrue) — como isso nunca foi
--- executado, os nomes/colunas usados em tests.create_user() devem ser
--- reconferidos contra a versão real do CLI antes da primeira execução.
+-- EXECUTADO E VALIDADO em 2026-09-03 contra Supabase CLI 2.116.0 + Docker
+-- local (`supabase db reset` seguido de `supabase test db`): 65/65
+-- asserções passando, reproduzido em múltiplos resets consecutivos.
+-- Bugs reais encontrados e corrigidos nesta rodada (não pegos pela revisão
+-- estática anterior): pgcrypto vive no schema `extensions`, não `public`
+-- (crypt/gen_salt precisam de qualificação); tests.authenticate_as usava
+-- set_config(..., is_local=true), que não sobrevive entre statements
+-- autocommitados por psql/pg_prove; o schema `tests` não tinha GRANT USAGE
+-- para anon/authenticated; e o uso de throws_ok(sql, 'descrição') nesta
+-- versão do pgTAP trata o 2º argumento como padrão de mensagem de erro
+-- esperado, não como descrição livre — corrigido para
+-- throws_ok(sql, NULL::char(5), NULL::text, 'descrição').
 --
 -- TESTE DE CONCORRÊNCIA — NÃO É UMA ASSERÇÃO pgTAP DESTE ARQUIVO:
 -- pgTAP roda em uma única sessão/transação; não consegue, sozinho, abrir
@@ -42,7 +44,7 @@ declare
 begin
   insert into auth.users (id, email, encrypted_password, raw_user_meta_data, created_at, updated_at, aud, role)
   values (
-    v_id, p_email, crypt('senha-teste-123', gen_salt('bf')),
+    v_id, p_email, extensions.crypt('senha-teste-123', extensions.gen_salt('bf')),
     jsonb_build_object('display_name', p_email), now(), now(), 'authenticated', 'authenticated'
   );
 
@@ -59,8 +61,11 @@ returns void
 language plpgsql
 as $$
 begin
-  perform set_config('request.jwt.claims', json_build_object('sub', p_uid::text, 'role', 'authenticated')::text, true);
-  perform set_config('role', 'authenticated', true);
+  -- is_local = false (nível de sessão): pg_prove/psql roda cada statement
+  -- deste arquivo em autocommit, sem BEGIN explícito, então um set_config
+  -- local à transação (true) desapareceria antes do próximo comando.
+  perform set_config('request.jwt.claims', json_build_object('sub', p_uid::text, 'role', 'authenticated')::text, false);
+  perform set_config('role', 'authenticated', false);
 end;
 $$;
 
@@ -69,8 +74,8 @@ returns void
 language plpgsql
 as $$
 begin
-  perform set_config('request.jwt.claims', '', true);
-  perform set_config('role', 'anon', true);
+  perform set_config('request.jwt.claims', '', false);
+  perform set_config('role', 'anon', false);
 end;
 $$;
 
@@ -79,10 +84,16 @@ returns void
 language plpgsql
 as $$
 begin
-  perform set_config('request.jwt.claims', '', true);
+  perform set_config('request.jwt.claims', '', false);
   reset role;
 end;
 $$;
+
+-- authenticate_as/authenticate_as_anon fazem SET ROLE de verdade (nível de
+-- sessão, ver comentário acima), então anon/authenticated precisam poder
+-- chegar a este schema e executar clear_auth() para voltar a ser postgres.
+grant usage on schema tests to anon, authenticated;
+grant execute on function tests.clear_auth() to anon, authenticated;
 
 select plan(65);
 
@@ -160,6 +171,7 @@ select is_empty(
 );
 select throws_ok(
   $$ insert into public.notes (user_id, question_id, note_text) values (gen_random_uuid(), (select id from public.questions limit 1), 'x') $$,
+  NULL::char(5), NULL::text,
   'anon não escreve em tabela nenhuma'
 );
 
@@ -198,11 +210,17 @@ select is_empty(
 );
 select throws_ok(
   format($$ insert into public.questions (discipline_id, theme_id, cycle, difficulty, clinical_vignette, question_stem) values (%L, %L, 'clinico', 'facil', 'x', 'y') $$, :'v_discipline_id', :'v_theme_id'),
+  NULL::char(5), NULL::text,
   'active não cria conteúdo editorial'
 );
-select throws_ok(
-  format($$ update public.materials set title = 'hack' where id = %L $$, :'v_material_pub_id'),
-  'active não altera conteúdo editorial'
+-- UPDATE sob RLS não lança exceção quando a policy USING exclui a linha:
+-- ela só afeta 0 linhas silenciosamente. throws_ok não se aplica aqui;
+-- a verificação real é que o título permanece intocado.
+update public.materials set title = 'hack' where id = :'v_material_pub_id';
+select is(
+  (select title from public.materials where id = :'v_material_pub_id'),
+  'Material Published',
+  'active não altera conteúdo editorial (RLS bloqueia silenciosamente, 0 linhas afetadas)'
 );
 
 -- ============================================================================
@@ -230,12 +248,25 @@ select is_empty(
   format($$ select 1 from public.notes where user_id = %L $$, :'v_active_a'),
   'active B não lê notas de active A'
 );
-select throws_ok(
-  format($$ update public.notes set note_text = 'hack' where user_id = %L $$, :'v_active_a'),
-  'active B não altera notas de active A'
+-- mesmo motivo do bloco de materials acima: UPDATE sob RLS filtra a
+-- linha silenciosamente, não lança exceção. A releitura precisa ser
+-- feita como o dono (active_a): active_b não enxerga a nota de A por
+-- RLS de SELECT (confirmado no teste anterior), então uma releitura
+-- como active_b sempre traria NULL, dado ou não o "hack".
+update public.notes set note_text = 'hack' where user_id = :'v_active_a';
+select tests.authenticate_as(:'v_active_a');
+select is(
+  (select note_text from public.notes where user_id = :'v_active_a'),
+  'nota da A',
+  'active B não altera notas de active A (RLS bloqueia silenciosamente, 0 linhas afetadas)'
 );
+-- volta para active_b: a releitura acima (via active_a) mudou o
+-- contexto de autenticação, e este teste precisa continuar sendo
+-- active_b tentando forjar user_id de outra pessoa.
+select tests.authenticate_as(:'v_active_b');
 select throws_ok(
   format($$ insert into public.notes (user_id, question_id, note_text) values (%L, %L, 'forjada') $$, :'v_active_a', :'v_question_a_id'),
+  NULL::char(5), NULL::text,
   'active B não insere nota com user_id de outro uid'
 );
 
@@ -246,15 +277,18 @@ select throws_ok(
 select tests.authenticate_as(:'v_active_a');
 select throws_ok(
   format($$ update public.profiles set role = 'admin' where id = %L $$, :'v_active_a'),
+  NULL::char(5), NULL::text,
   'active não altera a própria role'
 );
 select throws_ok(
   format($$ update public.profiles set status = 'active' where id = %L $$, :'v_pending'),
+  NULL::char(5), NULL::text,
   'active não altera status de outro perfil'
 );
 select tests.authenticate_as(:'v_pending');
 select throws_ok(
   format($$ update public.profiles set status = 'active' where id = %L $$, :'v_pending'),
+  NULL::char(5), NULL::text,
   'pending não se autopromove a active'
 );
 
@@ -266,6 +300,7 @@ select lives_ok(
 select tests.authenticate_as(:'v_active_a');
 select throws_ok(
   format($$ select public.admin_set_profile_status(%L, 'admin', 'active') $$, :'v_active_a'),
+  NULL::char(5), NULL::text,
   'estudante não pode executar admin_set_profile_status'
 );
 
@@ -286,17 +321,25 @@ select is_empty(
 select tests.authenticate_as(:'v_active_b');
 select throws_ok(
   format($$ select public.submit_question_attempt(%L, %L, 30) $$, :'v_question_b_id', :'v_qb_opt_a'),
+  NULL::char(5), NULL::text,
   'estudante não pode responder questão em draft'
 );
 select throws_ok(
   format($$ select public.submit_question_attempt(%L, %L, 30) $$, :'v_question_c_id', :'v_qc_opt_a'),
+  NULL::char(5), NULL::text,
   'estudante não pode responder questão archived'
 );
 select throws_ok(
   format($$ select public.submit_question_attempt(%L, %L, 30) $$, :'v_question_a_id', :'v_qb_opt_a'),
+  NULL::char(5), NULL::text,
   'estudante não pode usar option_id de outra questão'
 );
 
+-- as 3 chamadas de erro acima (316-330) usam active_b só para exercitar
+-- os bloqueios; as 2 submissões reais abaixo precisam ser de active_a,
+-- pois é essa a autenticação usada na contagem final (question_attempts
+-- só é visível para o dono, ver comentário mais abaixo).
+select tests.authenticate_as(:'v_active_a');
 select results_eq(
   format($$ select (public.submit_question_attempt(%L, %L, 45))->>'is_correct' $$, :'v_question_a_id', :'v_qa_opt_a'),
   $$ values ('true') $$,
@@ -307,7 +350,11 @@ select isnt_empty(
   'retorno da RPC inclui explicações de todas as alternativas após responder'
 );
 
-select tests.authenticate_as(:'v_admin');
+-- question_attempts só é visível para o dono (revoke insert/update +
+-- policy owner_select), não existe policy de leitura para admin — por
+-- isso a contagem precisa ser feita como o próprio active_a, não como
+-- admin (que veria 0 linhas por RLS, não por bug de contagem).
+select tests.authenticate_as(:'v_active_a');
 select is(
   (select count(*)::int from public.question_attempts where question_id = :'v_question_a_id'),
   2,
@@ -328,11 +375,13 @@ insert into public.question_options (question_id, letter, option_text, sort_orde
 
 select throws_ok(
   format($$ select public.publish_question(%L) $$, :'v_question_d_id'),
+  NULL::char(5), NULL::text,
   'publish_question rejeita questão sem alternativa correta'
 );
 
 select throws_ok(
   format($$ update public.question_option_keys set is_correct = true where option_id in (%L, %L) $$, :'v_qd_opt_a', :'v_qd_opt_b'),
+  NULL::char(5), NULL::text,
   'duas alternativas corretas na mesma questão são rejeitadas pelo índice único, não em publish_question'
 );
 
@@ -341,6 +390,7 @@ update public.question_option_keys set explanation = 'exp D2' where option_id = 
 
 select throws_ok(
   format($$ select public.publish_question(%L) $$, :'v_question_d_id'),
+  NULL::char(5), NULL::text,
   'publish_question rejeita questão sem question_answer_keys'
 );
 
@@ -371,6 +421,7 @@ delete from public.question_option_keys where option_id = :'v_qe_opt_b';
 
 select throws_ok(
   format($$ select public.publish_question(%L) $$, :'v_question_e_id'),
+  NULL::char(5), NULL::text,
   'publish_question rejeita alternativa sem question_option_keys correspondente (option_key_count <> option_count)'
 );
 
@@ -387,6 +438,7 @@ values (:'v_question_f_id', '', 'Resumo F');
 
 select throws_ok(
   format($$ select public.publish_question(%L) $$, :'v_question_f_id'),
+  NULL::char(5), NULL::text,
   'publish_question rejeita general_commentary vazio'
 );
 
@@ -403,6 +455,7 @@ values (:'v_question_g_id', 'Comentário G', '');
 
 select throws_ok(
   format($$ select public.publish_question(%L) $$, :'v_question_g_id'),
+  NULL::char(5), NULL::text,
   'publish_question rejeita high_yield_summary vazio'
 );
 
@@ -420,12 +473,14 @@ values (:'v_question_h_id', 'Comentário H', 'Resumo H');
 
 select throws_ok(
   format($$ select public.publish_question(%L) $$, :'v_question_h_id'),
+  NULL::char(5), NULL::text,
   'publish_question rejeita alternativa com explicação vazia'
 );
 
 select tests.authenticate_as(:'v_active_a');
 select throws_ok(
   format($$ select public.publish_question(%L) $$, :'v_question_d_id'),
+  NULL::char(5), NULL::text,
   'estudante não pode executar publish_question'
 );
 
@@ -437,49 +492,60 @@ select tests.authenticate_as(:'v_admin');
 
 select throws_ok(
   format($$ insert into public.questions (discipline_id, theme_id, cycle, difficulty, clinical_vignette, question_stem, status) values (%L, %L, 'clinico', 'facil', 'x', 'y', 'published') $$, :'v_discipline_id', :'v_theme_id'),
+  NULL::char(5), NULL::text,
   'INSERT direto de questão com status published é rejeitado'
 );
 
 select throws_ok(
   format($$ update public.questions set status = 'published' where id = %L $$, :'v_question_c_id'),
+  NULL::char(5), NULL::text,
   'transição archived -> published fora da RPC é rejeitada'
 );
 
 select throws_ok(
   format($$ update public.question_option_keys set explanation = 'hack' where option_id = %L $$, :'v_qc_opt_a'),
+  NULL::char(5), NULL::text,
   'alteração de option key de questão archived é rejeitada'
 );
 select throws_ok(
   format($$ delete from public.question_answer_keys where question_id = %L $$, :'v_question_c_id'),
+  NULL::char(5), NULL::text,
   'exclusão do answer_key de questão archived é rejeitada'
 );
 select throws_ok(
   format($$ delete from public.question_options where id = %L $$, :'v_qa_opt_a'),
+  NULL::char(5), NULL::text,
   'exclusão da alternativa correta de questão published é rejeitada'
 );
 select throws_ok(
   format($$ delete from public.question_answer_keys where question_id = %L $$, :'v_question_a_id'),
+  NULL::char(5), NULL::text,
   'exclusão do answer_key de questão published é rejeitada'
 );
 select throws_ok(
   format($$ insert into public.question_options (question_id, letter, option_text, sort_order) values (%L, 'C', 'nova', 3) $$, :'v_question_a_id'),
+  NULL::char(5), NULL::text,
   'inserção de nova alternativa em questão published é rejeitada'
 );
 select throws_ok(
   format($$ delete from public.questions where id = %L $$, :'v_question_a_id'),
+  NULL::char(5), NULL::text,
   'DELETE direto de questão published é rejeitado'
 );
 
 select throws_ok(
   format($$ update public.questions set question_stem = 'hack' where id = %L $$, :'v_question_a_id'),
+  NULL::char(5), NULL::text,
   'alteração de texto de questão published diretamente é rejeitada'
 );
 select throws_ok(
   format($$ update public.questions set question_stem = 'hack' where id = %L $$, :'v_question_c_id'),
+  NULL::char(5), NULL::text,
   'alteração de texto de questão archived diretamente é rejeitada'
 );
 select throws_ok(
   format($$ update public.questions set status = 'draft', question_stem = 'hack' where id = %L $$, :'v_question_a_id'),
+  NULL::char(5), NULL::text,
   'alterar status e enunciado no mesmo UPDATE é rejeitado'
 );
 
@@ -512,6 +578,7 @@ insert into public.simulation_questions (simulation_id, question_id, position) v
 
 select throws_ok(
   format($$ insert into public.simulation_answers (simulation_question_id, selected_option_id) values (%L, %L) $$, :'v_simq_id', :'v_qb_opt_a'),
+  NULL::char(5), NULL::text,
   'simulation_answer com option_id de questão fora do simulado é rejeitado'
 );
 select lives_ok(
@@ -548,6 +615,7 @@ select is_empty(
 select tests.authenticate_as_anon();
 select throws_ok(
   $$ insert into public.feedback (user_id, type, title, description) values (gen_random_uuid(), 'sugestao', 'x', 'y') $$,
+  NULL::char(5), NULL::text,
   'anon não insere feedback'
 );
 
@@ -577,6 +645,7 @@ select is(
 select tests.authenticate_as(:'v_active_a');
 select throws_ok(
   $$ insert into storage.objects (bucket_id, name, owner) values ('editorial-assets', 'materials/x/y.png', auth.uid()) $$,
+  NULL::char(5), NULL::text,
   'estudante active não faz upload em editorial-assets'
 );
 
@@ -587,6 +656,7 @@ select lives_ok(
 );
 select throws_ok(
   $$ insert into storage.objects (bucket_id, name, owner) values ('editorial-assets', 'caminho-invalido/asset.png', auth.uid()) $$,
+  NULL::char(5), NULL::text,
   'admin active não pode inserir objeto em caminho fora de materials//questions/'
 );
 
