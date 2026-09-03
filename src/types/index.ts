@@ -66,8 +66,7 @@ export type StudyLens =
   | 'diagnostico'
   | 'conduta'
   | 'farmacologia'
-  | 'alto_rendimento'
-  | 'casos_pratica';
+  | 'alto_rendimento';
 
 export type EditorialStatus = 'completo' | 'em_atualizacao' | 'em_revisao';
 

@@ -1,0 +1,49 @@
+# Configuração local do Supabase CLI para o SynapseMed.
+#
+# ATENÇÃO: este arquivo foi escrito à mão nesta etapa porque o Supabase CLI
+# não está instalado neste ambiente (verificado: `npx --no-install supabase
+# --version` recusado). Ele segue o formato padrão gerado por `supabase init`,
+# mas deve ser revisado/regravado com `supabase init` assim que o CLI estiver
+# disponível, para garantir compatibilidade total com a versão instalada.
+
+project_id = "synapsemed"
+
+[api]
+enabled = true
+port = 54321
+# "app" NÃO está listado aqui de propósito: os helpers internos de
+# autorização (app.is_admin_active, app.current_profile_status) não podem
+# virar rota REST/RPC pública, mesmo tendo GRANT EXECUTE para "authenticated".
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = false
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = []
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[analytics]
+enabled = false

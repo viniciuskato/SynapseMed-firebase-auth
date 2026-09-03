@@ -147,3 +147,20 @@ npm run preview
 - `src/services/firebase.ts`: Inicialização modular do Firebase Client SDK.
 - `firestore.rules`: Regras de segurança do Cloud Firestore.
 - `tests/firestore-rules.test.ts`: Testes unitários das regras de segurança.
+- `supabase/`: Fundação Supabase em preparação (ver seção abaixo).
+- `docs/architecture/`: Documentação de arquitetura, incluindo a migração para Supabase.
+
+---
+
+## 🧱 Fundação Supabase (em preparação — não conectada ao frontend)
+
+O diretório `supabase/` contém a modelagem PostgreSQL, migrações versionadas, Row Level Security e um seed local mínimo pensados para uma futura migração de backend (Firebase → Supabase). **Nesta etapa, nada aqui está em uso pela aplicação**: o app React continua 100% sobre Firebase Authentication, Firestore e `localStorage`, sem nenhuma dependência do Supabase instalada.
+
+- `supabase/config.toml`: configuração do Supabase CLI (escrita manualmente nesta etapa — reconferir com `supabase init` quando o CLI estiver disponível).
+- `supabase/migrations/`: DDL de tabelas, RLS/policies/funções/triggers e políticas de Storage, em ordem.
+- `supabase/seed.sql`: dados demonstrativos mínimos e não sensíveis (sem usuário admin com senha fixa).
+- `supabase/tests/database/rls_policies.test.sql`: suíte pgTAP planejada — **não executada** neste ambiente (Docker/Supabase CLI ausentes; ver `docs/architecture/migration-roadmap.md` para o inventário completo de testes planejados vs. executados).
+- `docs/architecture/supabase-schema.md`: esquema completo, matriz de acesso e desenho de segurança.
+- `docs/architecture/migration-roadmap.md`: o que já foi feito, o que falta, e pré-requisitos para rodar os testes localmente.
+
+Variáveis futuras (documentadas em `.env.example`, sem valores reais): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`. `SUPABASE_SERVICE_ROLE_KEY` nunca deve ter prefixo `VITE_` nem aparecer em código cliente, Git ou logs.

@@ -67,12 +67,6 @@ export const STUDY_LENSES: { id: StudyLens; label: string; description: string; 
     description: 'Pontos de corte, pegadinhas de bancas e conceitos mais cobrados',
     icon: Sparkles,
   },
-  {
-    id: 'casos_pratica',
-    label: 'Casos & Aplicação Prática',
-    description: 'Correlações práticas de beira de leito e decisões clínicas',
-    icon: BookOpen,
-  },
 ];
 
 export const CompendiumView: React.FC<CompendiumViewProps> = ({
