@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --bg-canvas: #f4f0e8;
+    --bg-surface: #ffffff;
+    --bg-surface-secondary: #eee7d9;
+    --bg-surface-elevated: #ffffff;
+    --border-color: #ddd3bf;
+    --border-subtle: #eae1cf;
+    --text-primary: #2a2620;
+    --text-secondary: #6b6459;
+    --text-tertiary: #9e9890;
+    --ac: #6b4023;
+    --ac-hover: #54321b;
+    --ac-light: #f5ece4;
+    --ac2: #8a3620;
+    --ac2bg: #fbe2d8;
+    --ac-atlas: #2c5282;
+    --ac-atlas-bg: #e8f0fe;
+    --card-shadow: 0 1px 3px 0 rgb(42 38 32 / 0.06), 0 1px 2px -1px rgb(42 38 32 / 0.04);
+    color-scheme: light;
+  }
+
+  .dark {
+    --bg-canvas: #111010;
+    --bg-surface: #1a1919;
+    --bg-surface-secondary: #222121;
+    --bg-surface-elevated: #282626;
+    --border-color: #333131;
+    --border-subtle: #242222;
+    --text-primary: #e2ddd6;
+    --text-secondary: #9e9890;
+    --text-tertiary: #6b655d;
+    --ac: #d4924a;
+    --ac-hover: #e5a45f;
+    --ac-light: #2c2014;
+    --ac2: #c0604a;
+    --ac2bg: #2a1810;
+    --ac-atlas: #5b8dd9;
+    --ac-atlas-bg: #0f1e38;
+    --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    transition: background-color 0.2s ease, color 0.2s ease;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+}
+
+html {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.font-serif-reading {
+  font-family: 'Source Serif 4', Georgia, Cambria, 'Times New Roman', Times, serif;
+}
+
+.font-ui {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.font-mono-code {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Elementos Editoriais Base de Estudos ────────────────── */
+.badge-atlas {
+  background-color: var(--ac-atlas-bg);
+  color: var(--ac-atlas);
+  border: 1px solid var(--ac-atlas);
+}
+
+.badge-mec {
+  background-color: var(--ac2bg);
+  color: var(--ac2);
+  border: 1px solid var(--ac2);
+}
+
+.pergunta-box {
+  background: var(--bg-surface-secondary);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--ac);
+  border-radius: 0 8px 8px 0;
+  padding: 16px 20px;
+}
+
+.kbox-mechanism {
+  background: var(--ac2bg);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--ac2);
+  border-radius: 0 8px 8px 0;
+  padding: 14px 18px;
+}
+
+.controversia-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--ac2);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.eq-box {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-left: 3px solid var(--ac);
+  border-radius: 0 8px 8px 0;
+  padding: 14px 20px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Hide scrollbar utility for horizontal scroll tabs and pills */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Custom scrollbar for sleek medical dashboard */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+/* Print/Reading optimizations */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

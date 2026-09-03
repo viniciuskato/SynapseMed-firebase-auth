@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Perfil do Usuário: Leitura EXCLUSIVA do próprio usuário.
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+
+      // Criação obrigatória de estudante, plano free, timestamps válidos e todos os 8 campos obrigatórios
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'student'
+        && request.resource.data.plan == 'free'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastLoginAt == request.time
+        && request.resource.data.keys().hasAll(['uid', 'email', 'displayName', 'photoURL', 'role', 'plan', 'createdAt', 'lastLoginAt'])
+        && request.resource.data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'role', 'plan', 'createdAt', 'lastLoginAt']);
+
+      // Atualização permitindo APENAS displayName, photoURL e lastLoginAt
+      allow update: if isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'photoURL', 'lastLoginAt'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.plan == resource.data.plan
+        && request.resource.data.createdAt == resource.data.createdAt
+        && (request.resource.data.lastLoginAt == request.time || request.resource.data.lastLoginAt == resource.data.lastLoginAt);
+
+      allow delete: if false;
+    }
+
+    // Coleções compartilhadas explícitas: leitura autenticada, escrita bloqueada
+    match /disciplines/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+    match /themes/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+    match /compendiums/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+    match /questions/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+    match /clinicalCases/{document=**} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
+  }
+}
