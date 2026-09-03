@@ -21,7 +21,7 @@ import {
   Target,
   ChevronRight,
 } from 'lucide-react';
-import { Discipline, Theme, Question, Compendium, Flashcard, ClinicalCase } from '../../types';
+import { Discipline, Theme, Question, Compendium, Flashcard } from '../../types';
 import { StorageService } from '../../services/storage';
 import { isCardDueToday } from '../../services/srsAlgorithm';
 import { useAuth } from '../../contexts/AuthContext';
@@ -32,11 +32,9 @@ interface DashboardViewProps {
   questions: Question[];
   compendiums: Compendium[];
   flashcards: Flashcard[];
-  clinicalCases: ClinicalCase[];
   onSelectView: (view: string) => void;
   onOpenCompendium: (compendiumId: string, sectionId?: string) => void;
   onOpenQuestion: (questionId: string) => void;
-  onOpenCase: (caseId: string) => void;
   onStartSRS: () => void;
 }
 
@@ -46,11 +44,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   questions,
   compendiums,
   flashcards,
-  clinicalCases,
   onSelectView,
   onOpenCompendium,
   onOpenQuestion,
-  onOpenCase,
   onStartSRS,
 }) => {
   const { user, profile } = useAuth();

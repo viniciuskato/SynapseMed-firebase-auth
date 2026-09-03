@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   BookOpen,
   HelpCircle,
-  Stethoscope,
   Layers,
   Timer,
   BookMarked,
@@ -19,7 +18,6 @@ import {
   Theme,
   Compendium,
   Question,
-  ClinicalCase,
   Flashcard,
   UserStats,
   SimuladoConfig,
@@ -49,8 +47,6 @@ import { CompendiumReader } from './components/compendium/CompendiumReader';
 import { QuestionsView } from './components/questions/QuestionsView';
 import { SimuladoSession } from './components/questions/SimuladoSession';
 import { CreateSimuladoModal } from './components/questions/CreateSimuladoModal';
-import { ClinicalCasesView } from './components/clinical-cases/ClinicalCasesView';
-import { ClinicalCaseDetail } from './components/clinical-cases/ClinicalCaseDetail';
 import { FlashcardsView } from './components/flashcards/FlashcardsView';
 import { FlashcardReviewSession } from './components/flashcards/FlashcardReviewSession';
 import { CreateFlashcardModal } from './components/flashcards/CreateFlashcardModal';
@@ -68,7 +64,6 @@ function AuthenticatedApp() {
   // Deep-link / Context State
   const [selectedCompendiumId, setSelectedCompendiumId] = useState<string | null>(null);
   const [selectedSectionId, setSelectedSectionId] = useState<string | undefined>(undefined);
-  const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [activeSimuladoConfig, setActiveSimuladoConfig] = useState<SimuladoConfig | null>(null);
   const [reviewCardsQueue, setReviewCardsQueue] = useState<Flashcard[]>([]);
   const [filterThemeForQuestions, setFilterThemeForQuestions] = useState<string | undefined>(undefined);
@@ -92,7 +87,6 @@ function AuthenticatedApp() {
   const [themes, setThemes] = useState<Theme[]>(() => StorageService.getThemes());
   const [compendiums, setCompendiums] = useState<Compendium[]>(() => StorageService.getCompendiums());
   const [questions, setQuestions] = useState<Question[]>(() => StorageService.getQuestions());
-  const [clinicalCases, setClinicalCases] = useState<ClinicalCase[]>(() => StorageService.getClinicalCases());
   const [flashcards, setFlashcards] = useState<Flashcard[]>(() => StorageService.getFlashcards());
   const [stats, setStats] = useState<UserStats>(() => StorageService.getStats());
 
@@ -101,7 +95,6 @@ function AuthenticatedApp() {
     setThemes(StorageService.getThemes());
     setCompendiums(StorageService.getCompendiums());
     setQuestions(StorageService.getQuestions());
-    setClinicalCases(StorageService.getClinicalCases());
     setFlashcards(StorageService.getFlashcards());
     setStats(StorageService.getStats());
     setPlan(StorageService.getUserPlan());
@@ -210,11 +203,6 @@ function AuthenticatedApp() {
     setActiveView('questions');
   };
 
-  const handleOpenCase = (caseId: string) => {
-    setSelectedCaseId(caseId);
-    setActiveView('clinical-case-detail');
-  };
-
   const handleStartSRS = (cards?: Flashcard[]) => {
     const queue = cards && cards.length > 0 ? cards : flashcards.filter((fc) => isCardDueToday(fc));
     setReviewCardsQueue(queue.length > 0 ? queue : flashcards);
@@ -227,9 +215,8 @@ function AuthenticatedApp() {
     setActiveView('simulado-session');
   };
 
-  // Active Compendium / Case Objects
+  // Active Compendium Object
   const activeCompendium = compendiums.find((c) => c.id === selectedCompendiumId) || compendiums[0];
-  const activeClinicalCase = clinicalCases.find((c) => c.id === selectedCaseId) || clinicalCases[0];
 
   return (
     <div className="min-h-screen bg-[#F6F7F9] dark:bg-[#0B1220] text-[#172033] dark:text-[#E5E7EB] font-sans flex flex-col selection:bg-teal-500 selection:text-white antialiased transition-colors max-w-full overflow-x-hidden">
@@ -286,7 +273,6 @@ function AuthenticatedApp() {
                   {[
                     { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
                     { id: 'compendiums', label: 'Biblioteca Médica', icon: BookOpen },
-                    { id: 'clinical-cases', label: 'Casos Clínicos', icon: Stethoscope },
                     { id: 'questions', label: 'Provas e Questões', icon: HelpCircle },
                     { id: 'flashcards', label: 'Revisão e Flashcards', icon: Layers },
                     { id: 'errors', label: 'Caderno de Erros', icon: BookMarked },
@@ -351,11 +337,9 @@ function AuthenticatedApp() {
               questions={questions}
               compendiums={compendiums}
               flashcards={flashcards}
-              clinicalCases={clinicalCases}
               onSelectView={setActiveView}
               onOpenCompendium={handleOpenCompendium}
               onOpenQuestion={handleOpenQuestion}
-              onOpenCase={handleOpenCase}
               onStartSRS={handleStartSRS}
             />
           )}
@@ -391,26 +375,6 @@ function AuthenticatedApp() {
               onOpenCreateSimulado={() => setIsCreateSimuladoOpen(true)}
               filterThemeId={filterThemeForQuestions}
               focusQuestionId={focusQuestionId}
-            />
-          )}
-
-          {activeView === 'clinical-cases' && (
-            <ClinicalCasesView
-              cases={clinicalCases}
-              disciplines={disciplines}
-              themes={themes}
-              onOpenCase={handleOpenCase}
-              onOpenCompendium={handleOpenCompendium}
-            />
-          )}
-
-          {activeView === 'clinical-case-detail' && activeClinicalCase && (
-            <ClinicalCaseDetail
-              clinicalCase={activeClinicalCase}
-              disciplines={disciplines}
-              themes={themes}
-              onBack={() => setActiveView('clinical-cases')}
-              onOpenCompendium={handleOpenCompendium}
             />
           )}
 
@@ -499,7 +463,6 @@ function AuthenticatedApp() {
                 questions={questions}
                 compendiums={compendiums}
                 flashcards={flashcards}
-                clinicalCases={clinicalCases}
                 onRefreshData={refreshData}
               />
             ) : (
@@ -535,7 +498,6 @@ function AuthenticatedApp() {
         onClose={() => setIsSearchOpen(false)}
         compendiums={compendiums}
         questions={questions}
-        clinicalCases={clinicalCases}
         flashcards={flashcards}
         onNavigateToCompendium={(cid, sid) => {
           handleOpenCompendium(cid, sid);
@@ -543,10 +505,6 @@ function AuthenticatedApp() {
         }}
         onNavigateToQuestion={(qid) => {
           handleOpenQuestion(qid);
-          setIsSearchOpen(false);
-        }}
-        onNavigateToCase={(cid) => {
-          handleOpenCase(cid);
           setIsSearchOpen(false);
         }}
         onNavigateToFlashcards={() => {

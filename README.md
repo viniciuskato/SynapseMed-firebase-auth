@@ -1,6 +1,6 @@
 # SynapseMed 🧠🩺
 
-O **SynapseMed** é uma plataforma acadêmica e clínica de estudos voltada para estudantes de medicina e médicos residentes. O ecossistema reúne compêndios teóricos estruturados, banco de questões comentadas, simulados dinâmicos com cronômetro, casos clínicos interativos, flashcards com algoritmo de repetição espaçada (SRS), caderno inteligente de erros e painel administrativo (CMS) com controle de acesso baseado em papéis (RBAC).
+O **SynapseMed** é uma plataforma acadêmica e clínica de estudos voltada para estudantes de medicina e médicos residentes. O ecossistema reúne compêndios teóricos estruturados, banco de questões comentadas, simulados dinâmicos com cronômetro, flashcards com algoritmo de repetição espaçada (SRS), caderno inteligente de erros e painel administrativo (CMS) com controle de acesso baseado em papéis (RBAC).
 
 ---
 
@@ -70,7 +70,7 @@ Para que o fluxo de autenticação funcione integralmente:
 As regras de segurança estão definidas no arquivo `firestore.rules` na raiz do projeto. Elas garantem:
 - Acesso e leitura estritamente restritos ao próprio titular (`/users/{userId}`).
 - Impossibilidade de autopromoção para `role: "admin"` ou alteração de plano (`plan`) pelo cliente.
-- Coleções compartilhadas (`/disciplines`, `/themes`, `/compendiums`, `/questions`, `/clinicalCases`) acessíveis apenas para leitura por usuários autenticados, com escrita cliente proibida.
+- Coleções compartilhadas (`/disciplines`, `/themes`, `/compendiums`, `/questions`) acessíveis apenas para leitura por usuários autenticados, com escrita cliente proibida.
 
 ### Implantação das Regras
 

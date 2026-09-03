@@ -5,7 +5,6 @@ import {
   X,
   BookOpen,
   HelpCircle,
-  Stethoscope,
   Layers,
   BarChart3,
   Users,
@@ -64,7 +63,6 @@ export const PlanModal: React.FC<PlanModalProps> = ({
             {[
               { icon: BookOpen, title: 'Biblioteca Médica', desc: 'Compêndios com lentes de estudo, árvores de decisão e fisiopatologia.' },
               { icon: HelpCircle, title: 'Questões e Simulados', desc: 'Resolução comentada alternativa por alternativa e caderno de erros integrado.' },
-              { icon: Stethoscope, title: 'Casos Clínicos', desc: 'Simulação de condutas e raciocínio diagnóstico passo a passo.' },
               { icon: Layers, title: 'Revisão Espaçada (SRS)', desc: 'Algoritmo SM-2 para consolidação de memória de longo prazo.' },
               { icon: BarChart3, title: 'Diagnóstico de Desempenho', desc: 'Mapeamento contínuo de lacunas e evolução por especialidade.' },
               { icon: Check, title: 'Armazenamento Seguro', desc: 'Seus dados e anotações pessoais isolados com total privacidade.' },

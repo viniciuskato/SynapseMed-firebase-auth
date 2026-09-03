@@ -1,6 +1,6 @@
 {
   "name": "Base de Estudos Médicos",
-  "description": "Base de Estudos e Compêndios de Área e Mecanismos Fisiopatológicos integrando teoria editorial, banco de questões comentadas, casos clínicos e repetição espaçada.",
+  "description": "Base de Estudos e Compêndios de Área e Mecanismos Fisiopatológicos integrando teoria editorial, banco de questões comentadas e repetição espaçada.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

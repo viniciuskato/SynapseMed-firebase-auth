@@ -4,7 +4,6 @@ import {
   BookOpen,
   HelpCircle,
   Layers,
-  Activity,
   ShieldCheck,
   AlertCircle,
   Sparkles,
@@ -159,7 +158,7 @@ export const LoginView: React.FC = () => {
             </h1>
             <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed mb-8">
               Uma plataforma integrada de ensino médico que une compêndios editoriais aprofundados,
-              banco de questões comentadas alternativa por alternativa, casos clínicos interativos e algoritmo SRS SM-2.
+              banco de questões comentadas alternativa por alternativa e algoritmo SRS SM-2.
             </p>
           </div>
 
@@ -195,15 +194,6 @@ export const LoginView: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 shadow-xs">
-              <div className="flex items-center gap-2.5 text-teal-700 dark:text-teal-400 font-semibold text-sm mb-1.5">
-                <Activity className="w-4 h-4" />
-                <span>Casos Clínicos Reais</span>
-              </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 leading-normal">
-                Simulações sequenciais de tomada de decisão com pontuação diagnóstica acumulada.
-              </p>
-            </div>
           </div>
         </div>
 

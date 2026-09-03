@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   BookOpen,
   HelpCircle,
-  Stethoscope,
   Layers,
   BookMarked,
   Database,
@@ -64,11 +63,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: BookOpen,
     },
     {
-      id: 'clinical-cases',
-      label: 'Casos Clínicos',
-      icon: Stethoscope,
-    },
-    {
       id: 'questions',
       label: 'Provas e Questões',
       icon: HelpCircle,
@@ -108,8 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               activeView === item.id ||
               (item.id === 'questions' &&
                 (activeView === 'simulados' || activeView === 'simulado-session')) ||
-              (item.id === 'compendiums' && activeView === 'compendium-reader') ||
-              (item.id === 'clinical-cases' && activeView === 'clinical-case-detail');
+              (item.id === 'compendiums' && activeView === 'compendium-reader');
 
             return (
               <button

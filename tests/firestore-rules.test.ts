@@ -11,6 +11,7 @@
  * 7. Tentativa de acesso sem autenticação
  * 8. Tentativa de injeção de campos extras na criação do perfil
  * 9. Atualização permitida de displayName e photoURL pelo próprio usuário
+ * 10. Coleção removida /clinicalCases: nenhum acesso (autenticado ou não) é permitido
  */
 
 interface RequestAuth {
@@ -159,8 +160,8 @@ export class FirestoreRulesEvaluator {
       }
     }
 
-    // 2. Coleções Compartilhadas: disciplines, themes, compendiums, questions, clinicalCases
-    const sharedCollections = ['disciplines', 'themes', 'compendiums', 'questions', 'clinicalCases'];
+    // 2. Coleções Compartilhadas: disciplines, themes, compendiums, questions
+    const sharedCollections = ['disciplines', 'themes', 'compendiums', 'questions'];
     if (sharedCollections.includes(rootCollection)) {
       if (operation === 'get' || operation === 'list') {
         if (isAuthenticated) {
@@ -318,7 +319,7 @@ function runTests() {
 
   // Teste 5: Escrita em conteúdo editorial compartilhado
   {
-    const collectionsToTest = ['disciplines', 'themes', 'compendiums', 'questions', 'clinicalCases'];
+    const collectionsToTest = ['disciplines', 'themes', 'compendiums', 'questions'];
     for (const col of collectionsToTest) {
       const resCreate = evaluator.evaluate(
         `/${col}/item-1`,
@@ -438,6 +439,43 @@ function runTests() {
       }
     );
     assert('9. Atualização permitida de displayName e photoURL pelo titular', updateAllowed.allowed === true);
+  }
+
+  // Teste 10: Coleção /clinicalCases foi removida — nenhum acesso deve ser permitido
+  {
+    const authenticatedGet = evaluator.evaluate(
+      '/clinicalCases/case-1',
+      'get',
+      { auth: { uid: 'student-uid-123' }, time: simulatedTime }
+    );
+    assert(
+      '10a. Usuário autenticado lendo /clinicalCases/{id} deve ser NEGADO (coleção removida)',
+      authenticatedGet.allowed === false
+    );
+
+    const authenticatedCreate = evaluator.evaluate(
+      '/clinicalCases/case-1',
+      'create',
+      {
+        auth: { uid: 'student-uid-123' },
+        time: simulatedTime,
+        resource: { data: { title: 'Tentativa de recriar coleção removida' } },
+      }
+    );
+    assert(
+      '10b. Usuário autenticado escrevendo em /clinicalCases/{id} deve ser NEGADO (coleção removida)',
+      authenticatedCreate.allowed === false
+    );
+
+    const unauthenticatedGet = evaluator.evaluate(
+      '/clinicalCases/case-1',
+      'get',
+      { auth: null, time: simulatedTime }
+    );
+    assert(
+      '10c. Usuário não autenticado lendo /clinicalCases/{id} deve ser NEGADO',
+      unauthenticatedGet.allowed === false
+    );
   }
 
   console.log(`\n--- RESULTADO DOS TESTES: ${passedCount} aprovados, ${failedCount} reprovados ---\n`);

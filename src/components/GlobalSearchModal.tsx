@@ -4,23 +4,20 @@ import {
   X,
   BookOpen,
   HelpCircle,
-  Stethoscope,
   Layers,
   ArrowRight,
   ChevronRight,
 } from 'lucide-react';
-import { Compendium, Question, ClinicalCase, Flashcard } from '../types';
+import { Compendium, Question, Flashcard } from '../types';
 
 interface GlobalSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   compendiums: Compendium[];
   questions: Question[];
-  clinicalCases: ClinicalCase[];
   flashcards: Flashcard[];
   onNavigateToCompendium: (compendiumId: string, sectionId?: string) => void;
   onNavigateToQuestion: (questionId: string) => void;
-  onNavigateToCase: (caseId: string) => void;
   onNavigateToFlashcards: (filterTag?: string) => void;
 }
 
@@ -29,15 +26,13 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   onClose,
   compendiums,
   questions,
-  clinicalCases,
   flashcards,
   onNavigateToCompendium,
   onNavigateToQuestion,
-  onNavigateToCase,
   onNavigateToFlashcards,
 }) => {
   const [query, setQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'all' | 'compendium' | 'question' | 'case' | 'card'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'compendium' | 'question' | 'card'>('all');
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -54,7 +49,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   }, [isOpen, onClose]);
 
   const results = useMemo(() => {
-    if (!query.trim() || query.length < 2) return { compendiums: [], questions: [], cases: [], cards: [] };
+    if (!query.trim() || query.length < 2) return { compendiums: [], questions: [], cards: [] };
     const q = query.toLowerCase().trim();
 
     const matchedCompendiums = compendiums.filter(
@@ -72,14 +67,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
         ques.tags.some((t) => t.toLowerCase().includes(q))
     );
 
-    const matchedCases = clinicalCases.filter(
-      (cc) =>
-        cc.title.toLowerCase().includes(q) ||
-        cc.chiefComplaint.toLowerCase().includes(q) ||
-        cc.summary.toLowerCase().includes(q) ||
-        cc.finalDiscussion.toLowerCase().includes(q)
-    );
-
     const matchedCards = flashcards.filter(
       (fc) =>
         fc.front.toLowerCase().includes(q) ||
@@ -91,17 +78,15 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     return {
       compendiums: matchedCompendiums,
       questions: matchedQuestions,
-      cases: matchedCases,
       cards: matchedCards,
     };
-  }, [query, compendiums, questions, clinicalCases, flashcards]);
+  }, [query, compendiums, questions, flashcards]);
 
   if (!isOpen) return null;
 
   const totalResults =
     results.compendiums.length +
     results.questions.length +
-    results.cases.length +
     results.cards.length;
 
   return (
@@ -170,17 +155,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           >
             <HelpCircle className="w-3.5 h-3.5" />
             <span>Questões ({results.questions.length})</span>
-          </button>
-          <button
-            onClick={() => setActiveFilter('case')}
-            className={`px-2.5 py-1 rounded-lg font-medium flex items-center gap-1.5 transition-colors ${
-              activeFilter === 'case'
-                ? 'bg-teal-700 text-white'
-                : 'text-slate-600 hover:bg-slate-200/70'
-            }`}
-          >
-            <Stethoscope className="w-3.5 h-3.5" />
-            <span>Casos Clínicos ({results.cases.length})</span>
           </button>
           <button
             onClick={() => setActiveFilter('card')}
@@ -289,39 +263,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 </div>
               )}
 
-              {/* Clinical Cases Match */}
-              {(activeFilter === 'all' || activeFilter === 'case') && results.cases.length > 0 && (
-                <div>
-                  <div className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1.5">
-                    <Stethoscope className="w-3.5 h-3.5" />
-                    <span>Casos Clínicos Interativos</span>
-                  </div>
-                  <div className="space-y-1.5 mt-1">
-                    {results.cases.map((cItem) => (
-                      <button
-                        key={cItem.id}
-                        onClick={() => {
-                          onNavigateToCase(cItem.id);
-                          onClose();
-                        }}
-                        className="w-full text-left p-2.5 rounded-xl border border-slate-200/80 hover:border-purple-300 hover:bg-purple-50/50 transition-all flex items-center justify-between group"
-                      >
-                        <div className="space-y-0.5">
-                          <h4 className="text-xs font-bold text-slate-900 group-hover:text-purple-800">
-                            {cItem.title}
-                          </h4>
-                          <p className="text-[11px] text-slate-500 italic line-clamp-1">{cItem.chiefComplaint}</p>
-                          <span className="text-[10px] text-purple-600 font-medium">
-                            {cItem.steps.length} etapas diagnósticas • {cItem.estimatedMinutes} min
-                          </span>
-                        </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 shrink-0" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Flashcards Match */}
               {(activeFilter === 'all' || activeFilter === 'card') && results.cards.length > 0 && (
                 <div>
@@ -367,7 +308,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
         {/* Footer info */}
         <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
           <span>Pressione <kbd className="px-1 py-0.5 bg-white border border-slate-300 rounded font-mono">ESC</kbd> para fechar</span>
-          <span className="text-teal-700 font-medium">Pesquisa unificada em 4 bancos de dados</span>
+          <span className="text-teal-700 font-medium">Pesquisa unificada em 3 bancos de dados</span>
         </div>
       </div>
     </div>

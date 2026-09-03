@@ -3,7 +3,6 @@ import {
   Theme,
   Compendium,
   Question,
-  ClinicalCase,
   Flashcard,
   QuestionAnswerRecord,
   SimuladoSessionData,
@@ -19,7 +18,6 @@ import {
   INITIAL_THEMES,
   INITIAL_COMPENDIUMS,
   INITIAL_QUESTIONS,
-  INITIAL_CLINICAL_CASES,
   INITIAL_FLASHCARDS,
 } from '../data/mockData';
 import { calculateNextSRS, createInitialSRS } from './srsAlgorithm';
@@ -29,7 +27,6 @@ export const STORAGE_KEYS = {
   THEMES: 'synapse_themes_v1',
   COMPENDIUMS: 'synapse_compendiums_v1',
   QUESTIONS: 'synapse_questions_v1',
-  CLINICAL_CASES: 'synapse_clinical_cases_v1',
   FLASHCARDS: 'synapse_flashcards_v1',
   ANSWERS: 'synapse_answers_v1',
   READING_PROGRESS: 'synapse_reading_progress_v1',
@@ -144,23 +141,6 @@ export const StorageService = {
   deleteQuestion(id: string): void {
     const all = this.getQuestions().filter((q) => q.id !== id);
     this.saveQuestions(all);
-  },
-
-  getClinicalCases(): ClinicalCase[] {
-    return getItem<ClinicalCase[]>(STORAGE_KEYS.CLINICAL_CASES, INITIAL_CLINICAL_CASES);
-  },
-  saveClinicalCases(cases: ClinicalCase[]): void {
-    setItem(STORAGE_KEYS.CLINICAL_CASES, cases);
-  },
-  saveClinicalCase(cCase: ClinicalCase): void {
-    const all = this.getClinicalCases();
-    const idx = all.findIndex((c) => c.id === cCase.id);
-    if (idx >= 0) {
-      all[idx] = cCase;
-    } else {
-      all.unshift(cCase);
-    }
-    this.saveClinicalCases(all);
   },
 
   // --- Flashcards (Isolados por UID, com preservação dos cards padrão para cada novo usuário) ---
@@ -322,16 +302,14 @@ export const StorageService = {
     questions: string[];
     compendiums: string[];
     flashcards: string[];
-    clinicalCases: string[];
   } {
     return getItem(getUserKey(STORAGE_KEYS.BOOKMARKS), {
       questions: [],
       compendiums: [],
       flashcards: [],
-      clinicalCases: [],
     });
   },
-  toggleBookmark(type: 'questions' | 'compendiums' | 'flashcards' | 'clinicalCases', id: string): boolean {
+  toggleBookmark(type: 'questions' | 'compendiums' | 'flashcards', id: string): boolean {
     const bookmarks = this.getBookmarks();
     const list = bookmarks[type];
     const idx = list.indexOf(id);
@@ -652,7 +630,6 @@ export const StorageService = {
       themes: this.getThemes(),
       compendiums: this.getCompendiums(),
       questions: this.getQuestions(),
-      clinicalCases: this.getClinicalCases(),
       flashcards: this.getFlashcards(),
       exportedAt: new Date().toISOString(),
       version: '1.0.0',
@@ -667,7 +644,6 @@ export const StorageService = {
       if (data.themes) setItem(STORAGE_KEYS.THEMES, data.themes);
       if (data.compendiums) setItem(STORAGE_KEYS.COMPENDIUMS, data.compendiums);
       if (data.questions) setItem(STORAGE_KEYS.QUESTIONS, data.questions);
-      if (data.clinicalCases) setItem(STORAGE_KEYS.CLINICAL_CASES, data.clinicalCases);
       if (data.flashcards) this.saveFlashcards(data.flashcards);
       return true;
     } catch (e) {

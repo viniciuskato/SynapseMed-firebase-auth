@@ -122,42 +122,6 @@ export interface Question {
   isPremiumOnly?: boolean;
 }
 
-export interface ClinicalCaseStep {
-  id: string;
-  stage: 'anamnese' | 'exame_fisico' | 'exames_complementares' | 'diagnostico' | 'conduta';
-  stageTitle: string;
-  clinicalData: string;
-  vitalsAndLabs?: Record<string, string>;
-  question: {
-    prompt: string;
-    options: Array<{
-      id: string;
-      text: string;
-      isBestChoice: boolean;
-      score: number;
-      clinicalFeedback: string;
-    }>;
-  };
-}
-
-export interface ClinicalCase {
-  id: string;
-  disciplineId: string;
-  themeId: string;
-  compendiumRefId: string;
-  title: string;
-  patientAge: number;
-  patientGender: 'M' | 'F';
-  chiefComplaint: string;
-  difficulty: DifficultyLevel;
-  estimatedMinutes: number;
-  summary: string;
-  steps: ClinicalCaseStep[];
-  finalDiscussion: string;
-  clinicalTakeaways: string[];
-  isPremiumOnly?: boolean;
-}
-
 export interface FlashcardSRS {
   intervalDays: number;
   repetitionCount: number;
@@ -193,8 +157,6 @@ export type AppView =
   | 'compendium_reader'
   | 'questions'
   | 'simulado_active'
-  | 'cases'
-  | 'case_detail'
   | 'flashcards'
   | 'flashcard_reviewer'
   | 'caderno_erros'

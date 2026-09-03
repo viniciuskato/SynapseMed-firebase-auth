@@ -23,7 +23,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
-import { Discipline, Theme, Question, Compendium, Flashcard, ClinicalCase, CompendiumSection } from '../../types';
+import { Discipline, Theme, Question, Compendium, Flashcard, CompendiumSection } from '../../types';
 import { StorageService } from '../../services/storage';
 
 interface AdminCMSViewProps {
@@ -32,7 +32,6 @@ interface AdminCMSViewProps {
   questions: Question[];
   compendiums: Compendium[];
   flashcards: Flashcard[];
-  clinicalCases: ClinicalCase[];
   onRefreshData: () => void;
 }
 
@@ -42,7 +41,6 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
   questions,
   compendiums,
   flashcards,
-  clinicalCases,
   onRefreshData,
 }) => {
   const [activeTab, setActiveTab] = useState<'compendiums' | 'questions' | 'flashcards' | 'database'>('compendiums');
