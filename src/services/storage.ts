@@ -12,6 +12,7 @@ import {
   ErrorLogItem,
   ThemeMode,
   MigrationSummary,
+  UserFeedback,
 } from '../types';
 import {
   INITIAL_DISCIPLINES,
@@ -39,6 +40,7 @@ export const STORAGE_KEYS = {
   ERROR_LOG: 'synapse_error_log_v1',
   HIGHLIGHTS: 'synapse_compendium_highlights_v1',
   THEME: 'synapse_theme_v1',
+  FEEDBACK: 'synapse_feedback_v1',
 };
 
 // Current active user ID for isolated storage
@@ -365,6 +367,16 @@ export const StorageService = {
     list.push({ text, color, timestamp: new Date().toISOString() });
     highlights[compendiumId] = list;
     setItem(getUserKey(STORAGE_KEYS.HIGHLIGHTS), highlights);
+  },
+
+  // --- Feedback dos Participantes (Isolado por UID no namespace do usuário) ---
+  getFeedbacks(): UserFeedback[] {
+    return getItem<UserFeedback[]>(getUserKey(STORAGE_KEYS.FEEDBACK), []);
+  },
+  saveFeedback(feedback: UserFeedback): void {
+    const list = this.getFeedbacks();
+    list.unshift(feedback);
+    setItem(getUserKey(STORAGE_KEYS.FEEDBACK), list);
   },
 
   // --- Simulados Sessions (Isolado por UID) ---

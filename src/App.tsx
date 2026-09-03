@@ -33,6 +33,8 @@ import { LoadingScreen } from './components/common/LoadingScreen';
 import { LoginView } from './components/auth/LoginView';
 import { EmailVerificationScreen } from './components/auth/EmailVerificationScreen';
 import { MigrateDataModal } from './components/auth/MigrateDataModal';
+import { AwaitingApprovalView } from './components/auth/AwaitingApprovalView';
+import { FeedbackModal } from './components/feedback/FeedbackModal';
 
 // Header & Sidebar
 import { Header } from './components/Header';
@@ -76,6 +78,7 @@ function AuthenticatedApp() {
   // Modals
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
   const [isCreateSimuladoOpen, setIsCreateSimuladoOpen] = useState(false);
   const [isCreateFlashcardOpen, setIsCreateFlashcardOpen] = useState(false);
 
@@ -158,6 +161,11 @@ function AuthenticatedApp() {
     return <EmailVerificationScreen />;
   }
 
+  // Acesso aguardando aprovação pela moderação (fluxo privado)
+  if (profile?.status === 'pending') {
+    return <AwaitingApprovalView />;
+  }
+
   const isAdmin = profile?.role === 'admin';
 
   // Calculate badges
@@ -224,7 +232,7 @@ function AuthenticatedApp() {
   const activeClinicalCase = clinicalCases.find((c) => c.id === selectedCaseId) || clinicalCases[0];
 
   return (
-    <div className="min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-800 dark:text-slate-100 font-sans flex flex-col selection:bg-teal-500 selection:text-white antialiased transition-colors max-w-full overflow-x-hidden">
+    <div className="min-h-screen bg-[#F6F7F9] dark:bg-[#0B1220] text-[#172033] dark:text-[#E5E7EB] font-sans flex flex-col selection:bg-teal-500 selection:text-white antialiased transition-colors max-w-full overflow-x-hidden">
       {/* Top Application Header */}
       <Header
         currentPlan={plan}
@@ -240,6 +248,7 @@ function AuthenticatedApp() {
         }}
         theme={theme}
         onToggleTheme={handleToggleTheme}
+        onOpenFeedback={() => setIsFeedbackOpen(true)}
       />
 
       {/* Main Body */}
@@ -275,14 +284,13 @@ function AuthenticatedApp() {
 
                 <nav className="space-y-1 text-xs">
                   {[
-                    { id: 'dashboard', label: 'Painel & Diagnóstico', icon: LayoutDashboard },
-                    { id: 'compendiums', label: 'Compêndios Teóricos', icon: BookOpen },
-                    { id: 'questions', label: 'Banco de Questões', icon: HelpCircle },
+                    { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
+                    { id: 'compendiums', label: 'Biblioteca Médica', icon: BookOpen },
                     { id: 'clinical-cases', label: 'Casos Clínicos', icon: Stethoscope },
-                    { id: 'flashcards', label: 'Flashcards SRS', icon: Layers },
-                    { id: 'simulados', label: 'Simulados & Listas', icon: Timer },
+                    { id: 'questions', label: 'Provas e Questões', icon: HelpCircle },
+                    { id: 'flashcards', label: 'Revisão e Flashcards', icon: Layers },
                     { id: 'errors', label: 'Caderno de Erros', icon: BookMarked },
-                    ...(isAdmin ? [{ id: 'admin', label: 'Painel Admin CMS', icon: Settings }] : []),
+                    ...(isAdmin ? [{ id: 'admin', label: 'Área Editorial', icon: Settings }] : []),
                   ].map((item) => {
                     const Icon = item.icon;
                     const isActive = activeView === item.id;
@@ -311,23 +319,29 @@ function AuthenticatedApp() {
         )}
 
         {/* Main Content Area */}
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 min-w-0 max-w-full overflow-x-hidden overflow-y-auto">
-          {/* Mobile View Switcher Button */}
-          <div className="md:hidden mb-4 flex items-center justify-between bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800">
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200 cursor-pointer"
-            >
-              <Menu className="w-4 h-4 text-teal-700 dark:text-teal-400" />
-              <span>Navegar no Ambiente</span>
-            </button>
-            <button
-              onClick={() => setIsSearchOpen(true)}
-              className="p-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 cursor-pointer"
-            >
-              <Search className="w-4 h-4" />
-            </button>
-          </div>
+        <main
+          className={`flex-1 min-w-0 max-w-full overflow-x-hidden overflow-y-auto ${
+            activeView === 'compendium-reader' ? 'p-0' : 'p-3 sm:p-6 lg:p-8'
+          }`}
+        >
+          {/* Mobile View Switcher Button (hidden in reader view) */}
+          {activeView !== 'compendium-reader' && (
+            <div className="md:hidden mb-4 flex items-center justify-between bg-white dark:bg-[#111827] p-3 rounded-xl border border-[#E2E8F0] dark:border-[#263244]">
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="flex items-center gap-2 text-xs font-semibold text-[#172033] dark:text-[#E5E7EB] cursor-pointer"
+              >
+                <Menu className="w-4 h-4 text-[#0F766E] dark:text-[#14B8A6]" />
+                <span>Navegar no Ambiente</span>
+              </button>
+              <button
+                onClick={() => setIsSearchOpen(true)}
+                className="p-1.5 rounded-lg bg-slate-100 dark:bg-[#182235] text-[#64748B] dark:text-[#94A3B8] cursor-pointer"
+              >
+                <Search className="w-4 h-4" />
+              </button>
+            </div>
+          )}
 
           {/* View Router */}
           {activeView === 'dashboard' && (
@@ -566,6 +580,11 @@ function AuthenticatedApp() {
         onFlashcardCreated={() => {
           refreshData();
         }}
+      />
+
+      <FeedbackModal
+        isOpen={isFeedbackOpen}
+        onClose={() => setIsFeedbackOpen(false)}
       />
 
       {/* Modal de Migração de Dados Pessoais */}

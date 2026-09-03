@@ -52,12 +52,25 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const [errorReason, setErrorReason] = useState<QuestionAnswerRecord['errorReason']>(
     initialAnswer?.errorReason || 'lacuna_teorica'
   );
+  const [userNote, setUserNote] = useState<string>(initialAnswer?.userNotes || '');
+  const [isNoteSaved, setIsNoteSaved] = useState(false);
   const [showErrorTagger, setShowErrorTagger] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleSaveNote = () => {
+    const existing = StorageService.getAnswers()[question.id];
+    if (existing) {
+      existing.userNotes = userNote;
+      StorageService.recordAnswer(existing);
+      setIsNoteSaved(true);
+      showToast('Anotação pessoal vinculada ao erro salva com sucesso!');
+      setTimeout(() => setIsNoteSaved(false), 2000);
+    }
   };
 
   const handleSelectOption = (letter: 'A' | 'B' | 'C' | 'D' | 'E') => {
@@ -310,69 +323,92 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
       {/* --- THE INTEGRATED ACTION BANNER (O DIFERENCIAL CONECTADO) --- */}
       {isSubmitted && !isExamMode && (
-        <div className="mt-6 pt-6 border-t border-slate-200 space-y-4">
+        <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800 space-y-4">
           {/* Status summary */}
-          <div
-            className={`p-4 rounded-2xl flex items-start gap-3 ${
-              isCorrect
-                ? 'bg-emerald-50 border border-emerald-200 text-emerald-900'
-                : 'bg-rose-50 border border-rose-200 text-rose-900'
-            }`}
-          >
-            {isCorrect ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-            ) : (
-              <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-            )}
-            <div className="flex-1 space-y-1">
-              <span className="text-xs font-bold block">
-                {isCorrect
-                  ? 'Parabéns, você acertou a questão!'
-                  : 'Você errou esta questão. Conecte o estudo para fixar a lacuna:'}
-              </span>
-              <p className="text-xs leading-relaxed">{question.generalCommentary}</p>
+          {isCorrect ? (
+            <div className="p-4 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-emerald-950 dark:text-emerald-200 flex items-start gap-3">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1">
+                <span className="text-xs font-bold block text-emerald-900 dark:text-emerald-300 uppercase tracking-wider text-[11px]">
+                  Confirmação Clínica · Resposta Correta
+                </span>
+                <p className="text-xs leading-relaxed text-emerald-900/90 dark:text-emerald-200/90">
+                  {question.generalCommentary}
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="p-4 rounded-2xl bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-950 dark:text-rose-200 flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
+              <div className="flex-1 space-y-1.5">
+                <span className="text-xs font-bold block text-rose-900 dark:text-rose-300 uppercase tracking-wider text-[11px]">
+                  Mecanismo Negligenciado ou Distrator Identificado
+                </span>
+                <p className="text-xs leading-relaxed text-rose-900/90 dark:text-rose-200/90">
+                  {question.generalCommentary}
+                </p>
+                <div className="p-2.5 rounded-xl bg-rose-100/60 dark:bg-rose-900/40 border border-rose-200 dark:border-rose-800 text-[11px] text-rose-900 dark:text-rose-200">
+                  <strong>Ponto-chave negligenciado:</strong> {question.highYieldSummary}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* High-Yield Summary Pearl */}
-          <div className="p-3.5 rounded-2xl bg-teal-50/70 border border-teal-200 text-xs text-teal-950">
-            <span className="font-bold block mb-1 flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+          <div className="p-3.5 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/60 text-xs text-teal-950 dark:text-teal-200">
+            <span className="font-bold block mb-1 flex items-center gap-1.5 text-teal-900 dark:text-teal-300">
+              <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
               Pérola High-Yield (Resumo Prático):
             </span>
-            <p className="leading-relaxed font-medium">{question.highYieldSummary}</p>
+            <p className="leading-relaxed font-medium text-teal-950/90 dark:text-teal-200/90">{question.highYieldSummary}</p>
           </div>
 
-          {/* Connected Action Buttons (The Core Requirement) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-            {/* 1. Open Compendium */}
+          {/* Próximos Passos Claros (Fisiopatologia, Caderno de Erros, Flashcard) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
+            {/* 1. Revisar Fisiopatologia */}
             <button
               onClick={() =>
                 onOpenCompendium(question.compendiumRefId, question.compendiumSectionId)
               }
-              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors"
+              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
             >
               <BookOpen className="w-4 h-4" />
-              <span>Revisar Seção no Compêndio</span>
+              <span>Revisar Fisiopatologia</span>
             </button>
 
-            {/* 2. Add to Spaced Repetition (SRS) Flashcards */}
+            {/* 2. Adicionar / Mapear no Caderno de Erros */}
+            <button
+              onClick={() => {
+                const existing = StorageService.getAnswers()[question.id];
+                if (existing) {
+                  existing.errorReason = errorReason;
+                  StorageService.recordAnswer(existing);
+                  showToast('Questão catalogada no Caderno de Erros!');
+                }
+              }}
+              className="p-3 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+            >
+              <Tag className="w-4 h-4 text-rose-200" />
+              <span>{isIncorrect ? 'Catalogar no Caderno de Erros' : 'Salvar no Caderno'}</span>
+            </button>
+
+            {/* 3. Gerar Flashcard */}
             <button
               onClick={handleAddFlashcard}
-              className="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors"
+              className="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
             >
               <Layers className="w-4 h-4 text-teal-400" />
-              <span>Adicionar Flashcard ao SRS</span>
+              <span>Gerar Flashcard SRS</span>
             </button>
           </div>
 
-          {/* Error Reason Classifier (if incorrect) */}
+          {/* Anotação Pessoal Vinculada ao Erro */}
           {isIncorrect && (
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-bold text-slate-700 flex items-center gap-1.5">
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Tag className="w-3.5 h-3.5 text-rose-500" />
-                  Mapear Motivo do Erro no Caderno:
+                  Mapear Motivo do Erro:
                 </span>
                 <span className="text-[10px] text-slate-400">Classificação pedagógica</span>
               </div>
@@ -386,15 +422,45 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   <button
                     key={item.id}
                     onClick={() => handleUpdateErrorReason(item.id as any)}
-                    className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold border transition-all ${
+                    className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
                       errorReason === item.id
-                        ? 'bg-rose-100 text-rose-900 border-rose-300'
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        ? 'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800'
+                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
                     }`}
                   >
                     {item.label}
                   </button>
                 ))}
+              </div>
+
+              {/* Personal notes textarea */}
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-700/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                    Anotação Pessoal Vinculada ao Erro:
+                  </label>
+                  {isNoteSaved && (
+                    <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Salvo!
+                    </span>
+                  )}
+                </div>
+                <textarea
+                  value={userNote}
+                  onChange={(e) => setUserNote(e.target.value)}
+                  placeholder="Registre o que você aprendeu com este erro, a pegadinha da banca ou uma correlação rápida..."
+                  rows={2}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+                />
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleSaveNote}
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-semibold transition-colors cursor-pointer shadow-xs"
+                  >
+                    Salvar Anotação Pessoal
+                  </button>
+                </div>
               </div>
             </div>
           )}

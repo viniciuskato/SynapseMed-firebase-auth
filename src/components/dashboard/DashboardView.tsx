@@ -6,18 +6,25 @@ import {
   HelpCircle,
   Stethoscope,
   CheckCircle2,
-  AlertCircle,
+  AlertTriangle,
   Sparkles,
   ArrowRight,
   TrendingUp,
   Brain,
-  Award,
-  Timer,
+  Clock,
   BookMarked,
+  Compass,
+  Activity,
+  UserCheck,
+  Calendar,
+  RotateCcw,
+  Target,
+  ChevronRight,
 } from 'lucide-react';
 import { Discipline, Theme, Question, Compendium, Flashcard, ClinicalCase } from '../../types';
 import { StorageService } from '../../services/storage';
 import { isCardDueToday } from '../../services/srsAlgorithm';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface DashboardViewProps {
   disciplines: Discipline[];
@@ -46,110 +53,101 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenCase,
   onStartSRS,
 }) => {
+  const { user, profile } = useAuth();
+  const userName = profile?.displayName || user?.displayName || 'Colega';
+
+  // Persistence data (isolado por UID)
   const stats = StorageService.getStats();
   const answers = StorageService.getAnswers();
   const readingProgress = StorageService.getReadingProgress();
-  const bookmarks = StorageService.getBookmarks();
+  const errorLogs = StorageService.getErrorLogs();
 
   const answersArray = Object.values(answers);
   const totalAnswered = answersArray.length;
   const totalCorrect = answersArray.filter((a) => a.isCorrect).length;
   const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
 
+  // Flashcards programados para hoje
   const dueCards = useMemo(() => {
     return flashcards.filter((fc) => isCardDueToday(fc));
   }, [flashcards]);
 
-  const mistakesList = useMemo(() => {
-    return answersArray.filter((a) => !a.isCorrect);
+  // "Continuar de onde parou" (Real User Progress)
+  const continueReading = useMemo(() => {
+    const startedCompendiums = compendiums
+      .map((comp) => {
+        const prog = readingProgress[comp.id];
+        return {
+          compendium: comp,
+          percent: prog?.percent || 0,
+          readSectionsCount: prog?.readSectionIds?.length || 0,
+          lastSectionId: prog?.readSectionIds?.slice(-1)[0] || comp.sections[0]?.id,
+        };
+      })
+      .filter((item) => item.percent > 0 && item.percent < 100)
+      .sort((a, b) => b.percent - a.percent);
+
+    return startedCompendiums[0] || null;
+  }, [compendiums, readingProgress]);
+
+  // Materiais estudados recentemente
+  const recentlyStudied = useMemo(() => {
+    return compendiums
+      .filter((comp) => (readingProgress[comp.id]?.percent || 0) > 0)
+      .slice(0, 3);
+  }, [compendiums, readingProgress]);
+
+  // Materiais novos ou atualizados (ordenados por lastUpdated)
+  const updatedMaterials = useMemo(() => {
+    return [...compendiums]
+      .sort((a, b) => new Date(b.lastUpdated).getTime() - new Date(a.lastUpdated).getTime())
+      .slice(0, 4);
+  }, [compendiums]);
+
+  // Lacunas identificadas a partir dos erros reais
+  const recentMistakes = useMemo(() => {
+    return answersArray
+      .filter((a) => !a.isCorrect)
+      .slice(-3)
+      .reverse();
   }, [answersArray]);
 
-  // Discipline Performance Breakdown
-  const disciplinePerformance = useMemo(() => {
-    return disciplines.map((disc) => {
-      const discQuestions = questions.filter((q) => q.disciplineId === disc.id);
-      const discAnswers = answersArray.filter((a) => {
-        const q = questions.find((item) => item.id === a.questionId);
-        return q?.disciplineId === disc.id;
-      });
-
-      const answered = discAnswers.length;
-      const correct = discAnswers.filter((a) => a.isCorrect).length;
-      const acc = answered > 0 ? Math.round((correct / answered) * 100) : 0;
-
-      return {
-        discipline: disc,
-        totalQuestions: discQuestions.length,
-        answered,
-        correct,
-        accuracy: acc,
-      };
-    });
-  }, [disciplines, questions, answersArray]);
-
-  // Smart Synapse Recommendation
-  const smartRecommendation = useMemo(() => {
-    if (mistakesList.length > 0) {
-      const lastMistake = mistakesList[mistakesList.length - 1];
-      const q = questions.find((item) => item.id === lastMistake.questionId);
-      if (q) {
-        const comp = compendiums.find((c) => c.id === q.compendiumRefId);
-        const th = themes.find((t) => t.id === q.themeId);
-        return {
-          type: 'mistake_remediation',
-          title: `Feche sua lacuna em ${th?.name || 'Clínica Médica'}`,
-          description: `Você cometeu um erro recente na questão sobre "${q.questionStem.slice(0, 60)}...". Recomendamos revisar o compêndio teórico e fixar os conceitos.`,
-          compendiumId: q.compendiumRefId,
-          sectionId: q.compendiumSectionId,
-          themeName: th?.name,
-          compendiumTitle: comp?.title || 'Compêndio Teórico',
-        };
-      }
-    }
-
-    // Default recommendation if no mistakes
-    const highYieldComp = compendiums[0];
-    return {
-      type: 'explore',
-      title: 'Destaque de Alta Relevância (High-Yield)',
-      description: `Explore o compêndio "${highYieldComp?.title}" para sedimentar a base fisiopatológica e os critérios diagnósticos mais cobrados.`,
-      compendiumId: highYieldComp?.id,
-      compendiumTitle: highYieldComp?.title || 'Compêndio Teórico',
-    };
-  }, [mistakesList, questions, compendiums, themes]);
+  // Meta diária de estudos
+  const dailyTarget = 15;
+  const todayStr = new Date().toISOString().split('T')[0];
+  const questionsAnsweredToday = answersArray.filter((a) => a.timestamp?.startsWith(todayStr)).length;
+  const currentDailyActivity = questionsAnsweredToday + (stats.cardsReviewedToday || 0);
+  const dailyProgressPercent = Math.min(100, Math.round((currentDailyActivity / dailyTarget) * 100));
 
   return (
-    <div className="space-y-6">
-      {/* Welcome & Study Momentum Banner */}
-      <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-cyan-950 rounded-3xl p-6 sm:p-8 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-teal-800/30">
-        <div className="max-w-2xl space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-semibold border border-teal-400/30">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Ecossistema de Alta Performance Médica</span>
+    <div className="space-y-8 max-w-6xl mx-auto">
+      {/* ── 1. Saudação personalizada & Apresentação da Plataforma ── */}
+      <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-colors">
+        <div className="space-y-2 max-w-2xl">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 text-teal-400 text-xs font-semibold border border-slate-700">
+            <span className="w-2 h-2 rounded-full bg-teal-400" />
+            <span>Beta Privada · Ambiente de Estudos</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Olá, Doutor(a)! Pronto para aprofundar seus estudos hoje?
+          <h1 className="text-2xl sm:text-3xl font-serif-reading font-bold tracking-tight text-white">
+            Olá, {userName}! Bem-vindo ao SynapseMed.
           </h1>
           <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-            Seu circuito de retenção está ativo. Questões comentadas, leitura de mecanismos teóricos e repetição espaçada operam de forma integrada para maximizar sua aprovação.
+            Seu acervo médico completo está liberado. Acompanhe seu progresso de leitura, resolva questões comentadas e mantenha o circuito de repetição espaçada em dia.
           </p>
         </div>
 
-        {/* Quick CTA */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full md:w-auto">
+        {/* Ações rápidas principais */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0 w-full md:w-auto">
           <button
-            onClick={onStartSRS}
-            className="px-5 py-3 rounded-2xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+            onClick={() => onSelectView('compendiums')}
+            className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            <Layers className="w-4 h-4 fill-slate-950" />
-            <span>
-              {dueCards.length > 0 ? `Revisar ${dueCards.length} Flashcards` : 'Revisar Flashcards'}
-            </span>
+            <BookOpen className="w-4 h-4" />
+            <span>Biblioteca Médica</span>
           </button>
-
           <button
             onClick={() => onSelectView('questions')}
-            className="px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+            className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <HelpCircle className="w-4 h-4" />
             <span>Resolver Questões</span>
@@ -157,223 +155,341 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Primary KPI Metrics */}
+      {/* ── 2. "Continuar de onde parou" / Estado Inicial ─────────── */}
+      {continueReading ? (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-teal-200/80 dark:border-teal-900/50 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-colors">
+          <div className="space-y-1.5 flex-1 min-w-0">
+            <div className="flex items-center gap-2 text-xs font-bold text-teal-700 dark:text-teal-400">
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="uppercase tracking-wider text-[10px]">Continuar de onde parou</span>
+              <span className="text-slate-300 dark:text-slate-700">|</span>
+              <span className="font-normal text-slate-500 dark:text-slate-400">
+                {continueReading.percent}% concluído
+              </span>
+            </div>
+            <h3 className="text-base sm:text-lg font-serif-reading font-bold text-slate-900 dark:text-slate-100 truncate">
+              {continueReading.compendium.title}
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
+              {continueReading.compendium.subtitle}
+            </p>
+          </div>
+
+          <button
+            onClick={() =>
+              onOpenCompendium(
+                continueReading.compendium.id,
+                continueReading.lastSectionId
+              )
+            }
+            className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 shrink-0 cursor-pointer"
+          >
+            <span>Retomar Leitura</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ) : totalAnswered === 0 && recentlyStudied.length === 0 ? (
+        /* Estado inicial claro para usuários sem histórico */
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs text-center sm:text-left flex flex-col sm:flex-row items-center justify-between gap-5 transition-colors">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400 flex items-center justify-center border border-teal-200 dark:border-teal-800 shrink-0">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <div className="space-y-0.5">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100">
+                Pronto para iniciar sua trilha de estudos?
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xl">
+                Você ainda não registrou leituras ou questões neste perfil. Escolha uma especialidade abaixo ou resolva sua primeira questão comentada para ativar suas estatísticas de desempenho.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => onSelectView('compendiums')}
+            className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-teal-600 text-white text-xs font-semibold hover:bg-slate-800 transition-colors shrink-0 cursor-pointer"
+          >
+            Abrir Biblioteca
+          </button>
+        </div>
+      ) : null}
+
+      {/* ── 3. Painel de Métricas e Desempenho Real ────────────────── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Streak */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex items-center gap-4 transition-colors">
-          <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200 dark:border-amber-800/50 shrink-0">
-            <Flame className="w-6 h-6 fill-amber-500" />
+        {/* Ofensiva */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs transition-colors space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ofensiva</span>
+            <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
           </div>
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-              Ofensiva
-            </span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100">
-                {stats.streakDays}
-              </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">dias seguidos</span>
-            </div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            {stats.streakDays} <span className="text-xs font-normal text-slate-400">dias seguidos</span>
           </div>
-        </div>
-
-        {/* Accuracy */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex items-center gap-4 transition-colors">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200 dark:border-emerald-800/50 shrink-0">
-            <CheckCircle2 className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-              Acurácia Geral
-            </span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 dark:text-slate-100">{accuracy}%</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
-                ({totalCorrect}/{totalAnswered})
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Due Cards */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex items-center gap-4 transition-colors">
-          <div className="w-12 h-12 rounded-2xl bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-400 flex items-center justify-center border border-teal-200 dark:border-teal-800/50 shrink-0">
-            <Brain className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-              SRS Pendente
-            </span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl sm:text-2xl font-black text-teal-800 dark:text-teal-400">
-                {dueCards.length}
-              </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">cards hoje</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Error Notebook */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex items-center gap-4 transition-colors">
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-200 dark:border-rose-800/50 shrink-0">
-            <BookMarked className="w-6 h-6" />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">
-              Caderno de Erros
-            </span>
-            <div className="flex items-baseline gap-1">
-              <span className="text-xl sm:text-2xl font-black text-rose-700 dark:text-rose-400">
-                {mistakesList.length}
-              </span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">a revisar</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* The Synapse Diagnostic & Recommendation Loop */}
-      <div className="bg-gradient-to-br from-teal-900 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-md relative overflow-hidden border border-teal-800/40">
-        <div className="relative z-10 space-y-3">
-          <div className="flex items-center gap-2 text-teal-300 text-xs font-bold uppercase tracking-wider">
-            <Sparkles className="w-4 h-4 text-teal-400" />
-            <span>Recomendação de Estudo Inteligente</span>
-          </div>
-
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-            {smartRecommendation.title}
-          </h2>
-
-          <p className="text-slate-300 text-xs sm:text-sm max-w-2xl leading-relaxed">
-            {smartRecommendation.description}
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            {stats.streakDays > 0 ? 'Ritmo de estudos mantido' : 'Inicie sua sequência hoje'}
           </p>
+        </div>
 
-          <div className="pt-2 flex flex-wrap items-center gap-3">
-            {smartRecommendation.compendiumId && (
-              <button
-                onClick={() =>
-                  onOpenCompendium(
-                    smartRecommendation.compendiumId!,
-                    smartRecommendation.sectionId
-                  )
-                }
-                className="px-5 py-2.5 rounded-xl bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <BookOpen className="w-4 h-4" />
-                <span>Abrir Compêndio: {smartRecommendation.compendiumTitle}</span>
-              </button>
-            )}
+        {/* Flashcards SRS de Hoje */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs transition-colors space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Revisões Hoje</span>
+            <Brain className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+          </div>
+          <div className="text-2xl font-bold text-teal-700 dark:text-teal-400">
+            {dueCards.length} <span className="text-xs font-normal text-slate-400">cards pendentes</span>
+          </div>
+          <button
+            onClick={onStartSRS}
+            className="text-[11px] font-semibold text-teal-700 dark:text-teal-400 hover:underline cursor-pointer"
+          >
+            {dueCards.length > 0 ? 'Revisar agora →' : 'Em dia ✓'}
+          </button>
+        </div>
 
-            {mistakesList.length > 0 && (
-              <button
-                onClick={() => onSelectView('errors')}
-                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs border border-white/20 transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <BookMarked className="w-4 h-4 text-rose-300" />
-                <span>Ver Todos os Erros</span>
-              </button>
-            )}
+        {/* Desempenho Recente */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs transition-colors space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Acurácia Geral</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            {totalAnswered > 0 ? `${accuracy}%` : '—'}
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            {totalAnswered > 0 ? `${totalCorrect} acertos de ${totalAnswered}` : 'Nenhuma questão respondida'}
+          </p>
+        </div>
+
+        {/* Metas Diárias */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs transition-colors space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Meta Diária</span>
+            <Target className="w-4 h-4 text-purple-600" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+            {currentDailyActivity}/{dailyTarget} <span className="text-xs font-normal text-slate-400">atividades</span>
+          </div>
+          <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1">
+            <div
+              className="bg-purple-600 h-full rounded-full transition-all"
+              style={{ width: `${dailyProgressPercent}%` }}
+            />
           </div>
         </div>
       </div>
 
-      {/* Two Columns: Discipline Mastery & Fast Access Hub */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Discipline Performance Bars */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4 transition-colors">
+      {/* ── 4. Lacunas identificadas a partir dos erros ────────────── */}
+      {recentMistakes.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-xs space-y-3 transition-colors">
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">
-                Desempenho & Domínio por Especialidade
+              <div className="p-1 rounded-lg bg-rose-50 dark:bg-rose-950/40 text-rose-600 border border-rose-200 dark:border-rose-900/50">
+                <AlertTriangle className="w-4 h-4" />
+              </div>
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100">
+                Lacunas Identificadas a Partir dos Erros
               </h3>
             </div>
+
             <button
-              onClick={() => onSelectView('questions')}
-              className="text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline flex items-center gap-1 cursor-pointer"
+              onClick={() => onSelectView('errors')}
+              className="text-xs font-semibold text-rose-700 dark:text-rose-400 hover:underline flex items-center gap-1 cursor-pointer"
             >
-              <span>Ver todas as questões</span>
-              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Abrir Caderno de Erros ({errorLogs.length})</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <div className="space-y-4">
-            {disciplinePerformance.map(({ discipline, totalQuestions, answered, accuracy: acc }) => (
-              <div key={discipline.id} className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 dark:text-slate-200">{discipline.name}</span>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                      ({answered} respondidas de {totalQuestions})
-                    </span>
-                  </div>
-                  <span
-                    className={`font-mono font-bold ${
-                      acc >= 70 ? 'text-emerald-600 dark:text-emerald-400' : acc >= 50 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'
-                    }`}
-                  >
-                    {answered > 0 ? `${acc}% acerto` : 'Sem respostas'}
-                  </span>
-                </div>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            O SynapseMed mapeou os erros recentes nas questões para sugerir a revisão de mecanismos teóricos:
+          </p>
 
-                <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden flex">
-                  <div
-                    className={`h-full transition-all rounded-full ${
-                      acc >= 70
-                        ? 'bg-emerald-500'
-                        : acc >= 50
-                        ? 'bg-amber-500'
-                        : answered > 0
-                        ? 'bg-rose-500'
-                        : 'bg-slate-200 dark:bg-slate-700'
-                    }`}
-                    style={{ width: `${Math.max(5, acc)}%` }}
-                  />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {recentMistakes.map((ans, idx) => {
+              const q = questions.find((item) => item.id === ans.questionId);
+              const th = themes.find((t) => t.id === q?.themeId);
+              const comp = compendiums.find((c) => c.id === q?.compendiumRefId);
+
+              return (
+                <div
+                  key={idx}
+                  className="p-3.5 rounded-2xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-100 dark:border-rose-900/30 flex flex-col justify-between gap-2"
+                >
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-rose-700 dark:text-rose-400 uppercase tracking-wider block">
+                      {th?.name || 'Clínica Médica'}
+                    </span>
+                    <p className="text-xs text-slate-800 dark:text-slate-200 line-clamp-2 leading-snug">
+                      {q?.questionStem || 'Questão registrada com erro'}
+                    </p>
+                  </div>
+
+                  {comp && (
+                    <button
+                      onClick={() => onOpenCompendium(comp.id, q?.compendiumSectionId)}
+                      className="text-[11px] font-semibold text-rose-800 dark:text-rose-300 hover:underline flex items-center gap-1 pt-1 cursor-pointer"
+                    >
+                      <BookOpen className="w-3 h-3" />
+                      <span>Revisar compêndio</span>
+                    </button>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── 5. Biblioteca Médica por Especialidade ─────────────────── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Compass className="w-4 h-4 text-teal-600" />
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
+              Biblioteca por Especialidade Médica
+            </h2>
+          </div>
+          <button
+            onClick={() => onSelectView('compendiums')}
+            className="text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <span>Ver acervo completo</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {disciplines.map((disc) => {
+            const count = compendiums.filter((c) => c.disciplineId === disc.id).length;
+            return (
+              <button
+                key={disc.id}
+                onClick={() => onSelectView('compendiums')}
+                className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-teal-500 dark:hover:border-teal-500/70 p-4 text-left transition-all cursor-pointer shadow-xs group"
+              >
+                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 group-hover:bg-teal-50 dark:group-hover:bg-teal-950/60 group-hover:text-teal-700 dark:group-hover:text-teal-300 flex items-center justify-center mb-2.5 transition-colors">
+                  <Stethoscope className="w-4 h-4" />
+                </div>
+                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-teal-700 dark:group-hover:text-teal-400 leading-tight">
+                  {disc.name}
+                </h4>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  {count} {count === 1 ? 'material' : 'materiais'}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── 6. Materiais Novos ou Atualizados & Materiais Recentes ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Materiais Atualizados Recentemente */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4 transition-colors">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-teal-600" />
+              <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">
+                Materiais Novos e Atualizados
+              </h3>
+            </div>
+            <span className="text-[11px] font-medium text-slate-400">Curadoria editorial</span>
+          </div>
+
+          <div className="space-y-3">
+            {updatedMaterials.map((comp) => {
+              const disc = disciplines.find((d) => d.id === comp.disciplineId);
+              return (
+                <div
+                  key={comp.id}
+                  onClick={() => onOpenCompendium(comp.id)}
+                  className="p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-slate-100 dark:border-slate-800/80 transition-colors cursor-pointer group flex items-center justify-between gap-3"
+                >
+                  <div className="space-y-0.5 min-w-0">
+                    <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                      <span className="font-semibold text-teal-700 dark:text-teal-400 uppercase">
+                        {disc?.name}
+                      </span>
+                      <span>•</span>
+                      <span>{comp.lastUpdated}</span>
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-teal-700 dark:group-hover:text-teal-400 truncate">
+                      {comp.title}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
+                      {comp.subtitle}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0 text-slate-400 group-hover:text-teal-600 text-xs font-medium">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span className="text-[11px]">{comp.estimatedReadTimeMinutes} min</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Right 1 Col: Quick Hub & Clinical Cases */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4 flex flex-col justify-between transition-colors">
-          <div>
-            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
-              <Stethoscope className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-              <h3 className="font-bold text-base text-slate-900 dark:text-slate-100">Casos Clínicos em Destaque</h3>
+        {/* Materiais Estudados Recentemente */}
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-4 transition-colors">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-slate-500" />
+              <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-slate-100">
+                Estudados Recentemente
+              </h3>
             </div>
+            <span className="text-[11px] font-medium text-slate-400">Seu histórico</span>
+          </div>
 
+          {recentlyStudied.length === 0 ? (
+            <div className="py-8 text-center space-y-2">
+              <BookOpen className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-700" />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Nenhum compêndio iniciado ainda.
+              </p>
+              <button
+                onClick={() => onSelectView('compendiums')}
+                className="text-xs font-semibold text-teal-700 dark:text-teal-400 hover:underline cursor-pointer"
+              >
+                Explorar biblioteca de compêndios →
+              </button>
+            </div>
+          ) : (
             <div className="space-y-3">
-              {clinicalCases.slice(0, 2).map((cc) => (
-                <div
-                  key={cc.id}
-                  onClick={() => onOpenCase(cc.id)}
-                  className="p-3.5 rounded-2xl bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-100 dark:border-purple-900/40 transition-all cursor-pointer group"
-                >
-                  <div className="flex items-center justify-between text-[10px] text-purple-800 dark:text-purple-300 font-bold mb-1">
-                    <span>{cc.difficulty.toUpperCase()}</span>
-                    <span>~{cc.estimatedMinutes} min</span>
-                  </div>
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-purple-900 dark:group-hover:text-purple-300 line-clamp-1">
-                    {cc.title}
-                  </h4>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-1">
-                    "{cc.chiefComplaint}"
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
+              {recentlyStudied.map((comp) => {
+                const prog = readingProgress[comp.id];
+                return (
+                  <div
+                    key={comp.id}
+                    onClick={() => onOpenCompendium(comp.id)}
+                    className="p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-slate-100 dark:border-slate-800/80 transition-colors cursor-pointer group flex items-center justify-between gap-3"
+                  >
+                    <div className="space-y-0.5 min-w-0 flex-1">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-teal-700 dark:group-hover:text-teal-400 truncate">
+                        {comp.title}
+                      </h4>
+                      <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1.5">
+                        <div
+                          className="bg-teal-600 h-full rounded-full transition-all"
+                          style={{ width: `${prog?.percent || 0}%` }}
+                        />
+                      </div>
+                    </div>
 
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-            <button
-              onClick={() => onSelectView('clinical-cases')}
-              className="w-full py-2.5 rounded-xl bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 text-purple-900 dark:text-purple-300 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer border border-purple-100 dark:border-purple-900/30"
-            >
-              <span>Ver Todos os Casos Clínicos</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-xs font-bold text-teal-700 dark:text-teal-400 block">
+                        {prog?.percent || 0}%
+                      </span>
+                      <span className="text-[10px] text-slate-400 block">concluído</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

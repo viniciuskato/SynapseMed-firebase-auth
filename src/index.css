@@ -4,44 +4,38 @@
 
 @layer base {
   :root {
-    --bg-canvas: #f4f0e8;
-    --bg-surface: #ffffff;
-    --bg-surface-secondary: #eee7d9;
-    --bg-surface-elevated: #ffffff;
-    --border-color: #ddd3bf;
-    --border-subtle: #eae1cf;
-    --text-primary: #2a2620;
-    --text-secondary: #6b6459;
-    --text-tertiary: #9e9890;
-    --ac: #6b4023;
-    --ac-hover: #54321b;
-    --ac-light: #f5ece4;
-    --ac2: #8a3620;
-    --ac2bg: #fbe2d8;
-    --ac-atlas: #2c5282;
-    --ac-atlas-bg: #e8f0fe;
-    --card-shadow: 0 1px 3px 0 rgb(42 38 32 / 0.06), 0 1px 2px -1px rgb(42 38 32 / 0.04);
+    --bg-canvas: #F6F7F9;
+    --bg-surface: #FFFFFF;
+    --bg-surface-secondary: #F1F5F9;
+    --bg-surface-elevated: #FFFFFF;
+    --border-color: #E2E8F0;
+    --border-subtle: #F1F5F9;
+    --text-primary: #172033;
+    --text-secondary: #64748B;
+    --text-tertiary: #94A3B8;
+    --ac: #0F766E;
+    --ac-hover: #0D9488;
+    --ac-light: #F0FDFA;
+    --ac-amber: #F59E0B;
+    --card-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.04);
     color-scheme: light;
   }
 
   .dark {
-    --bg-canvas: #111010;
-    --bg-surface: #1a1919;
-    --bg-surface-secondary: #222121;
-    --bg-surface-elevated: #282626;
-    --border-color: #333131;
-    --border-subtle: #242222;
-    --text-primary: #e2ddd6;
-    --text-secondary: #9e9890;
-    --text-tertiary: #6b655d;
-    --ac: #d4924a;
-    --ac-hover: #e5a45f;
-    --ac-light: #2c2014;
-    --ac2: #c0604a;
-    --ac2bg: #2a1810;
-    --ac-atlas: #5b8dd9;
-    --ac-atlas-bg: #0f1e38;
-    --card-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+    --bg-canvas: #0B1220;
+    --bg-surface: #111827;
+    --bg-surface-secondary: #151F32;
+    --bg-surface-elevated: #182235;
+    --border-color: #263244;
+    --border-subtle: #1C2638;
+    --text-primary: #E5E7EB;
+    --text-secondary: #94A3B8;
+    --text-tertiary: #64748B;
+    --ac: #14B8A6;
+    --ac-hover: #2DD4BF;
+    --ac-light: #0B2528;
+    --ac-amber: #F59E0B;
+    --card-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3);
     color-scheme: dark;
   }
 
@@ -49,7 +43,7 @@
     font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background-color: var(--bg-canvas);
     color: var(--text-primary);
-    transition: background-color 0.2s ease, color 0.2s ease;
+    transition: background-color 0.15s ease, color 0.15s ease;
     max-width: 100%;
     overflow-x: hidden;
   }

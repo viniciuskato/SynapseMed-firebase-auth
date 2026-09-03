@@ -1,17 +1,14 @@
 import React from 'react';
 import {
   Check,
-  Crown,
   Sparkles,
   X,
-  GraduationCap,
-  ShieldCheck,
-  Zap,
   BookOpen,
   HelpCircle,
   Stethoscope,
   Layers,
   BarChart3,
+  Users,
 } from 'lucide-react';
 import { UserPlan } from '../types';
 
@@ -25,193 +22,77 @@ interface PlanModalProps {
 export const PlanModal: React.FC<PlanModalProps> = ({
   isOpen,
   onClose,
-  currentPlan,
-  onSelectPlan,
 }) => {
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-6 sm:p-8 bg-gradient-to-r from-slate-900 via-teal-950 to-slate-900 text-white relative">
+        <div className="p-6 sm:p-8 bg-slate-900 text-white relative">
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-semibold mb-3 border border-teal-400/30">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Planos SynapseMed</span>
+            <span>Acesso Colaborativo SynapseMed</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Escolha o plano ideal para a sua jornada médica
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+            Ambiente Acadêmico de Acesso Livre
           </h2>
-          <p className="text-slate-300 text-sm mt-2 max-w-2xl">
-            Do ciclo básico à residência médica: integre teoria, banco de questões comentadas por alternativa, raciocínio clínico e revisão espaçada.
+          <p className="text-slate-300 text-xs sm:text-sm mt-2 leading-relaxed">
+            O SynapseMed é uma plataforma médica de estudos e colaboração privada. Todas as ferramentas e recursos estão integralmente disponíveis para o grupo de estudo.
           </p>
         </div>
 
-        {/* Pricing Cards Grid */}
-        <div className="p-6 sm:p-8 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50/50">
-          {/* Free Plan */}
-          <div
-            className={`rounded-2xl p-6 border transition-all flex flex-col justify-between ${
-              currentPlan === 'free'
-                ? 'bg-white border-teal-600 ring-2 ring-teal-600 shadow-md'
-                : 'bg-white border-slate-200 hover:border-slate-300'
-            }`}
-          >
+        {/* Features list */}
+        <div className="p-6 sm:p-8 overflow-y-auto space-y-4 bg-slate-50/50 dark:bg-slate-900/50 text-xs">
+          <div className="p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/40 flex items-start gap-3">
+            <Users className="w-5 h-5 text-teal-700 dark:text-teal-400 shrink-0 mt-0.5" />
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700">
-                  <GraduationCap className="w-6 h-6" />
-                </div>
-                {currentPlan === 'free' && (
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-teal-100 text-teal-800">
-                    Seu Plano Atual
-                  </span>
-                )}
-              </div>
-              <h3 className="text-xl font-bold text-slate-900">Plano Gratuito</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Ideal para conhecer a plataforma e testar o método integrado.
+              <h4 className="font-bold text-teal-950 dark:text-teal-200">Sem Assinaturas ou Mensalidades</h4>
+              <p className="text-teal-900/80 dark:text-teal-300/80 mt-0.5 leading-relaxed">
+                Este espaço é mantido para estudos compartilhados entre colegas e amigos. Não há cobranças, restrições de tempo ou limites de uso.
               </p>
-              <div className="my-6">
-                <span className="text-3xl font-extrabold text-slate-900">R$ 0</span>
-                <span className="text-slate-500 text-xs font-medium"> / para sempre</span>
-              </div>
-
-              <ul className="space-y-3 text-xs text-slate-600 mb-6">
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Acesso a compêndios teóricos essenciais</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Até 20 resoluções de questões por mês</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span>Explicações comentadas básicas</span>
-                </li>
-                <li className="flex items-center gap-2 text-slate-400">
-                  <X className="w-4 h-4 text-slate-300 shrink-0" />
-                  <span>Sem algoritmo avançado de repetição espaçada (SRS)</span>
-                </li>
-                <li className="flex items-center gap-2 text-slate-400">
-                  <X className="w-4 h-4 text-slate-300 shrink-0" />
-                  <span>Sem criação ilimitada de simulados personalizados</span>
-                </li>
-                <li className="flex items-center gap-2 text-slate-400">
-                  <X className="w-4 h-4 text-slate-300 shrink-0" />
-                  <span>Sem diagnóstico avançado de erros por tema</span>
-                </li>
-              </ul>
             </div>
-
-            <button
-              onClick={() => {
-                onSelectPlan('free');
-                onClose();
-              }}
-              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
-                currentPlan === 'free'
-                  ? 'bg-slate-100 text-slate-500 cursor-default'
-                  : 'bg-slate-800 hover:bg-slate-900 text-white'
-              }`}
-            >
-              {currentPlan === 'free' ? 'Plano Ativo' : 'Mudar para Gratuito'}
-            </button>
           </div>
 
-          {/* Premium Pro Plan */}
-          <div
-            className={`rounded-2xl p-6 border relative transition-all flex flex-col justify-between ${
-              currentPlan === 'premium'
-                ? 'bg-white border-amber-500 ring-2 ring-amber-500 shadow-xl'
-                : 'bg-white border-amber-300 hover:border-amber-400 shadow-md'
-            }`}
-          >
-            <div className="absolute -top-3 right-6 bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-extrabold text-[10px] tracking-wider uppercase px-3 py-1 rounded-full shadow-xs">
-              Recomendado • Acesso Total
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2.5 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 shadow-sm">
-                  <Crown className="w-6 h-6 fill-slate-950" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            {[
+              { icon: BookOpen, title: 'Biblioteca Médica', desc: 'Compêndios com lentes de estudo, árvores de decisão e fisiopatologia.' },
+              { icon: HelpCircle, title: 'Questões e Simulados', desc: 'Resolução comentada alternativa por alternativa e caderno de erros integrado.' },
+              { icon: Stethoscope, title: 'Casos Clínicos', desc: 'Simulação de condutas e raciocínio diagnóstico passo a passo.' },
+              { icon: Layers, title: 'Revisão Espaçada (SRS)', desc: 'Algoritmo SM-2 para consolidação de memória de longo prazo.' },
+              { icon: BarChart3, title: 'Diagnóstico de Desempenho', desc: 'Mapeamento contínuo de lacunas e evolução por especialidade.' },
+              { icon: Check, title: 'Armazenamento Seguro', desc: 'Seus dados e anotações pessoais isolados com total privacidade.' },
+            ].map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <div key={idx} className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-slate-200">
+                    <Icon className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    <span>{item.title}</span>
+                  </div>
+                  <p className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed">
+                    {item.desc}
+                  </p>
                 </div>
-                {currentPlan === 'premium' && (
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900">
-                    Seu Plano Atual
-                  </span>
-                )}
-              </div>
-              <h3 className="text-xl font-bold text-slate-900">Premium Pro</h3>
-              <p className="text-xs text-slate-500 mt-1">
-                A experiência completa e integrada de alto rendimento para aprovação.
-              </p>
-              <div className="my-6">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-extrabold text-slate-900">R$ 59</span>
-                  <span className="text-slate-500 text-xs font-medium"> / mês (ou R$ 499/ano)</span>
-                </div>
-                <p className="text-[11px] text-teal-700 font-semibold mt-0.5">
-                  Economize 30% no plano anual com simulados ilimitados
-                </p>
-              </div>
-
-              <ul className="space-y-3 text-xs text-slate-700 mb-6 font-medium">
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-teal-600 shrink-0 font-bold" />
-                  <span><strong>Acervo completo e irrestrito</strong> de compêndios e diretrizes</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-teal-600 shrink-0 font-bold" />
-                  <span><strong>Banco ilimitado</strong> de questões com explicação por alternativa</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-teal-600 shrink-0 font-bold" />
-                  <span><strong>Repetição Espaçada (SRS SM-2)</strong> automática e personalizada</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-teal-600 shrink-0 font-bold" />
-                  <span><strong>Casos Clínicos Interativos</strong> com raciocínio diagnóstico</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-teal-600 shrink-0 font-bold" />
-                  <span><strong>Simulados cronometrados</strong> e gerador de cadernos de erros</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="w-4 h-4 text-teal-600 shrink-0 font-bold" />
-                  <span><strong>Painel analítico e diagnóstico</strong> de temas com maior taxa de erro</span>
-                </li>
-              </ul>
-            </div>
-
-            <button
-              onClick={() => {
-                onSelectPlan('premium');
-                onClose();
-              }}
-              className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 ${
-                currentPlan === 'premium'
-                  ? 'bg-amber-100 text-amber-900 cursor-default'
-                  : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 hover:shadow-amber-500/30'
-              }`}
-            >
-              <Crown className="w-4 h-4 fill-current" />
-              <span>{currentPlan === 'premium' ? 'Plano Ativo (Acesso Completo)' : 'Ativar Premium Pro Agora'}</span>
-            </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Institutional Plans Note */}
-        <div className="p-4 bg-slate-100 border-t border-slate-200 text-center text-xs text-slate-600">
-          <span>Instituições de Ensino, Faculdades e Ligas Acadêmicas? </span>
-          <span className="font-semibold text-teal-700">Consulte planos institucionais com painel para professores.</span>
+        {/* Footer */}
+        <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+          <button
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+          >
+            Entendido
+          </button>
         </div>
       </div>
     </div>

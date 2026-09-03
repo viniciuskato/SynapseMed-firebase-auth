@@ -12,6 +12,8 @@ import {
   Play,
   Filter,
   Search,
+  FileEdit,
+  Save,
 } from 'lucide-react';
 import { Question, Discipline, Theme, QuestionAnswerRecord } from '../../types';
 import { StorageService } from '../../services/storage';
@@ -38,6 +40,8 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   const [selectedReason, setSelectedReason] = useState<string>('all');
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState<string>('');
 
   const answers = StorageService.getAnswers();
 
@@ -91,6 +95,16 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   const handleCreateFlashcard = (q: Question) => {
     StorageService.createFlashcardFromQuestion(q);
     alert('Flashcard adicionado à sua rotina de repetição espaçada!');
+  };
+
+  const handleSaveNote = (questionId: string) => {
+    const existing = StorageService.getAnswers()[questionId];
+    if (existing) {
+      existing.userNotes = noteDraft;
+      StorageService.recordAnswer(existing);
+      setEditingNoteId(null);
+      onUpdate();
+    }
   };
 
   return (
@@ -252,6 +266,64 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
                     <span className="font-bold block">Pérola de Aprendizado:</span>
                     <p className="font-medium mt-0.5">{question.highYieldSummary}</p>
                   </div>
+                </div>
+
+                {/* Personal Notes vinculada ao erro */}
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/80 rounded-xl text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5 text-[11px]">
+                      <FileEdit className="w-3.5 h-3.5 text-teal-600" />
+                      Sua Anotação Pessoal sobre o Erro:
+                    </span>
+                    {editingNoteId !== question.id && (
+                      <button
+                        onClick={() => {
+                          setEditingNoteId(question.id);
+                          setNoteDraft(answer.userNotes || '');
+                        }}
+                        className="text-[11px] text-teal-700 hover:text-teal-800 font-semibold cursor-pointer"
+                      >
+                        {answer.userNotes ? 'Editar anotação' : '+ Adicionar anotação'}
+                      </button>
+                    )}
+                  </div>
+
+                  {editingNoteId === question.id ? (
+                    <div className="space-y-2 pt-1">
+                      <textarea
+                        value={noteDraft}
+                        onChange={(e) => setNoteDraft(e.target.value)}
+                        placeholder="Escreva sua reflexão ou mnemônico sobre esta questão..."
+                        rows={2}
+                        className="w-full text-xs p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+                      />
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingNoteId(null)}
+                          className="px-2.5 py-1 text-[11px] rounded-lg text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveNote(question.id)}
+                          className="px-3 py-1 text-[11px] font-semibold rounded-lg bg-teal-700 hover:bg-teal-800 text-white flex items-center gap-1 cursor-pointer"
+                        >
+                          <Save className="w-3 h-3" />
+                          Salvar
+                        </button>
+                      </div>
+                    </div>
+                  ) : answer.userNotes ? (
+                    <p className="text-slate-700 dark:text-slate-300 italic bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 leading-relaxed">
+                      "{answer.userNotes}"
+                    </p>
+                  ) : (
+                    <p className="text-slate-400 dark:text-slate-500 text-[11px] italic">
+                      Nenhuma anotação pessoal registrada ainda para este erro.
+                    </p>
+                  )}
                 </div>
 
                 {/* Actions Bar */}

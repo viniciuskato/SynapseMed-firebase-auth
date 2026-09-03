@@ -9,6 +9,7 @@ export interface UserProfile {
   photoURL: string | null;
   role: UserRole;
   plan: UserPlan;
+  status?: 'active' | 'pending' | 'blocked';
   createdAt?: any;
   lastLoginAt?: any;
 }
@@ -60,6 +61,16 @@ export interface CompendiumSection {
   diagramSvgKey?: string;
 }
 
+export type StudyLens =
+  | 'fisiopatologia'
+  | 'diagnostico'
+  | 'conduta'
+  | 'farmacologia'
+  | 'alto_rendimento'
+  | 'casos_pratica';
+
+export type EditorialStatus = 'completo' | 'em_atualizacao' | 'em_revisao';
+
 export interface Compendium {
   id: string;
   disciplineId: string;
@@ -70,6 +81,8 @@ export interface Compendium {
   lastUpdated: string;
   author: string;
   mode?: 'atlas' | 'mecanismos';
+  studyLens?: StudyLens;
+  editorialStatus?: EditorialStatus;
   tags?: string[];
   dependencies?: { title: string; linkId?: string }[];
   sections: CompendiumSection[];
@@ -250,4 +263,16 @@ export interface UserStats {
   lastActiveDate: string;
   cardsReviewedToday: number;
   compendiumsReadCount: number;
+}
+
+export type FeedbackType = 'sugestao' | 'problema' | 'elogio';
+
+export interface UserFeedback {
+  id: string;
+  type: FeedbackType;
+  title: string;
+  description: string;
+  createdAt: string;
+  userId?: string | null;
+  userEmail?: string | null;
 }
