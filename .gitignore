@@ -5,6 +5,7 @@ node_modules/
 build/
 dist/
 coverage/
+.firebase/
 
 # OS and system files
 .DS_Store
