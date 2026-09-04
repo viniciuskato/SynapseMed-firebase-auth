@@ -20,6 +20,7 @@ import { StorageService } from '../../services/storage';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { notesRepository } from '../../repositories/NotesRepository';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
+import { readingProgressRepository } from '../../repositories/ReadingProgressRepository';
 import { SafeMarkdown } from '../common/SafeMarkdown';
 
 interface CompendiumReaderProps {
@@ -70,7 +71,7 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
 
   // Load reading progress, bookmark and notes
   useEffect(() => {
-    const progress = StorageService.getReadingProgress();
+    const progress = readingProgressRepository.getReadingProgress();
     const compProgress = progress[compendium.id];
     if (compProgress) {
       setReadSectionIds(compProgress.readSectionIds);
@@ -94,12 +95,12 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
   };
 
   const handleToggleRead = (sectionId: string) => {
-    const newPercent = StorageService.toggleSectionRead(
+    const newPercent = readingProgressRepository.toggleSectionRead(
       compendium.id,
       sectionId,
       compendium.sections.length
     );
-    const progress = StorageService.getReadingProgress();
+    const progress = readingProgressRepository.getReadingProgress();
     setReadSectionIds(progress[compendium.id]?.readSectionIds || []);
 
     if (newPercent === 100) {

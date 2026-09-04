@@ -14,6 +14,7 @@ import {
 import { Question, Discipline, Theme, MedicalCycle, DifficultyLevel } from '../../types';
 import { StorageService } from '../../services/storage';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
+import { answersRepository } from '../../repositories/AnswersRepository';
 import { QuestionCard } from './QuestionCard';
 
 interface QuestionsViewProps {
@@ -41,7 +42,7 @@ export const QuestionsView: React.FC<QuestionsViewProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'unanswered' | 'correct' | 'incorrect' | 'bookmarked'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const answers = StorageService.getAnswers();
+  const answers = answersRepository.getAnswers();
   const bookmarks = bookmarksRepository.getBookmarks();
 
   // If focusQuestionId exists, locate it

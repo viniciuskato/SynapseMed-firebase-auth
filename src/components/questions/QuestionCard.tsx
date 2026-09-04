@@ -19,6 +19,7 @@ import { Question, QuestionOption, QuestionAnswerRecord, Discipline, Theme } fro
 import { StorageService } from '../../services/storage';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
+import { answersRepository } from '../../repositories/AnswersRepository';
 
 interface QuestionCardProps {
   question: Question;
@@ -42,7 +43,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   onSelectOptionInExam,
 }) => {
   // Local state for study mode
-  const initialAnswer = StorageService.getAnswers()[question.id];
+  const initialAnswer = answersRepository.getAnswers()[question.id];
   const [selectedOption, setSelectedOption] = useState<'A' | 'B' | 'C' | 'D' | 'E' | null>(
     initialAnswer?.selectedOption || selectedOptionInExam || null
   );
@@ -65,10 +66,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   };
 
   const handleSaveNote = () => {
-    const existing = StorageService.getAnswers()[question.id];
+    const existing = answersRepository.getAnswers()[question.id];
     if (existing) {
       existing.userNotes = userNote;
-      StorageService.recordAnswer(existing);
+      answersRepository.recordAnswer(existing);
       setIsNoteSaved(true);
       showToast('Anotação pessoal vinculada ao erro salva com sucesso!');
       setTimeout(() => setIsNoteSaved(false), 2000);
@@ -100,7 +101,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       errorReason: isCorrect ? undefined : errorReason,
     };
 
-    StorageService.recordAnswer(record);
+    answersRepository.recordAnswer(record);
     setIsSubmitted(true);
 
     if (onAnswerRecorded) onAnswerRecorded(record);
@@ -135,10 +136,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
   const handleUpdateErrorReason = (reason: QuestionAnswerRecord['errorReason']) => {
     setErrorReason(reason);
-    const existing = StorageService.getAnswers()[question.id];
+    const existing = answersRepository.getAnswers()[question.id];
     if (existing) {
       existing.errorReason = reason;
-      StorageService.recordAnswer(existing);
+      answersRepository.recordAnswer(existing);
       showToast('Motivo do erro atualizado no seu Caderno de Erros.');
     }
   };
@@ -381,10 +382,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             {/* 2. Adicionar / Mapear no Caderno de Erros */}
             <button
               onClick={() => {
-                const existing = StorageService.getAnswers()[question.id];
+                const existing = answersRepository.getAnswers()[question.id];
                 if (existing) {
                   existing.errorReason = errorReason;
-                  StorageService.recordAnswer(existing);
+                  answersRepository.recordAnswer(existing);
                   showToast('Questão catalogada no Caderno de Erros!');
                 }
               }}

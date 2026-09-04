@@ -23,6 +23,9 @@ import {
 } from 'lucide-react';
 import { Discipline, Theme, Question, Compendium, Flashcard } from '../../types';
 import { StorageService } from '../../services/storage';
+import { answersRepository } from '../../repositories/AnswersRepository';
+import { readingProgressRepository } from '../../repositories/ReadingProgressRepository';
+import { errorNotebookRepository } from '../../repositories/ErrorNotebookRepository';
 import { isCardDueToday } from '../../services/srsAlgorithm';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -54,9 +57,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Persistence data (isolado por UID)
   const stats = StorageService.getStats();
-  const answers = StorageService.getAnswers();
-  const readingProgress = StorageService.getReadingProgress();
-  const errorLogs = StorageService.getErrorLogs();
+  const answers = answersRepository.getAnswers();
+  const readingProgress = readingProgressRepository.getReadingProgress();
+  const errorLogs = errorNotebookRepository.getErrorLogs();
 
   const answersArray = Object.values(answers);
   const totalAnswered = answersArray.length;

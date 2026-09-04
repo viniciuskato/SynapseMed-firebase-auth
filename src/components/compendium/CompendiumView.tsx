@@ -28,6 +28,7 @@ import { Compendium, Discipline, Theme, StudyLens, EditorialStatus } from '../..
 import { StorageService } from '../../services/storage';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { notesRepository } from '../../repositories/NotesRepository';
+import { readingProgressRepository } from '../../repositories/ReadingProgressRepository';
 
 interface CompendiumViewProps {
   compendiums: Compendium[];
@@ -89,7 +90,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | EditorialStatus>('all');
 
   // Persistence data
-  const readingProgress = StorageService.getReadingProgress();
+  const readingProgress = readingProgressRepository.getReadingProgress();
   const bookmarks = bookmarksRepository.getBookmarks();
   const highlights = StorageService.getHighlights();
   const notes = notesRepository.getNotes();

@@ -13,6 +13,7 @@ import {
 import { Question, Discipline, Theme, QuestionAnswerRecord } from '../../types';
 import { StorageService } from '../../services/storage';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
+import { answersRepository } from '../../repositories/AnswersRepository';
 import { QuestionCard } from '../questions/QuestionCard';
 
 interface CadernoErrosViewProps {
@@ -33,7 +34,7 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
   const [selectedReasonFilter, setSelectedReasonFilter] = useState<string>('all');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const answers = StorageService.getAnswers();
+  const answers = answersRepository.getAnswers();
   const mistakeRecords = Object.values(answers).filter((a) => !a.isCorrect);
 
   const mistakeQuestions = questions.filter((q) => {

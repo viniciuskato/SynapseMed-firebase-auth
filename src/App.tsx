@@ -28,6 +28,7 @@ import { StorageService } from './services/storage';
 import { materialsRepository } from './repositories/MaterialsRepository';
 import { questionsRepository } from './repositories/QuestionsRepository';
 import { flashcardsRepository } from './repositories/FlashcardsRepository';
+import { answersRepository } from './repositories/AnswersRepository';
 import { isCardDueToday } from './services/srsAlgorithm';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoadingScreen } from './components/common/LoadingScreen';
@@ -165,7 +166,7 @@ function AuthenticatedApp() {
   const isAdmin = profile?.role === 'admin';
 
   // Calculate badges
-  const answers = StorageService.getAnswers();
+  const answers = answersRepository.getAnswers();
   const unansweredCount = questions.filter((q) => !answers[q.id]).length;
   const errorCount = Object.values(answers).filter((a) => !a.isCorrect).length;
   const dueCardsCount = flashcards.filter((fc) => isCardDueToday(fc)).length;

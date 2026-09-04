@@ -14,7 +14,8 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Question, SimuladoConfig, Discipline, Theme, SimuladoSessionData } from '../../types';
-import { StorageService } from '../../services/storage';
+import { answersRepository } from '../../repositories/AnswersRepository';
+import { simuladosRepository } from '../../repositories/SimuladosRepository';
 import { QuestionCard } from './QuestionCard';
 
 interface SimuladoSessionProps {
@@ -87,7 +88,7 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
           timeSpent: Math.round((config.timeLimitMinutes * 60 - secondsRemaining) / questions.length),
         };
         // Record in global answers storage
-        StorageService.recordAnswer({
+        answersRepository.recordAnswer({
           questionId: q.id,
           selectedOption: selected,
           isCorrect: isCor,
@@ -112,7 +113,7 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
       totalTimeSeconds: totalTimeSpent,
     };
 
-    StorageService.saveSimuladoSession(sessionData);
+    simuladosRepository.saveSimuladoSession(sessionData);
 
     setSessionResults({
       correctCount: correct,
