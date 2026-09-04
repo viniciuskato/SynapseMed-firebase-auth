@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { Flashcard, Discipline, Theme } from '../../types';
 import { isCardDueToday } from '../../services/srsAlgorithm';
-import { StorageService } from '../../services/storage';
+import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 
 interface FlashcardsViewProps {
   flashcards: Flashcard[];
@@ -85,7 +85,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
   };
 
   const handleDeleteCard = (cardId: string) => {
-    StorageService.deleteFlashcard(cardId);
+    flashcardsRepository.deleteFlashcard(cardId);
     onFlashcardUpdated();
   };
 

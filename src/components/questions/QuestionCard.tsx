@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { Question, QuestionOption, QuestionAnswerRecord, Discipline, Theme } from '../../types';
 import { StorageService } from '../../services/storage';
+import { bookmarksRepository } from '../../repositories/BookmarksRepository';
+import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 
 interface QuestionCardProps {
   question: Question;
@@ -46,7 +48,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   );
   const [isSubmitted, setIsSubmitted] = useState<boolean>(!!initialAnswer && !isExamMode);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(
-    StorageService.getBookmarks().questions.includes(question.id)
+    bookmarksRepository.getBookmarks().questions.includes(question.id)
   );
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
   const [errorReason, setErrorReason] = useState<QuestionAnswerRecord['errorReason']>(
@@ -121,13 +123,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   };
 
   const handleToggleBookmark = () => {
-    const bookmarked = StorageService.toggleBookmark('questions', question.id);
+    const bookmarked = bookmarksRepository.toggleBookmark('questions', question.id);
     setIsBookmarked(bookmarked);
     showToast(bookmarked ? 'Questão adicionada aos seus favoritos' : 'Removida dos favoritos');
   };
 
   const handleAddFlashcard = () => {
-    StorageService.createFlashcardFromQuestion(question);
+    flashcardsRepository.createFlashcardFromQuestion(question);
     showToast('Flashcard adicionado à sua rotina de Revisão Espaçada (SRS)!');
   };
 

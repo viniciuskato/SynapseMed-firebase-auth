@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Question, Discipline, Theme, QuestionAnswerRecord } from '../../types';
 import { StorageService } from '../../services/storage';
+import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { QuestionCard } from '../questions/QuestionCard';
 
 interface CadernoErrosViewProps {
@@ -52,7 +53,7 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
   const handleGenerateAllFlashcards = () => {
     let createdCount = 0;
     mistakeQuestions.forEach((q) => {
-      StorageService.createFlashcardFromQuestion(q);
+      flashcardsRepository.createFlashcardFromQuestion(q);
       createdCount++;
     });
     showToast(`${createdCount} flashcards adicionados à sua fila de Revisão Espaçada (SRS)!`);

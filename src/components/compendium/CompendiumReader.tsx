@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import { Compendium, CompendiumSection, Discipline, Theme } from '../../types';
 import { StorageService } from '../../services/storage';
+import { bookmarksRepository } from '../../repositories/BookmarksRepository';
+import { notesRepository } from '../../repositories/NotesRepository';
+import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { SafeMarkdown } from '../common/SafeMarkdown';
 
 interface CompendiumReaderProps {
@@ -72,10 +75,10 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
     if (compProgress) {
       setReadSectionIds(compProgress.readSectionIds);
     }
-    const bookmarks = StorageService.getBookmarks();
+    const bookmarks = bookmarksRepository.getBookmarks();
     setIsBookmarked(bookmarks.compendiums.includes(compendium.id));
 
-    const notes = StorageService.getNotes();
+    const notes = notesRepository.getNotes();
     setUserNote(notes[compendium.id] || '');
 
     if (targetSectionId) {
@@ -105,18 +108,18 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
   };
 
   const handleToggleBookmark = () => {
-    const bookmarked = StorageService.toggleBookmark('compendiums', compendium.id);
+    const bookmarked = bookmarksRepository.toggleBookmark('compendiums', compendium.id);
     setIsBookmarked(bookmarked);
     showToast(bookmarked ? 'Adicionado aos favoritos' : 'Removido dos favoritos');
   };
 
   const handleSaveNote = () => {
-    StorageService.saveNote(compendium.id, userNote);
+    notesRepository.saveNote(compendium.id, userNote);
     showToast('Anotação salva com sucesso');
   };
 
   const handleCreateFlashcardFromSection = (sec: CompendiumSection) => {
-    StorageService.saveFlashcard({
+    flashcardsRepository.saveFlashcard({
       id: `fc-sec-${Date.now()}`,
       disciplineId: compendium.disciplineId,
       themeId: compendium.themeId,

@@ -14,7 +14,7 @@ import {
 import confetti from 'canvas-confetti';
 import { Flashcard, Discipline, Theme } from '../../types';
 import { calculateNextSRS } from '../../services/srsAlgorithm';
-import { StorageService } from '../../services/storage';
+import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 
 interface FlashcardReviewSessionProps {
   cards: Flashcard[];
@@ -51,7 +51,7 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
         srs: updatedSrs,
       };
 
-      StorageService.updateFlashcardSRS(currentCard.id, updatedSrs);
+      flashcardsRepository.updateFlashcardSRS(currentCard.id, updatedSrs);
       setReviewedCount((prev) => prev + 1);
 
       // If rating is 1 (Errei), add back to the end of the current session queue for immediate reinforcement

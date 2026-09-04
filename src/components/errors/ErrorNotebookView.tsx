@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Question, Discipline, Theme, QuestionAnswerRecord } from '../../types';
 import { StorageService } from '../../services/storage';
+import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 
 interface ErrorNotebookViewProps {
   questions: Question[];
@@ -93,7 +94,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   };
 
   const handleCreateFlashcard = (q: Question) => {
-    StorageService.createFlashcardFromQuestion(q);
+    flashcardsRepository.createFlashcardFromQuestion(q);
     alert('Flashcard adicionado à sua rotina de repetição espaçada!');
   };
 
