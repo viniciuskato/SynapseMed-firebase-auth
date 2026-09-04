@@ -13,7 +13,7 @@ import {
   Target,
 } from 'lucide-react';
 import { SimuladoSessionData, Discipline, Theme, SimuladoConfig } from '../../types';
-import { StorageService } from '../../services/storage';
+import { simuladosRepository } from '../../repositories/SimuladosRepository';
 
 interface SimuladosViewProps {
   disciplines: Discipline[];
@@ -30,7 +30,7 @@ export const SimuladosView: React.FC<SimuladosViewProps> = ({
   onStartCustomSimulado,
   onUpdate,
 }) => {
-  const history = StorageService.getSimuladoHistory();
+  const history = simuladosRepository.getSimuladoHistory();
 
   const handleQuickPreset = (type: 'express' | 'enare' | 'mistakes') => {
     let config: SimuladoConfig;

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Compendium, Discipline, Theme, StudyLens, EditorialStatus } from '../../types';
 import { StorageService } from '../../services/storage';
+import { readingProgressRepository } from '../../repositories/ReadingProgressRepository';
 
 interface CompendiumViewProps {
   compendiums: Compendium[];
@@ -87,7 +88,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | EditorialStatus>('all');
 
   // Persistence data
-  const readingProgress = StorageService.getReadingProgress();
+  const readingProgress = readingProgressRepository.getReadingProgress();
   const bookmarks = StorageService.getBookmarks();
   const highlights = StorageService.getHighlights();
   const notes = StorageService.getNotes();

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, MessageSquarePlus, Lightbulb, AlertTriangle, Heart, CheckCircle2, Send } from 'lucide-react';
 import { FeedbackType, UserFeedback } from '../../types';
-import { StorageService } from '../../services/storage';
+import { feedbackRepository } from '../../repositories/FeedbackRepository';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface FeedbackModalProps {
@@ -42,7 +42,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
       };
 
       // Salva localmente no namespace do usuário via StorageService
-      StorageService.saveFeedback(feedbackItem);
+      feedbackRepository.saveFeedback(feedbackItem);
 
       // Feedback estruturado para futura integração remota (ex: Cloud Function / Endpoint seguro)
       setIsSubmitting(false);

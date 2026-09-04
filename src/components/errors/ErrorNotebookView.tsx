@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Question, Discipline, Theme, QuestionAnswerRecord } from '../../types';
 import { StorageService } from '../../services/storage';
+import { answersRepository } from '../../repositories/AnswersRepository';
 
 interface ErrorNotebookViewProps {
   questions: Question[];
@@ -43,7 +44,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState<string>('');
 
-  const answers = StorageService.getAnswers();
+  const answers = answersRepository.getAnswers();
 
   // Filter mistakes
   const mistakes = useMemo(() => {
@@ -84,10 +85,10 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   };
 
   const handleResolveError = (questionId: string) => {
-    const existing = StorageService.getAnswers()[questionId];
+    const existing = answersRepository.getAnswers()[questionId];
     if (existing) {
       existing.isCorrect = true; // Mark as mastered
-      StorageService.recordAnswer(existing);
+      answersRepository.recordAnswer(existing);
       onUpdate();
     }
   };
@@ -98,10 +99,10 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   };
 
   const handleSaveNote = (questionId: string) => {
-    const existing = StorageService.getAnswers()[questionId];
+    const existing = answersRepository.getAnswers()[questionId];
     if (existing) {
       existing.userNotes = noteDraft;
-      StorageService.recordAnswer(existing);
+      answersRepository.recordAnswer(existing);
       setEditingNoteId(null);
       onUpdate();
     }
