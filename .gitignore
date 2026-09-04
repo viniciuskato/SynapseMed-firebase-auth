@@ -31,3 +31,6 @@ credentials.json
 supabase/.branches/
 supabase/.temp/
 
+# Estado temporário do smoke test remoto (scripts/smoke-test-remote.ts)
+.smoke-test-remote-state.json
+
