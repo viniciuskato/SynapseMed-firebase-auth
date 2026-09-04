@@ -1,8 +1,14 @@
-# Fundação Supabase — Esquema e Segurança (Etapa 1)
+# Fundação Supabase — Esquema e Segurança (Etapa 1 + Schema v2)
 
 > Estado desta etapa: **fundação local, não conectada ao frontend, sem projeto remoto**.
 > Firebase Authentication, Firestore e Firebase Hosting continuam sendo a stack em produção.
 > Nada neste documento está ativo na aplicação React atual.
+>
+> **Schema v2** (`20260904140000_schema_v2_conteudo_real.sql`): estende o
+> schema da Etapa 1 com as tabelas/colunas exigidas pela auditoria
+> campo-a-campo contra os arquivos-fonte reais da Base de Estudos
+> (`banco-questoes.json`, `fontes.json`, `correcoes.json`). É só schema —
+> nenhum dado real foi migrado nesta rodada.
 
 ## 1. Escopo
 
@@ -64,6 +70,63 @@ Garantir **pelo menos** 1 alternativa correta, que `question_option_keys` tenha 
 ### 3.4 `content_assets`
 
 FKs reais (`material_id`, `material_section_id`, `question_id`, todas nullable, `CHECK` de exatamente um preenchido). Para evitar referência circular com `material_sections`, a "imagem principal de uma seção" é modelada como `content_assets.is_primary = true` com `material_section_id` apontando para a seção (índice único parcial garante no máximo uma primária por seção) — `material_sections` não tem nenhuma coluna apontando de volta para `content_assets`.
+
+Desde o Schema v2, `storage_path` é **nullable** e convive com `external_url`
+(`CHECK (num_nonnulls(storage_path, external_url) = 1)`): um ativo está
+**ou** no Supabase Storage **ou** é hotlinked de uma fonte externa (comum em
+compêndios reais — imagens do Wikimedia Commons com licença já documentada
+por imagem), nunca as duas coisas. Colunas novas: `caption` (legenda
+visível, diferente de `alt_text`, que é acessibilidade), `rights_status`,
+`privacy_verified`, `modifications`, `notes`.
+
+### 3.5 Bibliografia (`sources`, `question_references`)
+
+`sources` é a bibliografia compartilhada (`id` textual, ex.:
+`delgado2023-esc-endocardite`) — `tipo` e `verificacao` são `CHECK` fechados
+(11 e 6 valores respectivamente, confirmados exaustivamente contra os 87
+registros reais de `fontes.json`); `identificadores` é `jsonb` livre porque
+o conjunto de chaves varia por fonte (doi, pmid, pmcid, isbn, bookshelfId,
+url, elocation, e até chaves ad-hoc de uma única fonte). `substituida_por`
+é auto-FK para uma fonte obsoleta apontar para a substituta — **ver
+cabeçalho da migration `20260904140000_...` para um achado de auditoria**:
+no único registro real dessa relação hoje, o valor gravado é a citação
+completa da obra substituta (ainda não cadastrada como fonte própria), não
+um id; isso é uma decisão de dado a resolver na migração de conteúdo, não
+no schema.
+
+`question_references` é o join estruturado `questions` ↔ `sources`
+(substitui/complementa texto solto), com leitura condicionada à mesma regra
+de `questions` (published + active, ou admin) e escrita só admin.
+`material_references` ganhou uma coluna opcional `source_id` (nullable, não
+quebra o `citation_text` existente) para o mesmo vínculo em materiais.
+
+### 3.6 Metadados editoriais novos em `questions`
+
+`subtema`, `disciplinas_relacionadas` (texto livre/array); `competencia`,
+`contexto` e `complexidade` são `CHECK` fechados (6, 3 e 3 valores,
+confirmados contra as 393 questões reais do banco); `editorial_state`
+mapeia o campo de topo `estadoEditorial` do banco real (`CHECK` fechado,
+4 valores) — **não** confundir com o campo mais granular
+`auditoriaEditorial.status`, que vai dentro de `audit_trail` (jsonb, sem
+`CHECK`, pois é um enum de workflow interno mais aberto). `provenance_metadata`
+(jsonb) mapeia `proveniencia`; renomeada em relação ao pedido original
+porque `questions.provenance` (texto livre, Etapa 1) já existe com outro
+sentido. `evidence` e `quality_checklist` (jsonb) mapeiam `evidencia` e
+`qualidadeDoItem`. Todas nullable — nenhuma quebra os 65 testes/fixtures
+da Etapa 1.
+
+### 3.7 `question_corrections`
+
+Histórico de correções editoriais (mapeia `correcoes.json`). RLS: leitura e
+escrita só admin — é trilha de auditoria editorial, não conteúdo para o
+estudante ver (decisão documentada no cabeçalho da migration, com
+alternativa considerada e descartada). Achado de auditoria: o arquivo-fonte
+real tem duas listas com formatos diferentes; a canônica (95 registros,
+chaves em português) não usa a maior parte das colunas de versionamento
+pedidas (`previous_version`/`new_version`/`impact_level`/`impact_summary`)
+— mantidas nullable porque acomodam também o formato alternativo observado
+em 1 registro. `before_snapshot`/`after_snapshot` recebem os pares
+`de`/`para` (arrays de alternativas) quando existirem.
 
 ## 4. Perfis e controle de acesso
 
