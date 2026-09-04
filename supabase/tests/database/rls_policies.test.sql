@@ -95,7 +95,7 @@ $$;
 grant usage on schema tests to anon, authenticated;
 grant execute on function tests.clear_auth() to anon, authenticated;
 
-select plan(65);
+select plan(75);
 
 -- ----------------------------------------------------------------------------
 -- Fixtures: usuários, conteúdo em draft/published/archived
@@ -632,7 +632,83 @@ select isnt_empty(
 );
 
 -- ============================================================================
--- 12) Storage: bucket privado e regras de escrita
+-- 12) sources / question_references / question_corrections (schema v2)
+-- ============================================================================
+
+select tests.authenticate_as(:'v_admin');
+insert into public.sources (id, citation_text, tipo, verificacao)
+values ('fonte-teste-01', 'Citação de teste', 'diretriz_consenso', 'verificada')
+returning id as v_source_id \gset
+
+select tests.authenticate_as_anon();
+select is_empty(
+  $$ select 1 from public.sources $$,
+  'anon não lê sources'
+);
+
+-- v_pending já foi promovido a active na seção 5 (admin_set_profile_status);
+-- usa-se v_blocked aqui para exercitar o bloqueio de status não-active.
+select tests.authenticate_as(:'v_blocked');
+select is_empty(
+  $$ select 1 from public.sources $$,
+  'blocked não lê sources'
+);
+
+select tests.authenticate_as(:'v_active_a');
+select isnt_empty(
+  $$ select 1 from public.sources $$,
+  'active lê sources (bibliografia compartilhada, não sensível)'
+);
+select throws_ok(
+  $$ insert into public.sources (id, citation_text, tipo, verificacao) values ('fonte-hack', 'x', 'ensaio', 'vaga_pendente') $$,
+  NULL::char(5), NULL::text,
+  'active não escreve em sources'
+);
+
+select tests.authenticate_as(:'v_admin');
+insert into public.question_references (question_id, source_id, sort_order)
+values (:'v_question_a_id', :'v_source_id', 1);
+insert into public.question_references (question_id, source_id, sort_order)
+values (:'v_question_b_id', :'v_source_id', 1);
+
+select tests.authenticate_as(:'v_active_a');
+select isnt_empty(
+  format($$ select 1 from public.question_references where question_id = %L $$, :'v_question_a_id'),
+  'active lê question_references de questão published'
+);
+select is_empty(
+  format($$ select 1 from public.question_references where question_id = %L $$, :'v_question_b_id'),
+  'active não lê question_references de questão draft'
+);
+select throws_ok(
+  format($$ insert into public.question_references (question_id, source_id) values (%L, %L) $$, :'v_question_a_id', :'v_source_id'),
+  NULL::char(5), NULL::text,
+  'active não escreve em question_references'
+);
+
+select tests.authenticate_as(:'v_admin');
+insert into public.question_corrections (question_id, correction_type, changed_fields, reason, responsible, ai_usage, occurred_at)
+values (:'v_question_a_id', 'correcao_factual', array['alternativas[1]'], 'motivo de teste', 'Teste', 'auditoria_de_conteudo', current_date);
+
+select tests.authenticate_as(:'v_active_a');
+select is_empty(
+  format($$ select 1 from public.question_corrections where question_id = %L $$, :'v_question_a_id'),
+  'active não lê question_corrections (trilha de auditoria, só admin)'
+);
+select throws_ok(
+  format($$ insert into public.question_corrections (question_id, correction_type) values (%L, 'nota_editorial') $$, :'v_question_a_id'),
+  NULL::char(5), NULL::text,
+  'active não escreve em question_corrections'
+);
+
+select tests.authenticate_as(:'v_admin');
+select isnt_empty(
+  format($$ select 1 from public.question_corrections where question_id = %L $$, :'v_question_a_id'),
+  'admin lê question_corrections'
+);
+
+-- ============================================================================
+-- 13) Storage: bucket privado e regras de escrita
 -- ============================================================================
 
 select tests.clear_auth();
