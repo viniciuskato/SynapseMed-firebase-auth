@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { Compendium, Discipline, Theme, StudyLens, EditorialStatus } from '../../types';
 import { StorageService } from '../../services/storage';
+import { bookmarksRepository } from '../../repositories/BookmarksRepository';
+import { notesRepository } from '../../repositories/NotesRepository';
 
 interface CompendiumViewProps {
   compendiums: Compendium[];
@@ -88,9 +90,9 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
 
   // Persistence data
   const readingProgress = StorageService.getReadingProgress();
-  const bookmarks = StorageService.getBookmarks();
+  const bookmarks = bookmarksRepository.getBookmarks();
   const highlights = StorageService.getHighlights();
-  const notes = StorageService.getNotes();
+  const notes = notesRepository.getNotes();
 
   // Helper to infer lens if not explicitly set
   const getCompendiumLens = (comp: Compendium): StudyLens => {

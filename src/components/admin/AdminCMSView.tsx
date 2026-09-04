@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Discipline, Theme, Question, Compendium, Flashcard, CompendiumSection } from '../../types';
 import { StorageService } from '../../services/storage';
+import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { materialsRepository } from '../../repositories/MaterialsRepository';
 import { questionsRepository } from '../../repositories/QuestionsRepository';
 
@@ -1111,7 +1112,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                   </span>
                   <button
                     onClick={() => {
-                      StorageService.deleteFlashcard(fc.id);
+                      flashcardsRepository.deleteFlashcard(fc.id);
                       onRefreshData();
                       showToast('Flashcard removido.');
                     }}

@@ -27,6 +27,7 @@ import {
 import { StorageService } from './services/storage';
 import { materialsRepository } from './repositories/MaterialsRepository';
 import { questionsRepository } from './repositories/QuestionsRepository';
+import { flashcardsRepository } from './repositories/FlashcardsRepository';
 import { isCardDueToday } from './services/srsAlgorithm';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoadingScreen } from './components/common/LoadingScreen';
@@ -89,7 +90,7 @@ function AuthenticatedApp() {
   const [themes, setThemes] = useState<Theme[]>(() => materialsRepository.getThemes());
   const [compendiums, setCompendiums] = useState<Compendium[]>(() => materialsRepository.getCompendiums());
   const [questions, setQuestions] = useState<Question[]>(() => questionsRepository.getQuestions());
-  const [flashcards, setFlashcards] = useState<Flashcard[]>(() => StorageService.getFlashcards());
+  const [flashcards, setFlashcards] = useState<Flashcard[]>(() => flashcardsRepository.getFlashcards());
   const [stats, setStats] = useState<UserStats>(() => StorageService.getStats());
 
   const refreshData = useCallback(() => {
@@ -97,7 +98,7 @@ function AuthenticatedApp() {
     setThemes(materialsRepository.getThemes());
     setCompendiums(materialsRepository.getCompendiums());
     setQuestions(questionsRepository.getQuestions());
-    setFlashcards(StorageService.getFlashcards());
+    setFlashcards(flashcardsRepository.getFlashcards());
     setStats(StorageService.getStats());
     setPlan(StorageService.getUserPlan());
     setTheme(StorageService.getTheme());

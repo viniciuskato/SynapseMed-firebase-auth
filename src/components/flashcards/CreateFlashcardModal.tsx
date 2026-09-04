@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Layers, X, Sparkles, BookOpen } from 'lucide-react';
 import { Discipline, Theme, Flashcard } from '../../types';
-import { StorageService } from '../../services/storage';
+import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 
 interface CreateFlashcardModalProps {
   isOpen: boolean;
@@ -54,7 +54,7 @@ export const CreateFlashcardModal: React.FC<CreateFlashcardModalProps> = ({
       },
     };
 
-    const saved = StorageService.saveFlashcard(newCard);
+    const saved = flashcardsRepository.saveFlashcard(newCard);
     onFlashcardCreated(saved);
     onClose();
   };

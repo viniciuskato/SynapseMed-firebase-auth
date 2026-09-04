@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Flashcard, Discipline, Theme } from '../../types';
-import { StorageService } from '../../services/storage';
+import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 
 interface FlashcardReviewerProps {
   cards: Flashcard[];
@@ -61,7 +61,7 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
   const handleRate = (rating: 1 | 2 | 3 | 4) => {
     if (!currentCard) return;
 
-    StorageService.reviewFlashcard(currentCard.id, rating);
+    flashcardsRepository.reviewFlashcard(currentCard.id, rating);
     setReviewCount((prev) => prev + 1);
 
     if (currentIndex < cards.length - 1) {
