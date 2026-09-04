@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import { Discipline, Theme, Question, Compendium, Flashcard, CompendiumSection } from '../../types';
 import { StorageService } from '../../services/storage';
+import { materialsRepository } from '../../repositories/MaterialsRepository';
+import { questionsRepository } from '../../repositories/QuestionsRepository';
 
 interface AdminCMSViewProps {
   disciplines: Discipline[];
@@ -232,7 +234,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       references: references.length > 0 ? references : ['Diretrizes Médicas de Referência'],
     };
 
-    StorageService.saveCompendium(newComp);
+    materialsRepository.saveCompendium(newComp);
     setIsCompendiumFormOpen(false);
     setEditingCompId(null);
     onRefreshData();
@@ -241,7 +243,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
   const handleDeleteCompendium = (id: string, title: string) => {
     if (window.confirm(`Tem certeza de que deseja excluir o compêndio "${title}"? Esta ação não pode ser desfeita.`)) {
-      StorageService.deleteCompendium(id);
+      materialsRepository.deleteCompendium(id);
       onRefreshData();
       showToast('Compêndio excluído.');
     }
@@ -276,7 +278,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       tags: ['Admin', 'CMS', 'Custom'],
     };
 
-    StorageService.saveCustomQuestion(question);
+    questionsRepository.saveCustomQuestion(question);
     setIsCreatingQuestion(false);
     onRefreshData();
     showToast('Questão cadastrada com sucesso e indexada no banco!');
@@ -284,7 +286,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
   const handleDeleteQuestion = (id: string) => {
     if (window.confirm('Excluir esta questão permanentemente?')) {
-      StorageService.deleteQuestion(id);
+      questionsRepository.deleteQuestion(id);
       onRefreshData();
       showToast('Questão removida.');
     }

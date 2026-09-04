@@ -25,6 +25,8 @@ import {
   MigrationSummary,
 } from './types';
 import { StorageService } from './services/storage';
+import { materialsRepository } from './repositories/MaterialsRepository';
+import { questionsRepository } from './repositories/QuestionsRepository';
 import { isCardDueToday } from './services/srsAlgorithm';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoadingScreen } from './components/common/LoadingScreen';
@@ -83,18 +85,18 @@ function AuthenticatedApp() {
   // Core Data State (carregados do StorageService)
   const [theme, setTheme] = useState<ThemeMode>(() => StorageService.getTheme());
   const [plan, setPlan] = useState<UserPlan>(() => StorageService.getUserPlan());
-  const [disciplines, setDisciplines] = useState<Discipline[]>(() => StorageService.getDisciplines());
-  const [themes, setThemes] = useState<Theme[]>(() => StorageService.getThemes());
-  const [compendiums, setCompendiums] = useState<Compendium[]>(() => StorageService.getCompendiums());
-  const [questions, setQuestions] = useState<Question[]>(() => StorageService.getQuestions());
+  const [disciplines, setDisciplines] = useState<Discipline[]>(() => materialsRepository.getDisciplines());
+  const [themes, setThemes] = useState<Theme[]>(() => materialsRepository.getThemes());
+  const [compendiums, setCompendiums] = useState<Compendium[]>(() => materialsRepository.getCompendiums());
+  const [questions, setQuestions] = useState<Question[]>(() => questionsRepository.getQuestions());
   const [flashcards, setFlashcards] = useState<Flashcard[]>(() => StorageService.getFlashcards());
   const [stats, setStats] = useState<UserStats>(() => StorageService.getStats());
 
   const refreshData = useCallback(() => {
-    setDisciplines(StorageService.getDisciplines());
-    setThemes(StorageService.getThemes());
-    setCompendiums(StorageService.getCompendiums());
-    setQuestions(StorageService.getQuestions());
+    setDisciplines(materialsRepository.getDisciplines());
+    setThemes(materialsRepository.getThemes());
+    setCompendiums(materialsRepository.getCompendiums());
+    setQuestions(questionsRepository.getQuestions());
     setFlashcards(StorageService.getFlashcards());
     setStats(StorageService.getStats());
     setPlan(StorageService.getUserPlan());
