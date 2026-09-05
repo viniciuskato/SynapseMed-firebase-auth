@@ -34,3 +34,6 @@ supabase/.temp/
 # Estado temporário do smoke test remoto (scripts/smoke-test-remote.ts)
 .smoke-test-remote-state.json
 
+# Relatório gerado por scripts/load-pilot-cardiologia.ts (saída de execução local, não é fonte)
+load-pilot-cardiologia.report.txt
+

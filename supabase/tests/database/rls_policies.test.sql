@@ -95,7 +95,7 @@ $$;
 grant usage on schema tests to anon, authenticated;
 grant execute on function tests.clear_auth() to anon, authenticated;
 
-select plan(75);
+select plan(80);
 
 -- ----------------------------------------------------------------------------
 -- Fixtures: usuários, conteúdo em draft/published/archived
@@ -120,6 +120,23 @@ returning id as v_material_draft_id \gset
 
 insert into public.materials (discipline_id, theme_id, title, status) values (:'v_discipline_id', :'v_theme_id', 'Material Published', 'published')
 returning id as v_material_pub_id \gset
+
+-- Segundo material published, usado só para ter um par (material_id,
+-- depends_on_material_id) ainda não inserido em material_dependencies —
+-- necessário para testar a negação de RLS na escrita sem esbarrar na
+-- constraint unique dos pares já usados nas fixtures abaixo.
+insert into public.materials (discipline_id, theme_id, title, status) values (:'v_discipline_id', :'v_theme_id', 'Material Published 2', 'published')
+returning id as v_material_pub2_id \gset
+
+-- material_dependencies segue o mesmo padrão de RLS de material_references:
+-- leitura liberada quando o material "de origem" (material_id) está
+-- published; o status do pré-requisito (depends_on_material_id) é
+-- irrelevante para a policy de leitura.
+insert into public.material_dependencies (material_id, depends_on_material_id) values (:'v_material_pub_id', :'v_material_draft_id')
+returning id as v_dep_pub_origin_id \gset
+
+insert into public.material_dependencies (material_id, depends_on_material_id) values (:'v_material_draft_id', :'v_material_pub_id')
+returning id as v_dep_draft_origin_id \gset
 
 -- Questão A: será levada até published, com gabarito completo.
 insert into public.questions (discipline_id, theme_id, cycle, difficulty, clinical_vignette, question_stem)
@@ -224,6 +241,33 @@ select is(
 );
 
 -- ============================================================================
+-- 2b) material_dependencies: mesmo padrão de materials (leitura conforme
+-- status do material de origem, escrita só admin)
+-- ============================================================================
+
+select isnt_empty(
+  format($$ select 1 from public.material_dependencies where id = %L $$, :'v_dep_pub_origin_id'),
+  'active lê dependency cujo material de origem está published'
+);
+select is_empty(
+  format($$ select 1 from public.material_dependencies where id = %L $$, :'v_dep_draft_origin_id'),
+  'active não lê dependency cujo material de origem está em draft'
+);
+select throws_ok(
+  format($$ insert into public.material_dependencies (material_id, depends_on_material_id) values (%L, %L) $$, :'v_material_pub2_id', :'v_material_pub_id'),
+  NULL::char(5), NULL::text,
+  'active não cria material_dependencies'
+);
+-- mesmo motivo dos blocos de materials/notes acima: UPDATE sob RLS filtra a
+-- linha silenciosamente, não lança exceção.
+update public.material_dependencies set depends_on_material_id = :'v_material_pub_id' where id = :'v_dep_pub_origin_id';
+select is(
+  (select depends_on_material_id from public.material_dependencies where id = :'v_dep_pub_origin_id'),
+  :'v_material_draft_id'::uuid,
+  'active não altera material_dependencies (RLS bloqueia silenciosamente, 0 linhas afetadas)'
+);
+
+-- ============================================================================
 -- 3) Admin gerencia conteúdo editorial
 -- ============================================================================
 
@@ -231,6 +275,10 @@ select tests.authenticate_as(:'v_admin');
 select lives_ok(
   format($$ update public.materials set subtitle = 'editado por admin' where id = %L $$, :'v_material_pub_id'),
   'admin active edita conteúdo editorial'
+);
+select lives_ok(
+  format($$ insert into public.material_dependencies (material_id, depends_on_material_id) values (%L, %L) $$, :'v_material_pub2_id', :'v_material_pub_id'),
+  'admin active cria material_dependencies'
 );
 
 -- ============================================================================
