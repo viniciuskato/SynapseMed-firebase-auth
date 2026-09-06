@@ -1,5 +1,7 @@
 # Roteiro de Migração Firebase → Supabase
 
+> **Status atual (2026-09-06): migração concluída.** Todas as etapas abaixo foram executadas, mescladas em `main` e aplicadas em produção. O Firebase (Auth, Firestore, Hosting, `firebase.json`/`.firebaserc`/`firestore.rules`) foi removido do código-fonte no commit `efe365a`. O app roda hoje 100% sobre Supabase (Postgres + Auth + Storage). O restante deste documento é mantido como registro histórico do processo — as seções abaixo descrevem o estado da Etapa 1 e o planejamento original das etapas seguintes, já superado pela execução real. Ver "Status final por etapa" ao fim do documento para o mapeamento etapa→commit.
+
 > Este documento acompanha o roteiro; a Etapa 1 foi executada e validada localmente.
 
 ## Etapa 1 (esta etapa) — Fundação local Supabase
@@ -52,14 +54,29 @@ Uma auditoria independente encontrou 4 problemas de implementação que foram co
 5. `supabase db reset` (aplica migrações + `seed.sql`).
 6. `supabase test db` (roda `rls_policies.test.sql`).
 
-## Etapas futuras (não iniciadas, apenas indicadas)
+## Etapas futuras (planejamento original — todas concluídas, ver "Status final por etapa" abaixo)
 
-1. **Primeiro administrador**: operação administrativa direta (fora do frontend) para promover um perfil a `role='admin', status='active'` — nunca por variável de ambiente manipulável no navegador nem por código público. A definir com o usuário quando a etapa de conexão real começar.
-2. **Sincronização de `profiles.email`**: avaliar trigger em `auth.users` (`AFTER UPDATE OF email`) reaproveitando a mesma técnica de `current_user = 'postgres'` já usada para `role`/`status`.
-3. **Conexão do frontend**: instalar `@supabase/supabase-js`, criar client paralelo ao Firebase (sem remover Firebase), variáveis `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY`.
-4. **Inventário e migração controlada de dados reais**: Base de Estudos, Biblioteca/Medicina, Questões (OneDrive) — etapa própria, com leitura explicitamente autorizada, fora do escopo desta etapa.
-5. **Migração de dados de usuários**: localStorage → Supabase, com plano de dupla-escrita ou corte único a definir.
-6. **Desligamento gradual do Firebase**: só depois de validação completa em produção.
+1. ~~**Primeiro administrador**: operação administrativa direta (fora do frontend) para promover um perfil a `role='admin', status='active'`~~ — feito via SQL Editor do dashboard Supabase, conforme planejado (nunca por variável de ambiente ou código público).
+2. ~~**Sincronização de `profiles.email`**~~ — coberto pela migração de autenticação (item 5 abaixo).
+3. ~~**Conexão do frontend**: instalar `@supabase/supabase-js`, criar client paralelo ao Firebase~~ — feito; posteriormente o client Firebase foi removido por completo (não ficou paralelo permanentemente).
+4. ~~**Inventário e migração controlada de dados reais**: Base de Estudos, Biblioteca/Medicina, Questões (OneDrive)~~ — feito: 33 compêndios + 393 questões carregados no Supabase remoto.
+5. ~~**Migração de dados de usuários**: localStorage → Supabase~~ — feito: 10 repositórios de dados pessoais (Answers/Bookmarks/ErrorNotebook/Feedback/Flashcards/Notes/ReadingProgress/Simulados/Materials/Questions) convertidos para async e conectados a `Supabase*Repository` no app.
+6. ~~**Desligamento gradual do Firebase**~~ — feito de uma vez (não gradual) após validação em produção: Firebase inteiramente removido do código-fonte (commit `efe365a`).
+
+## Status final por etapa
+
+| Etapa | Escopo | Status | Commit(s) principal(is) |
+|---|---|---|---|
+| 1 | Fundação Supabase local (schema, RLS, pgTAP) | Concluída | `f73b088` |
+| 2 | Camada de repositórios (conteúdo + dados pessoais, ainda sobre LocalStorage) | Concluída | `d19ccdd` e fusões de Fase 2b |
+| 3 | Infraestrutura remota + `Supabase*Repository` (não conectados ao app ainda) | Concluída | `07cb3c0`, `d19ccdd` |
+| Schema v2 | Colunas/tabelas editoriais para conteúdo real | Concluída | `dadca69` |
+| Carga de conteúdo | 33 compêndios + 393 questões no Supabase remoto | Concluída | `516cb0e`, `1ea95b9` |
+| 4 | Repositórios de dados pessoais no Supabase | Concluída | `6dfb0d1` |
+| 5 | `AuthContext` migrado para Supabase Auth (email/senha + Google OAuth) | Concluída | `73fa44e` |
+| 4-5 wiring | Repositórios convertidos para async e conectados ao app (troca de `LocalStorage*` por `Supabase*`) | Concluída | `84b7958`, `b06da4e` |
+| 6 | Deploy em produção | Concluída (confirmado pelo usuário) | — |
+| 7 | Remoção do código Firebase | Concluída | `efe365a` |
 
 ## Variáveis de ambiente futuras (documentadas, sem valores reais)
 
