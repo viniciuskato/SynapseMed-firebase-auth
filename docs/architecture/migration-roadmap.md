@@ -1,6 +1,6 @@
 # Roteiro de Migração Firebase → Supabase
 
-> Este documento é um roteiro; **nenhuma etapa além da Etapa 1 foi executada**.
+> Este documento acompanha o roteiro; a Etapa 1 foi executada e validada localmente.
 
 ## Etapa 1 (esta etapa) — Fundação local Supabase
 
@@ -10,7 +10,7 @@ Entregue:
 - RLS, funções e triggers de segurança/integridade editorial (`supabase/migrations/20260903120100_rls_policies.sql`).
 - Políticas de Storage (`supabase/migrations/20260903120200_storage_policies.sql`).
 - Seed local mínimo, não sensível (`supabase/seed.sql`).
-- Suíte de testes pgTAP planejada (`supabase/tests/database/rls_policies.test.sql`) — **não executada** nesta etapa (ver seção "Testes" abaixo).
+- Suíte de testes pgTAP (`supabase/tests/database/rls_policies.test.sql`) — **executada em 2026-09-05: 80/80 asserções passando**.
 - Documentação de esquema (`supabase-schema.md`).
 
 Explicitamente fora do escopo desta etapa (não foi feito):
@@ -26,12 +26,12 @@ Explicitamente fora do escopo desta etapa (não foi feito):
 
 | Categoria | Quantidade | Executado? |
 |---|---|---|
-| Casos pgTAP (`rls_policies.test.sql`) | 65 asserções (`select plan(65)`, recontado por script a partir do arquivo real — ver auditoria abaixo) | **Não** — Docker e Supabase CLI ausentes neste ambiente (`docker --version`, `docker info` e `npx --no-install supabase --version` falharam, verificado nesta sessão). Executar com `supabase start` + `supabase test db`. |
+| Casos pgTAP (`rls_policies.test.sql`) | 80 asserções (`select plan(80)`) | **Sim** — executado em 2026-09-05 contra Supabase CLI 2.116.0 + Docker local; todos passaram. |
 | Verificação estática de `config.toml` | 1 (schema `app` fora de `[api].schemas`) | **Sim**, nesta etapa, por leitura direta do arquivo (não requer banco). |
-| Integração HTTP (`/rest/v1/rpc/is_admin_active` deve ser rota inexistente) | 1 | **Não** — precisa do PostgREST rodando (`supabase start`). |
+| Integração HTTP (`/rest/v1/rpc/is_admin_active` deve ser rota inexistente) | 1 | **Parcial** — PostgREST local respondeu 404 para os helpers `app.*`, como esperado; as RPCs públicas também não apareceram no catálogo HTTP, embora existam no schema SQL e tenham `EXECUTE` para `authenticated`. Investigar a política de exposição/grants antes da conexão do frontend. |
 | Integração concorrente (`publish_question` sob corrida com edição simultânea de alternativa) | 1 (documentado na seção "Concorrência na publicação" de `supabase-schema.md`) | **Não** — pgTAP roda em uma única sessão/transação e não consegue abrir duas conexões concorrentes; precisa de um script de duas sessões psql (ou pgbench) contra um Postgres real. Não é uma asserção `pgTAP`. |
 
-Nenhum resultado de execução do pgTAP foi simulado ou inventado. A contagem de 65 foi obtida com `grep`/contagem automatizada sobre o arquivo (`is_empty`+`isnt_empty`+`throws_ok`+`lives_ok`+`results_eq`+`is(` = 11+5+35+11+1+2), não por inspeção manual — uma auditoria anterior encontrou `plan(N)` desalinhado do número real de chamadas por contagem manual imprecisa.
+O resultado de execução do pgTAP foi obtido de fato contra a stack local: 80/80 asserções passaram em 2026-09-05, inclusive em duas execuções consecutivas sem reset. Durante essa validação, quatro fixtures com identificadores fixos foram tornados idempotentes (emails de usuários, código de disciplina, id de fonte e nome de objeto no Storage).
 
 ### Correção de auditoria (esta revisão)
 

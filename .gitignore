@@ -37,3 +37,9 @@ supabase/.temp/
 # Relatório gerado por scripts/load-pilot-cardiologia.ts (saída de execução local, não é fonte)
 load-pilot-cardiologia.report.txt
 
+# Relatório gerado por scripts/load-compendios.ts (saída de execução local, não é fonte)
+load-compendios.*.report.txt
+
+# Relatório gerado por scripts/load-questoes.ts (saída de execução local, não é fonte)
+load-questoes.*.report.txt
+

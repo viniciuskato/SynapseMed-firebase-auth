@@ -1,9 +1,10 @@
 -- ============================================================================
 -- SynapseMed — Testes pgTAP de RLS, integridade editorial e RPCs
 --
--- EXECUTADO E VALIDADO em 2026-09-03 contra Supabase CLI 2.116.0 + Docker
--- local (`supabase db reset` seguido de `supabase test db`): 65/65
--- asserções passando, reproduzido em múltiplos resets consecutivos.
+-- EXECUTADO E VALIDADO em 2026-09-05 contra Supabase CLI 2.116.0 + Docker
+-- local (`supabase db reset` seguido de `supabase test db`): 80/80
+-- asserções passando; a suíte também passou em duas execuções consecutivas
+-- sem reset, com fixtures idempotentes.
 -- Bugs reais encontrados e corrigidos nesta rodada (não pegos pela revisão
 -- estática anterior): pgcrypto vive no schema `extensions`, não `public`
 -- (crypt/gen_salt precisam de qualificação); tests.authenticate_as usava
@@ -41,10 +42,11 @@ set search_path = ''
 as $$
 declare
   v_id uuid := gen_random_uuid();
+  v_email text := p_email || '+' || v_id::text;
 begin
   insert into auth.users (id, email, encrypted_password, raw_user_meta_data, created_at, updated_at, aud, role)
   values (
-    v_id, p_email, extensions.crypt('senha-teste-123', extensions.gen_salt('bf')),
+    v_id, v_email, extensions.crypt('senha-teste-123', extensions.gen_salt('bf')),
     jsonb_build_object('display_name', p_email), now(), now(), 'authenticated', 'authenticated'
   );
 
@@ -109,7 +111,7 @@ select tests.create_user('active.a@test.local', 'student', 'active') as v_active
 select tests.create_user('active.b@test.local', 'student', 'active') as v_active_b \gset
 select tests.create_user('admin@test.local', 'admin', 'active') as v_admin \gset
 
-insert into public.disciplines (name, code, cycle) values ('Disciplina Teste', 'TST', 'clinico')
+insert into public.disciplines (name, code, cycle) values ('Disciplina Teste', 'TST-' || substr(gen_random_uuid()::text, 1, 8), 'clinico')
 returning id as v_discipline_id \gset
 
 insert into public.themes (discipline_id, name) values (:'v_discipline_id', 'Tema Teste')
@@ -685,7 +687,7 @@ select isnt_empty(
 
 select tests.authenticate_as(:'v_admin');
 insert into public.sources (id, citation_text, tipo, verificacao)
-values ('fonte-teste-01', 'Citação de teste', 'diretriz_consenso', 'verificada')
+values ('fonte-teste-' || gen_random_uuid()::text, 'Citação de teste', 'diretriz_consenso', 'verificada')
 returning id as v_source_id \gset
 
 select tests.authenticate_as_anon();
@@ -775,7 +777,7 @@ select throws_ok(
 
 select tests.authenticate_as(:'v_admin');
 select lives_ok(
-  $$ insert into storage.objects (bucket_id, name, owner) values ('editorial-assets', 'materials/algum-material/asset.png', auth.uid()) $$,
+  $$ insert into storage.objects (bucket_id, name, owner) values ('editorial-assets', 'materials/algum-material/asset-' || gen_random_uuid()::text || '.png', auth.uid()) $$,
   'admin active pode inserir objeto em caminho válido de editorial-assets'
 );
 select throws_ok(
