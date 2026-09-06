@@ -52,8 +52,8 @@ export const Header: React.FC<HeaderProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [userDropdownOpen]);
 
-  const displayName = profile?.displayName || user?.displayName || 'Estudante';
-  const photoURL = profile?.photoURL || user?.photoURL || null;
+  const displayName = profile?.displayName || user?.user_metadata?.display_name || 'Estudante';
+  const photoURL = profile?.photoURL || user?.user_metadata?.avatar_url || null;
   const isAdmin = profile?.role === 'admin';
 
   // Iniciais para fallback do avatar

@@ -1,26 +1,9 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import {
-  User,
-  signInWithPopup,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  updateProfile,
-  sendEmailVerification,
-  sendPasswordResetEmail,
-  signOut,
-  onAuthStateChanged,
-} from 'firebase/auth';
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { auth, googleProvider, db, isFirebaseConfigured } from '../services/firebase';
+import type { User } from '@supabase/supabase-js';
+import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
 import { StorageService } from '../services/storage';
-import { getFirebaseAuthErrorMessage } from '../utils/authErrors';
+import { getSupabaseAuthErrorMessage } from '../utils/supabaseAuthErrors';
 
 interface AuthContextType {
   user: User | null;
@@ -48,147 +31,142 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isEmailVerified, setIsEmailVerified] = useState<boolean>(false);
 
-  // Sincroniza o usuário no Firestore e no StorageService
-  const syncUserProfile = useCallback(async (firebaseUser: User) => {
-    // Define imediatamente o namespace no StorageService para o usuário ativo
-    StorageService.setActiveUser(firebaseUser.uid);
-    setUser(firebaseUser);
-    setIsEmailVerified(firebaseUser.emailVerified);
+  // Busca o perfil em public.profiles (criado pelo trigger handle_new_user no signup)
+  const fetchProfile = useCallback(async (supaUser: User): Promise<UserProfile> => {
+    StorageService.setActiveUser(supaUser.id);
+
+    const fallbackProfile: UserProfile = {
+      uid: supaUser.id,
+      email: supaUser.email || null,
+      displayName: supaUser.user_metadata?.display_name || 'Estudante SynapseMed',
+      photoURL: supaUser.user_metadata?.avatar_url || null,
+      role: 'student',
+      plan: 'free',
+      status: 'pending',
+    };
 
     try {
-      const userDocRef = doc(db, 'users', firebaseUser.uid);
-      const docSnap = await getDoc(userDocRef);
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, display_name, avatar_url, role, status, created_at')
+        .eq('id', supaUser.id)
+        .single();
 
-      if (!docSnap.exists()) {
-        // Novo usuário: OBRIGATORIAMENTE role 'student' e plan 'free', com os 8 campos exigidos pelas regras
-        const newProfileData = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || null,
-          displayName: firebaseUser.displayName || 'Estudante SynapseMed',
-          photoURL: firebaseUser.photoURL || null,
-          role: 'student' as const,
-          plan: 'free' as const,
-          createdAt: serverTimestamp(),
-          lastLoginAt: serverTimestamp(),
-        };
-
-        await setDoc(userDocRef, newProfileData);
-
-        setProfile({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email || null,
-          displayName: firebaseUser.displayName || 'Estudante SynapseMed',
-          photoURL: firebaseUser.photoURL || null,
-          role: 'student',
-          plan: 'free',
-        });
-      } else {
-        const data = docSnap.data();
-
-        // Atualização segura: apenas displayName, photoURL e lastLoginAt são atualizados
-        try {
-          await updateDoc(userDocRef, {
-            displayName: firebaseUser.displayName || data.displayName || 'Estudante SynapseMed',
-            photoURL: firebaseUser.photoURL || data.photoURL || null,
-            lastLoginAt: serverTimestamp(),
-          });
-        } catch (updateErr) {
-          console.warn('Não foi possível atualizar lastLoginAt (esperado se offline):', updateErr);
-        }
-
-        setProfile({
-          uid: firebaseUser.uid,
-          email: data.email || firebaseUser.email || null,
-          displayName: firebaseUser.displayName || data.displayName || 'Estudante SynapseMed',
-          photoURL: firebaseUser.photoURL || data.photoURL || null,
-          role: data.role === 'admin' ? 'admin' : 'student',
-          plan: data.plan === 'premium' ? 'premium' : 'free',
-          createdAt: data.createdAt,
-          lastLoginAt: data.lastLoginAt,
-        });
+      if (error || !data) {
+        console.warn('Não foi possível carregar o perfil em public.profiles:', error);
+        return fallbackProfile;
       }
-    } catch (err: any) {
-      console.error('Erro ao sincronizar perfil do Firestore:', err);
-      // Cria perfil em memória para não bloquear o funcionamento básico
-      setProfile({
-        uid: firebaseUser.uid,
-        email: firebaseUser.email || null,
-        displayName: firebaseUser.displayName || 'Estudante SynapseMed',
-        photoURL: firebaseUser.photoURL || null,
-        role: 'student',
+
+      return {
+        uid: data.id,
+        email: data.email,
+        displayName: data.display_name || 'Estudante SynapseMed',
+        photoURL: data.avatar_url,
+        // plan ainda não existe em public.profiles (fora do escopo desta etapa) — mantido 'free'.
+        role: data.role === 'admin' ? 'admin' : 'student',
         plan: 'free',
-      });
+        status: data.status === 'active' || data.status === 'blocked' ? data.status : 'pending',
+        createdAt: data.created_at,
+      };
+    } catch (err: any) {
+      console.error('Erro ao sincronizar perfil do Supabase:', err);
+      return fallbackProfile;
     }
   }, []);
 
+  const applySession = useCallback(
+    async (supaUser: User | null) => {
+      if (supaUser) {
+        setUser(supaUser);
+        setIsEmailVerified(Boolean(supaUser.email_confirmed_at));
+        const nextProfile = await fetchProfile(supaUser);
+        setProfile(nextProfile);
+      } else {
+        StorageService.setActiveUser(null);
+        setUser(null);
+        setProfile(null);
+        setIsEmailVerified(false);
+      }
+    },
+    [fetchProfile]
+  );
+
   useEffect(() => {
-    if (!isFirebaseConfigured) {
+    if (!isSupabaseConfigured) {
       setLoading(false);
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    let mounted = true;
+
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
       try {
-        if (firebaseUser) {
-          await syncUserProfile(firebaseUser);
-        } else {
-          StorageService.setActiveUser(null);
-          setUser(null);
-          setProfile(null);
-          setIsEmailVerified(false);
-        }
+        await applySession(session?.user ?? null);
+      } catch (err: any) {
+        console.error('Erro ao processar sessão inicial:', err);
+        setLoginError(getSupabaseAuthErrorMessage(err));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      try {
+        await applySession(session?.user ?? null);
       } catch (err: any) {
         console.error('Erro ao processar alteração de autenticação:', err);
-        setLoginError(getFirebaseAuthErrorMessage(err));
+        setLoginError(getSupabaseAuthErrorMessage(err));
       } finally {
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
-  }, [syncUserProfile]);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [applySession]);
 
   const loginWithGoogle = async () => {
     setLoginError(null);
-    if (!isFirebaseConfigured) {
+    if (!isSupabaseConfigured) {
       setLoginError(
-        'As variáveis do Firebase Web ainda não foram configuradas no ambiente. Configure VITE_FIREBASE_API_KEY e VITE_FIREBASE_PROJECT_ID no arquivo .env.'
+        'As variáveis do Supabase ainda não foram configuradas no ambiente. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env.local.'
       );
       return;
     }
 
     try {
-      const cred = await signInWithPopup(auth, googleProvider);
-      if (cred.user) {
-        await syncUserProfile(cred.user);
-      }
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+      if (error) throw error;
     } catch (err: any) {
-      if (err.code === 'auth/popup-closed-by-user') {
-        // Usuário fechou o popup intencionalmente
-        return;
-      }
       console.error('Falha na autenticação com o Google:', err);
-      setLoginError(getFirebaseAuthErrorMessage(err));
+      setLoginError(getSupabaseAuthErrorMessage(err));
       throw err;
     }
   };
 
   const loginWithEmail = async (email: string, password: string) => {
     setLoginError(null);
-    if (!isFirebaseConfigured) {
-      setLoginError(
-        'O Firebase ainda não está configurado. Verifique as credenciais no arquivo .env.'
-      );
+    if (!isSupabaseConfigured) {
+      setLoginError('O Supabase ainda não está configurado. Verifique as credenciais no arquivo .env.local.');
       return;
     }
 
     try {
-      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      if (cred.user) {
-        await syncUserProfile(cred.user);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (error) throw error;
+      if (data.user) {
+        await applySession(data.user);
       }
     } catch (err: any) {
-      const ptMsg = getFirebaseAuthErrorMessage(err);
+      const ptMsg = getSupabaseAuthErrorMessage(err);
       setLoginError(ptMsg);
       throw new Error(ptMsg);
     }
@@ -196,59 +174,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const registerWithEmail = async (name: string, email: string, password: string) => {
     setLoginError(null);
-    if (!isFirebaseConfigured) {
-      setLoginError(
-        'O Firebase ainda não está configurado. Verifique as credenciais no arquivo .env.'
-      );
+    if (!isSupabaseConfigured) {
+      setLoginError('O Supabase ainda não está configurado. Verifique as credenciais no arquivo .env.local.');
       return;
     }
 
     try {
-      // 1. Criar conta no Firebase Authentication
-      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      const newUser = cred.user;
-
-      // 2. Atualizar o nome de exibição no perfil do Firebase Auth
-      await updateProfile(newUser, {
-        displayName: name.trim(),
+      // O trigger public.handle_new_user cria a linha em public.profiles
+      // automaticamente a partir de raw_user_meta_data.display_name.
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: { display_name: name.trim() },
+        },
       });
-
-      // 3. Enviar e-mail de verificação para o usuário
-      await sendEmailVerification(newUser);
-
-      // 4. Criar documento users/{uid} no Firestore com role: 'student' e plan: 'free'
-      const userDocRef = doc(db, 'users', newUser.uid);
-      const newProfileData = {
-        uid: newUser.uid,
-        email: newUser.email || null,
-        displayName: name.trim(),
-        photoURL: null,
-        role: 'student' as const,
-        plan: 'free' as const,
-        createdAt: serverTimestamp(),
-        lastLoginAt: serverTimestamp(),
-      };
-
-      try {
-        await setDoc(userDocRef, newProfileData);
-      } catch (firestoreErr) {
-        console.warn('Aviso: perfil criado no Auth, salvando documento Firestore:', firestoreErr);
+      if (error) throw error;
+      if (data.user) {
+        await applySession(data.user);
       }
-
-      // Sincronizar estado local
-      StorageService.setActiveUser(newUser.uid);
-      setUser(newUser);
-      setIsEmailVerified(false); // E-mail ainda precisa ser verificado
-      setProfile({
-        uid: newUser.uid,
-        email: newUser.email || null,
-        displayName: name.trim(),
-        photoURL: null,
-        role: 'student',
-        plan: 'free',
-      });
     } catch (err: any) {
-      const ptMsg = getFirebaseAuthErrorMessage(err);
+      const ptMsg = getSupabaseAuthErrorMessage(err);
       setLoginError(ptMsg);
       throw new Error(ptMsg);
     }
@@ -256,40 +202,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const sendPasswordReset = async (email: string) => {
     setLoginError(null);
-    if (!isFirebaseConfigured) {
-      setLoginError('O Firebase ainda não está configurado.');
+    if (!isSupabaseConfigured) {
+      setLoginError('O Supabase ainda não está configurado.');
       return;
     }
 
     try {
-      await sendPasswordResetEmail(auth, email.trim());
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+      if (error) throw error;
     } catch (err: any) {
-      const ptMsg = getFirebaseAuthErrorMessage(err);
+      const ptMsg = getSupabaseAuthErrorMessage(err);
       setLoginError(ptMsg);
       throw new Error(ptMsg);
     }
   };
 
   const sendVerificationEmail = async () => {
-    if (!auth.currentUser) {
+    if (!user?.email) {
       throw new Error('Nenhum usuário ativo para enviar e-mail de verificação.');
     }
     try {
-      await sendEmailVerification(auth.currentUser);
+      const { error } = await supabase.auth.resend({ type: 'signup', email: user.email });
+      if (error) throw error;
     } catch (err: any) {
-      const ptMsg = getFirebaseAuthErrorMessage(err);
+      const ptMsg = getSupabaseAuthErrorMessage(err);
       throw new Error(ptMsg);
     }
   };
 
   const reloadUser = async (): Promise<boolean> => {
-    if (!auth.currentUser) return false;
     try {
-      await auth.currentUser.reload();
-      const current = auth.currentUser;
-      const verified = current.emailVerified;
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) return false;
+      const verified = Boolean(data.user.email_confirmed_at);
       setIsEmailVerified(verified);
-      setUser(current);
+      setUser(data.user);
       return verified;
     } catch (err: any) {
       console.error('Erro ao recarregar status do usuário:', err);
@@ -299,7 +246,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      await signOut(auth);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
       StorageService.setActiveUser(null);
       setUser(null);
       setProfile(null);
@@ -318,7 +266,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profile,
         loading,
         loginError,
-        isConfigured: isFirebaseConfigured,
+        isConfigured: isSupabaseConfigured,
         isEmailVerified,
         loginWithGoogle,
         loginWithEmail,

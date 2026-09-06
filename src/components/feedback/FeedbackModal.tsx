@@ -37,7 +37,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
         title: title.trim(),
         description: description.trim(),
         createdAt: new Date().toISOString(),
-        userId: user?.uid || null,
+        userId: user?.id || null,
         userEmail: user?.email || profile?.email || null,
       };
 

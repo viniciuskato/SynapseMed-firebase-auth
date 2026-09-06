@@ -53,7 +53,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onStartSRS,
 }) => {
   const { user, profile } = useAuth();
-  const userName = profile?.displayName || user?.displayName || 'Colega';
+  const userName = profile?.displayName || user?.user_metadata?.display_name || 'Colega';
 
   // Persistence data (isolado por UID)
   const stats = StorageService.getStats();

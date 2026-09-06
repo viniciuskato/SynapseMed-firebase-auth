@@ -45,5 +45,21 @@ enable_signup = true
 double_confirm_changes = true
 enable_confirmations = false
 
+# Fase 5 — Google OAuth via Supabase Auth. client_id/secret são lidos de
+# variáveis de ambiente (nunca hardcoded aqui) e precisam existir no shell
+# antes de `supabase start`, mesmo que com valores placeholder — o CLI local
+# falha ao subir se a env referenciada em env(...) não existir.
+#
+# Passo manual do usuário (fora do escopo desta etapa, tanto local quanto em
+# produção): criar um OAuth Client ID no Google Cloud Console e definir
+# SUPABASE_AUTH_GOOGLE_CLIENT_ID / SUPABASE_AUTH_GOOGLE_SECRET com os valores
+# reais. Até lá, os placeholders abaixo permitem `supabase start` funcionar
+# normalmente para o restante do fluxo (email/senha), mas o botão "Entrar com
+# Google" retornará erro de autenticação ao ser clicado.
+[auth.external.google]
+enabled = true
+client_id = "env(SUPABASE_AUTH_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_GOOGLE_SECRET)"
+
 [analytics]
 enabled = false
