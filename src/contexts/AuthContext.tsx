@@ -3,7 +3,7 @@ import type { User } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabaseClient';
 import { UserProfile } from '../types';
 import { StorageService } from '../services/storage';
-import { getFirebaseAuthErrorMessage } from '../utils/authErrors';
+import { getSupabaseAuthErrorMessage } from '../utils/supabaseAuthErrors';
 
 interface AuthContextType {
   user: User | null;
@@ -105,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await applySession(session?.user ?? null);
       } catch (err: any) {
         console.error('Erro ao processar sessão inicial:', err);
-        setLoginError(getFirebaseAuthErrorMessage(err));
+        setLoginError(getSupabaseAuthErrorMessage(err));
       } finally {
         if (mounted) setLoading(false);
       }
@@ -118,7 +118,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await applySession(session?.user ?? null);
       } catch (err: any) {
         console.error('Erro ao processar alteração de autenticação:', err);
-        setLoginError(getFirebaseAuthErrorMessage(err));
+        setLoginError(getSupabaseAuthErrorMessage(err));
       } finally {
         setLoading(false);
       }
@@ -144,7 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
     } catch (err: any) {
       console.error('Falha na autenticação com o Google:', err);
-      setLoginError(getFirebaseAuthErrorMessage(err));
+      setLoginError(getSupabaseAuthErrorMessage(err));
       throw err;
     }
   };
@@ -166,7 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await applySession(data.user);
       }
     } catch (err: any) {
-      const ptMsg = getFirebaseAuthErrorMessage(err);
+      const ptMsg = getSupabaseAuthErrorMessage(err);
       setLoginError(ptMsg);
       throw new Error(ptMsg);
     }
@@ -194,7 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await applySession(data.user);
       }
     } catch (err: any) {
-      const ptMsg = getFirebaseAuthErrorMessage(err);
+      const ptMsg = getSupabaseAuthErrorMessage(err);
       setLoginError(ptMsg);
       throw new Error(ptMsg);
     }
@@ -211,7 +211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
       if (error) throw error;
     } catch (err: any) {
-      const ptMsg = getFirebaseAuthErrorMessage(err);
+      const ptMsg = getSupabaseAuthErrorMessage(err);
       setLoginError(ptMsg);
       throw new Error(ptMsg);
     }
@@ -225,7 +225,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { error } = await supabase.auth.resend({ type: 'signup', email: user.email });
       if (error) throw error;
     } catch (err: any) {
-      const ptMsg = getFirebaseAuthErrorMessage(err);
+      const ptMsg = getSupabaseAuthErrorMessage(err);
       throw new Error(ptMsg);
     }
   };
