@@ -72,6 +72,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 loadEnv({ path: path.resolve(__dirname, '..', '.env.local') });
 
 const EXECUTE = process.argv.includes('--execute');
+const ALLOW_REMOTE = process.argv.includes('--allow-remote');
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const SERVICE_ROLE_KEY =
@@ -251,9 +252,9 @@ async function main() {
   // conexão real contra o banco indicado) — mesma proteção documentada em
   // load-compendios.ts. .env.local deste repo aponta por padrão pro projeto
   // REMOTO; nunca confiar nele aqui.
-  if (!SUPABASE_URL.includes('127.0.0.1') && !SUPABASE_URL.includes('localhost')) {
+  if (!SUPABASE_URL.includes('127.0.0.1') && !SUPABASE_URL.includes('localhost') && !ALLOW_REMOTE) {
     throw new Error(
-      `SUPABASE_URL (${SUPABASE_URL}) não é local — este script nunca deve conectar no remoto, nem em dry-run (que já faz leituras reais). Rode assim: VITE_SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=<chave local> npx tsx scripts/load-questoes.ts. Abortando antes de qualquer chamada de rede.`
+      `SUPABASE_URL (${SUPABASE_URL}) não é local — por padrão este script só conecta no local, nem em dry-run (que já faz leituras reais). Rode contra local assim: VITE_SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=<chave local> npx tsx scripts/load-questoes.ts. Para rodar contra remoto de propósito, passe --allow-remote explicitamente. Abortando antes de qualquer chamada de rede.`
     );
   }
 
