@@ -134,7 +134,7 @@ export const EmailVerificationScreen: React.FC = () => {
           </span>
           <ol className="space-y-2 text-xs text-slate-600 dark:text-slate-300 list-decimal list-inside">
             <li>Abra a caixa de entrada do seu e-mail cadastrado.</li>
-            <li>Localize o e-mail de verificação da SynapseMed / Firebase.</li>
+            <li>Localize o e-mail de verificação da SynapseMed.</li>
             <li>Clique no link seguro de confirmação.</li>
             <li>Retorne a esta tela e clique em <strong>"Já confirmei meu e-mail"</strong>.</li>
           </ol>

@@ -1,16 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Fase 3 — cliente Supabase (não conectado à produção ainda).
+// Cliente Supabase (backend ativo em produção).
 //
 // Lê as credenciais do ambiente Vite. Em desenvolvimento local, aponte
 // VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEY (em .env.local, não versionado)
 // para a instância local do Supabase CLI (`supabase status` mostra os valores).
-//
-// Este cliente ainda não é usado pelos singletons `materialsRepository`/
-// `questionsRepository` consumidos pelo app (App.tsx/AdminCMSView.tsx) — a
-// troca fica para uma etapa futura, condicionada à migração de autenticação
-// (Fase 5), já que as policies de escrita exigem um admin autenticado via
-// Supabase Auth, e o app hoje autentica via Firebase.
 
 // Sob Vite (app real), as variáveis vêm de import.meta.env. Sob execução
 // direta via tsx/node (ex.: scripts/validate-supabase-repos.ts, fora do

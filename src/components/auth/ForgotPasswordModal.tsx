@@ -103,7 +103,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-              Informe o e-mail cadastrado na plataforma. Enviaremos um link exclusivo do Firebase Authentication para você definir uma nova senha com total segurança.
+              Informe o e-mail cadastrado na plataforma. Enviaremos um link exclusivo para você definir uma nova senha com total segurança.
             </p>
 
             {errorMsg && (

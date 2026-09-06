@@ -265,15 +265,15 @@ export const LoginView: React.FC = () => {
             </div>
           )}
 
-          {/* Aviso se o Firebase Web ainda não estiver configurado */}
+          {/* Aviso se a autenticação ainda não estiver configurada */}
           {!isConfigured && (
             <div
-              id="firebase-not-configured-notice"
+              id="auth-not-configured-notice"
               className="mb-5 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs"
             >
               <div className="flex items-center gap-1.5 font-semibold mb-1">
                 <AlertCircle className="w-4 h-4 text-amber-700 dark:text-amber-400" />
-                <span>Configuração do Firebase Necessária</span>
+                <span>Configuração Necessária</span>
               </div>
               <p className="leading-relaxed text-amber-800 dark:text-amber-300">
                 Para autenticar, configure as variáveis no arquivo <code className="bg-amber-100 dark:bg-amber-900 px-1 py-0.5 rounded text-[11px] font-mono">.env</code>.
@@ -489,7 +489,7 @@ export const LoginView: React.FC = () => {
               Novas contas iniciam no perfil <strong className="text-slate-700 dark:text-slate-300">Estudante</strong> com plano Free.
             </p>
             <p className="text-[11px] text-slate-400 dark:text-slate-500">
-              Autenticação gerenciada com criptografia de ponta a ponta pelo Firebase Authentication. Senhas nunca são expostas ou salvas no banco de dados.
+              Autenticação gerenciada com criptografia de ponta a ponta. Senhas nunca são expostas ou salvas no banco de dados.
             </p>
           </div>
         </div>
