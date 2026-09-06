@@ -1,13 +1,16 @@
 import { SimuladoSessionData } from '../types';
 import { StorageService } from '../services/storage';
+import { SupabaseSimuladosRepository } from './SupabaseSimuladosRepository';
 
 export interface SimuladosRepository {
-  getSimulados(): SimuladoSessionData[];
-  saveSimuladoSession(session: SimuladoSessionData): void;
-  getSimuladoHistory(): SimuladoSessionData[];
+  getSimulados(): Promise<SimuladoSessionData[]>;
+  saveSimuladoSession(session: SimuladoSessionData): Promise<void>;
+  getSimuladoHistory(): Promise<SimuladoSessionData[]>;
 }
 
-class LocalStorageSimuladosRepository implements SimuladosRepository {
+// Não implementa mais `SimuladosRepository` (agora assíncrona) — mantida
+// como código morto, documentado, sem uso pelo singleton (ver Etapa Fase 4-5 wiring).
+class LocalStorageSimuladosRepository {
   getSimulados(): SimuladoSessionData[] {
     return StorageService.getSimulados();
   }
@@ -19,4 +22,4 @@ class LocalStorageSimuladosRepository implements SimuladosRepository {
   }
 }
 
-export const simuladosRepository: SimuladosRepository = new LocalStorageSimuladosRepository();
+export const simuladosRepository: SimuladosRepository = new SupabaseSimuladosRepository();

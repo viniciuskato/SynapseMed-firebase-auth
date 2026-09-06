@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
   XCircle,
@@ -43,33 +43,53 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   onSelectOptionInExam,
 }) => {
   // Local state for study mode
-  const initialAnswer = answersRepository.getAnswers()[question.id];
   const [selectedOption, setSelectedOption] = useState<'A' | 'B' | 'C' | 'D' | 'E' | null>(
-    initialAnswer?.selectedOption || selectedOptionInExam || null
+    selectedOptionInExam || null
   );
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(!!initialAnswer && !isExamMode);
-  const [isBookmarked, setIsBookmarked] = useState<boolean>(
-    bookmarksRepository.getBookmarks().questions.includes(question.id)
-  );
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
-  const [errorReason, setErrorReason] = useState<QuestionAnswerRecord['errorReason']>(
-    initialAnswer?.errorReason || 'lacuna_teorica'
-  );
-  const [userNote, setUserNote] = useState<string>(initialAnswer?.userNotes || '');
+  const [errorReason, setErrorReason] = useState<QuestionAnswerRecord['errorReason']>('lacuna_teorica');
+  const [userNote, setUserNote] = useState<string>('');
   const [isNoteSaved, setIsNoteSaved] = useState(false);
   const [showErrorTagger, setShowErrorTagger] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Carrega a resposta/favorito já registrados para esta questão (Supabase)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [answers, bookmarks] = await Promise.all([
+        answersRepository.getAnswers(),
+        bookmarksRepository.getBookmarks(),
+      ]);
+      if (cancelled) return;
+
+      const initialAnswer = answers[question.id];
+      if (!isExamMode) {
+        setSelectedOption(initialAnswer?.selectedOption || selectedOptionInExam || null);
+        setIsSubmitted(!!initialAnswer);
+      }
+      setIsBookmarked(bookmarks.questions.includes(question.id));
+      setErrorReason(initialAnswer?.errorReason || 'lacuna_teorica');
+      setUserNote(initialAnswer?.userNotes || '');
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleSaveNote = () => {
-    const existing = answersRepository.getAnswers()[question.id];
+  const handleSaveNote = async () => {
+    const existing = (await answersRepository.getAnswers())[question.id];
     if (existing) {
       existing.userNotes = userNote;
-      answersRepository.recordAnswer(existing);
+      await answersRepository.recordAnswer(existing);
       setIsNoteSaved(true);
       showToast('Anotação pessoal vinculada ao erro salva com sucesso!');
       setTimeout(() => setIsNoteSaved(false), 2000);
@@ -87,7 +107,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     setSelectedOption(letter);
   };
 
-  const handleConfirmAnswer = () => {
+  const handleConfirmAnswer = async () => {
     if (!selectedOption) return;
     const correctOpt = question.options.find((o) => o.isCorrect)?.letter;
     const isCorrect = selectedOption === correctOpt;
@@ -101,7 +121,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       errorReason: isCorrect ? undefined : errorReason,
     };
 
-    answersRepository.recordAnswer(record);
+    await answersRepository.recordAnswer(record);
     setIsSubmitted(true);
 
     if (onAnswerRecorded) onAnswerRecorded(record);
@@ -123,23 +143,23 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     }
   };
 
-  const handleToggleBookmark = () => {
-    const bookmarked = bookmarksRepository.toggleBookmark('questions', question.id);
+  const handleToggleBookmark = async () => {
+    const bookmarked = await bookmarksRepository.toggleBookmark('questions', question.id);
     setIsBookmarked(bookmarked);
     showToast(bookmarked ? 'Questão adicionada aos seus favoritos' : 'Removida dos favoritos');
   };
 
-  const handleAddFlashcard = () => {
-    flashcardsRepository.createFlashcardFromQuestion(question);
+  const handleAddFlashcard = async () => {
+    await flashcardsRepository.createFlashcardFromQuestion(question);
     showToast('Flashcard adicionado à sua rotina de Revisão Espaçada (SRS)!');
   };
 
-  const handleUpdateErrorReason = (reason: QuestionAnswerRecord['errorReason']) => {
+  const handleUpdateErrorReason = async (reason: QuestionAnswerRecord['errorReason']) => {
     setErrorReason(reason);
-    const existing = answersRepository.getAnswers()[question.id];
+    const existing = (await answersRepository.getAnswers())[question.id];
     if (existing) {
       existing.errorReason = reason;
-      answersRepository.recordAnswer(existing);
+      await answersRepository.recordAnswer(existing);
       showToast('Motivo do erro atualizado no seu Caderno de Erros.');
     }
   };
@@ -381,11 +401,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
             {/* 2. Adicionar / Mapear no Caderno de Erros */}
             <button
-              onClick={() => {
-                const existing = answersRepository.getAnswers()[question.id];
+              onClick={async () => {
+                const existing = (await answersRepository.getAnswers())[question.id];
                 if (existing) {
                   existing.errorReason = errorReason;
-                  answersRepository.recordAnswer(existing);
+                  await answersRepository.recordAnswer(existing);
                   showToast('Questão catalogada no Caderno de Erros!');
                 }
               }}

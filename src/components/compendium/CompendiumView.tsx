@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   BookOpen,
   Search,
@@ -90,10 +90,34 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | EditorialStatus>('all');
 
   // Persistence data
-  const readingProgress = readingProgressRepository.getReadingProgress();
-  const bookmarks = bookmarksRepository.getBookmarks();
+  const [readingProgress, setReadingProgress] = useState<
+    Record<string, { readSectionIds: string[]; percent: number }>
+  >({});
+  const [bookmarks, setBookmarks] = useState<{
+    questions: string[];
+    compendiums: string[];
+    flashcards: string[];
+  }>({ questions: [], compendiums: [], flashcards: [] });
+  const [notes, setNotes] = useState<Record<string, string>>({});
   const highlights = StorageService.getHighlights();
-  const notes = notesRepository.getNotes();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [nextProgress, nextBookmarks, nextNotes] = await Promise.all([
+        readingProgressRepository.getReadingProgress(),
+        bookmarksRepository.getBookmarks(),
+        notesRepository.getNotes(),
+      ]);
+      if (cancelled) return;
+      setReadingProgress(nextProgress);
+      setBookmarks(nextBookmarks);
+      setNotes(nextNotes);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Helper to infer lens if not explicitly set
   const getCompendiumLens = (comp: Compendium): StudyLens => {

@@ -1,12 +1,15 @@
 import { QuestionAnswerRecord } from '../types';
 import { StorageService } from '../services/storage';
+import { SupabaseAnswersRepository } from './SupabaseAnswersRepository';
 
 export interface AnswersRepository {
-  getAnswers(): Record<string, QuestionAnswerRecord>;
-  recordAnswer(record: QuestionAnswerRecord): void;
+  getAnswers(): Promise<Record<string, QuestionAnswerRecord>>;
+  recordAnswer(record: QuestionAnswerRecord): Promise<void>;
 }
 
-class LocalStorageAnswersRepository implements AnswersRepository {
+// Não implementa mais `AnswersRepository` (agora assíncrona) — mantida como
+// código morto, documentado, sem uso pelo singleton (ver Etapa Fase 4-5 wiring).
+class LocalStorageAnswersRepository {
   getAnswers(): Record<string, QuestionAnswerRecord> {
     return StorageService.getAnswers();
   }
@@ -15,4 +18,4 @@ class LocalStorageAnswersRepository implements AnswersRepository {
   }
 }
 
-export const answersRepository: AnswersRepository = new LocalStorageAnswersRepository();
+export const answersRepository: AnswersRepository = new SupabaseAnswersRepository();

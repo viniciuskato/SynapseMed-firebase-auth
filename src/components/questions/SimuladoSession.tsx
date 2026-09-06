@@ -71,11 +71,12 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
     }));
   };
 
-  const handleFinishExam = () => {
+  const handleFinishExam = async () => {
     if (isFinished) return;
 
     let correct = 0;
     const sessionAnswersRecord: SimuladoSessionData['answers'] = {};
+    const pendingRecordings: Promise<void>[] = [];
 
     questions.forEach((q) => {
       const selected = answers[q.id];
@@ -88,16 +89,20 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
           timeSpent: Math.round((config.timeLimitMinutes * 60 - secondsRemaining) / questions.length),
         };
         // Record in global answers storage
-        answersRepository.recordAnswer({
-          questionId: q.id,
-          selectedOption: selected,
-          isCorrect: isCor,
-          timestamp: new Date().toISOString(),
-          timeSpentSeconds: 45,
-          errorReason: isCor ? undefined : 'lacuna_teorica',
-        });
+        pendingRecordings.push(
+          answersRepository.recordAnswer({
+            questionId: q.id,
+            selectedOption: selected,
+            isCorrect: isCor,
+            timestamp: new Date().toISOString(),
+            timeSpentSeconds: 45,
+            errorReason: isCor ? undefined : 'lacuna_teorica',
+          })
+        );
       }
     });
+
+    await Promise.all(pendingRecordings);
 
     const totalTimeSpent = config.timeLimitMinutes * 60 - secondsRemaining;
     const scorePct = Math.round((correct / Math.max(1, questions.length)) * 100);
@@ -113,7 +118,7 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
       totalTimeSeconds: totalTimeSpent,
     };
 
-    simuladosRepository.saveSimuladoSession(sessionData);
+    await simuladosRepository.saveSimuladoSession(sessionData);
 
     setSessionResults({
       correctCount: correct,

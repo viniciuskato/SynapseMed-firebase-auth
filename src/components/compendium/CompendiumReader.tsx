@@ -71,22 +71,31 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
 
   // Load reading progress, bookmark and notes
   useEffect(() => {
-    const progress = readingProgressRepository.getReadingProgress();
-    const compProgress = progress[compendium.id];
-    if (compProgress) {
-      setReadSectionIds(compProgress.readSectionIds);
-    }
-    const bookmarks = bookmarksRepository.getBookmarks();
-    setIsBookmarked(bookmarks.compendiums.includes(compendium.id));
+    let cancelled = false;
+    (async () => {
+      const [progress, bookmarks, notes] = await Promise.all([
+        readingProgressRepository.getReadingProgress(),
+        bookmarksRepository.getBookmarks(),
+        notesRepository.getNotes(),
+      ]);
+      if (cancelled) return;
 
-    const notes = notesRepository.getNotes();
-    setUserNote(notes[compendium.id] || '');
+      const compProgress = progress[compendium.id];
+      if (compProgress) {
+        setReadSectionIds(compProgress.readSectionIds);
+      }
+      setIsBookmarked(bookmarks.compendiums.includes(compendium.id));
+      setUserNote(notes[compendium.id] || '');
 
-    if (targetSectionId) {
-      setActiveSectionId(targetSectionId);
-      const elem = document.getElementById(targetSectionId);
-      if (elem) elem.scrollIntoView({ behavior: 'smooth' });
-    }
+      if (targetSectionId) {
+        setActiveSectionId(targetSectionId);
+        const elem = document.getElementById(targetSectionId);
+        if (elem) elem.scrollIntoView({ behavior: 'smooth' });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [compendium.id, targetSectionId]);
 
   const showToast = (msg: string) => {
@@ -94,13 +103,13 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const handleToggleRead = (sectionId: string) => {
-    const newPercent = readingProgressRepository.toggleSectionRead(
+  const handleToggleRead = async (sectionId: string) => {
+    const newPercent = await readingProgressRepository.toggleSectionRead(
       compendium.id,
       sectionId,
       compendium.sections.length
     );
-    const progress = readingProgressRepository.getReadingProgress();
+    const progress = await readingProgressRepository.getReadingProgress();
     setReadSectionIds(progress[compendium.id]?.readSectionIds || []);
 
     if (newPercent === 100) {
@@ -108,20 +117,20 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
     }
   };
 
-  const handleToggleBookmark = () => {
-    const bookmarked = bookmarksRepository.toggleBookmark('compendiums', compendium.id);
+  const handleToggleBookmark = async () => {
+    const bookmarked = await bookmarksRepository.toggleBookmark('compendiums', compendium.id);
     setIsBookmarked(bookmarked);
     showToast(bookmarked ? 'Adicionado aos favoritos' : 'Removido dos favoritos');
   };
 
-  const handleSaveNote = () => {
-    notesRepository.saveNote(compendium.id, userNote);
+  const handleSaveNote = async () => {
+    await notesRepository.saveNote(compendium.id, userNote);
     showToast('Anotação salva com sucesso');
   };
 
-  const handleCreateFlashcardFromSection = (sec: CompendiumSection) => {
-    flashcardsRepository.saveFlashcard({
-      id: `fc-sec-${Date.now()}`,
+  const handleCreateFlashcardFromSection = async (sec: CompendiumSection) => {
+    await flashcardsRepository.saveFlashcard({
+      id: crypto.randomUUID(),
       disciplineId: compendium.disciplineId,
       themeId: compendium.themeId,
       compendiumRefId: compendium.id,

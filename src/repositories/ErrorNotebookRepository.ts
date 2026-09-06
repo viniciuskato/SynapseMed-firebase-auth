@@ -1,12 +1,15 @@
 import { ErrorLogItem } from '../types';
 import { StorageService } from '../services/storage';
+import { SupabaseErrorNotebookRepository } from './SupabaseErrorNotebookRepository';
 
 export interface ErrorNotebookRepository {
-  getErrorLogs(): ErrorLogItem[];
-  updateErrorLog(errorItem: ErrorLogItem): void;
+  getErrorLogs(): Promise<ErrorLogItem[]>;
+  updateErrorLog(errorItem: ErrorLogItem): Promise<void>;
 }
 
-class LocalStorageErrorNotebookRepository implements ErrorNotebookRepository {
+// Não implementa mais `ErrorNotebookRepository` (agora assíncrona) — mantida
+// como código morto, documentado, sem uso pelo singleton (ver Etapa Fase 4-5 wiring).
+class LocalStorageErrorNotebookRepository {
   getErrorLogs(): ErrorLogItem[] {
     return StorageService.getErrorLogs();
   }
@@ -15,4 +18,4 @@ class LocalStorageErrorNotebookRepository implements ErrorNotebookRepository {
   }
 }
 
-export const errorNotebookRepository: ErrorNotebookRepository = new LocalStorageErrorNotebookRepository();
+export const errorNotebookRepository: ErrorNotebookRepository = new SupabaseErrorNotebookRepository();

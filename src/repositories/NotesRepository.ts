@@ -1,11 +1,14 @@
 import { StorageService } from '../services/storage';
+import { SupabaseNotesRepository } from './SupabaseNotesRepository';
 
 export interface NotesRepository {
-  getNotes(): Record<string, string>;
-  saveNote(targetId: string, noteText: string): void;
+  getNotes(): Promise<Record<string, string>>;
+  saveNote(targetId: string, noteText: string): Promise<void>;
 }
 
-class LocalStorageNotesRepository implements NotesRepository {
+// Não implementa mais `NotesRepository` (agora assíncrona) — mantida como
+// código morto, documentado, sem uso pelo singleton (ver Etapa Fase 4-5 wiring).
+class LocalStorageNotesRepository {
   getNotes(): Record<string, string> {
     return StorageService.getNotes();
   }
@@ -14,4 +17,4 @@ class LocalStorageNotesRepository implements NotesRepository {
   }
 }
 
-export const notesRepository: NotesRepository = new LocalStorageNotesRepository();
+export const notesRepository: NotesRepository = new SupabaseNotesRepository();

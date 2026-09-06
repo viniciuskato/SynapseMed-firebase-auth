@@ -58,10 +58,10 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
 
   const currentCard = cards[currentIndex];
 
-  const handleRate = (rating: 1 | 2 | 3 | 4) => {
+  const handleRate = async (rating: 1 | 2 | 3 | 4) => {
     if (!currentCard) return;
 
-    flashcardsRepository.reviewFlashcard(currentCard.id, rating);
+    await flashcardsRepository.reviewFlashcard(currentCard.id, rating);
     setReviewCount((prev) => prev + 1);
 
     if (currentIndex < cards.length - 1) {

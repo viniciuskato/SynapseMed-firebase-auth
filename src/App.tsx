@@ -23,6 +23,7 @@ import {
   SimuladoConfig,
   ThemeMode,
   MigrationSummary,
+  QuestionAnswerRecord,
 } from './types';
 import { StorageService } from './services/storage';
 import { materialsRepository } from './repositories/MaterialsRepository';
@@ -84,22 +85,34 @@ function AuthenticatedApp() {
   // Migration State
   const [migrationSummary, setMigrationSummary] = useState<MigrationSummary | null>(null);
 
-  // Core Data State (carregados do StorageService)
+  // Core Data State (carregados do StorageService / Supabase)
   const [theme, setTheme] = useState<ThemeMode>(() => StorageService.getTheme());
   const [plan, setPlan] = useState<UserPlan>(() => StorageService.getUserPlan());
-  const [disciplines, setDisciplines] = useState<Discipline[]>(() => materialsRepository.getDisciplines());
-  const [themes, setThemes] = useState<Theme[]>(() => materialsRepository.getThemes());
-  const [compendiums, setCompendiums] = useState<Compendium[]>(() => materialsRepository.getCompendiums());
-  const [questions, setQuestions] = useState<Question[]>(() => questionsRepository.getQuestions());
-  const [flashcards, setFlashcards] = useState<Flashcard[]>(() => flashcardsRepository.getFlashcards());
+  const [disciplines, setDisciplines] = useState<Discipline[]>([]);
+  const [themes, setThemes] = useState<Theme[]>([]);
+  const [compendiums, setCompendiums] = useState<Compendium[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
+  const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
   const [stats, setStats] = useState<UserStats>(() => StorageService.getStats());
+  const [dataLoading, setDataLoading] = useState(true);
 
-  const refreshData = useCallback(() => {
-    setDisciplines(materialsRepository.getDisciplines());
-    setThemes(materialsRepository.getThemes());
-    setCompendiums(materialsRepository.getCompendiums());
-    setQuestions(questionsRepository.getQuestions());
-    setFlashcards(flashcardsRepository.getFlashcards());
+  const refreshData = useCallback(async () => {
+    const [nextDisciplines, nextThemes, nextCompendiums, nextQuestions, nextFlashcards, nextAnswers] =
+      await Promise.all([
+        materialsRepository.getDisciplines(),
+        materialsRepository.getThemes(),
+        materialsRepository.getCompendiums(),
+        questionsRepository.getQuestions(),
+        flashcardsRepository.getFlashcards(),
+        answersRepository.getAnswers(),
+      ]);
+    setDisciplines(nextDisciplines);
+    setThemes(nextThemes);
+    setCompendiums(nextCompendiums);
+    setQuestions(nextQuestions);
+    setFlashcards(nextFlashcards);
+    setAnswers(nextAnswers);
     setStats(StorageService.getStats());
     setPlan(StorageService.getUserPlan());
     setTheme(StorageService.getTheme());
@@ -108,7 +121,8 @@ function AuthenticatedApp() {
   // Quando o usuário autenticado muda, recarrega os dados do namespace dele
   useEffect(() => {
     if (user?.id) {
-      refreshData();
+      setDataLoading(true);
+      refreshData().finally(() => setDataLoading(false));
       const legacySummary = StorageService.checkLegacyDataSummary(user.id);
       if (legacySummary.hasLegacyData) {
         setMigrationSummary(legacySummary);
@@ -163,12 +177,16 @@ function AuthenticatedApp() {
     return <AwaitingApprovalView />;
   }
 
+  // Dados pessoais/de conteúdo (Supabase) ainda carregando
+  if (dataLoading) {
+    return <LoadingScreen message="Carregando seus dados de estudo..." />;
+  }
+
   const isAdmin = profile?.role === 'admin';
 
   // Calculate badges
-  const answers = answersRepository.getAnswers();
   const unansweredCount = questions.filter((q) => !answers[q.id]).length;
-  const errorCount = Object.values(answers).filter((a) => !a.isCorrect).length;
+  const errorCount = (Object.values(answers) as QuestionAnswerRecord[]).filter((a) => !a.isCorrect).length;
   const dueCardsCount = flashcards.filter((fc) => isCardDueToday(fc)).length;
 
   // Plan toggles
@@ -441,7 +459,7 @@ function AuthenticatedApp() {
               onOpenQuestion={handleOpenQuestion}
               onStartErrorSimulado={() => {
                 const mistakesConfig: SimuladoConfig = {
-                  id: `sim-mistakes-${Date.now()}`,
+                  id: crypto.randomUUID(),
                   name: 'Simulado de Caderno de Erros',
                   disciplineIds: disciplines.map((d) => d.id),
                   themeIds: [],

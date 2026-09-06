@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   HelpCircle,
   Search,
@@ -11,7 +11,7 @@ import {
   Plus,
   BookOpen,
 } from 'lucide-react';
-import { Question, Discipline, Theme, MedicalCycle, DifficultyLevel } from '../../types';
+import { Question, Discipline, Theme, MedicalCycle, DifficultyLevel, QuestionAnswerRecord } from '../../types';
 import { StorageService } from '../../services/storage';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
@@ -42,8 +42,28 @@ export const QuestionsView: React.FC<QuestionsViewProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'unanswered' | 'correct' | 'incorrect' | 'bookmarked'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const answers = answersRepository.getAnswers();
-  const bookmarks = bookmarksRepository.getBookmarks();
+  const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
+  const [bookmarks, setBookmarks] = useState<{
+    questions: string[];
+    compendiums: string[];
+    flashcards: string[];
+  }>({ questions: [], compendiums: [], flashcards: [] });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [nextAnswers, nextBookmarks] = await Promise.all([
+        answersRepository.getAnswers(),
+        bookmarksRepository.getBookmarks(),
+      ]);
+      if (cancelled) return;
+      setAnswers(nextAnswers);
+      setBookmarks(nextBookmarks);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // If focusQuestionId exists, locate it
   const filteredQuestions = useMemo(() => {
@@ -91,7 +111,7 @@ export const QuestionsView: React.FC<QuestionsViewProps> = ({
     focusQuestionId,
   ]);
 
-  const mistakesCount = Object.values(answers).filter((a) => !a.isCorrect).length;
+  const mistakesCount = (Object.values(answers) as QuestionAnswerRecord[]).filter((a) => !a.isCorrect).length;
 
   return (
     <div className="space-y-6">

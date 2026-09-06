@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AlertCircle,
   BookOpen,
@@ -34,8 +34,20 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
   const [selectedReasonFilter, setSelectedReasonFilter] = useState<string>('all');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const answers = answersRepository.getAnswers();
-  const mistakeRecords = Object.values(answers).filter((a) => !a.isCorrect);
+  const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const nextAnswers = await answersRepository.getAnswers();
+      if (!cancelled) setAnswers(nextAnswers);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const mistakeRecords = (Object.values(answers) as QuestionAnswerRecord[]).filter((a) => !a.isCorrect);
 
   const mistakeQuestions = questions.filter((q) => {
     const ans = answers[q.id];
@@ -51,20 +63,20 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleGenerateAllFlashcards = () => {
+  const handleGenerateAllFlashcards = async () => {
     let createdCount = 0;
-    mistakeQuestions.forEach((q) => {
-      flashcardsRepository.createFlashcardFromQuestion(q);
+    for (const q of mistakeQuestions) {
+      await flashcardsRepository.createFlashcardFromQuestion(q);
       createdCount++;
-    });
+    }
     showToast(`${createdCount} flashcards adicionados à sua fila de Revisão Espaçada (SRS)!`);
   };
 
   const reasonStats = {
-    lacuna_teorica: Object.values(answers).filter((a) => !a.isCorrect && a.errorReason === 'lacuna_teorica').length,
-    pegadinha: Object.values(answers).filter((a) => !a.isCorrect && a.errorReason === 'pegadinha').length,
-    falta_atencao: Object.values(answers).filter((a) => !a.isCorrect && a.errorReason === 'falta_atencao').length,
-    raciocinio_clinico: Object.values(answers).filter((a) => !a.isCorrect && a.errorReason === 'raciocinio_clinico').length,
+    lacuna_teorica: mistakeRecords.filter((a) => a.errorReason === 'lacuna_teorica').length,
+    pegadinha: mistakeRecords.filter((a) => a.errorReason === 'pegadinha').length,
+    falta_atencao: mistakeRecords.filter((a) => a.errorReason === 'falta_atencao').length,
+    raciocinio_clinico: mistakeRecords.filter((a) => a.errorReason === 'raciocinio_clinico').length,
   };
 
   return (

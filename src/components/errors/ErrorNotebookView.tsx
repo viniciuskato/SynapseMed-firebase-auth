@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   BookMarked,
   Tag,
@@ -45,11 +45,19 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState<string>('');
 
-  const answers = answersRepository.getAnswers();
+  const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
+
+  const reloadAnswers = () => {
+    answersRepository.getAnswers().then(setAnswers);
+  };
+
+  useEffect(() => {
+    reloadAnswers();
+  }, []);
 
   // Filter mistakes
   const mistakes = useMemo(() => {
-    return Object.values(answers)
+    return (Object.values(answers) as QuestionAnswerRecord[])
       .filter((a) => !a.isCorrect)
       .map((ans) => {
         const q = questions.find((item) => item.id === ans.questionId);
@@ -85,26 +93,28 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
     tempo_esgotado: { label: 'Tempo Esgotado', color: 'bg-slate-100 text-slate-800 border-slate-300' },
   };
 
-  const handleResolveError = (questionId: string) => {
-    const existing = answersRepository.getAnswers()[questionId];
+  const handleResolveError = async (questionId: string) => {
+    const existing = (await answersRepository.getAnswers())[questionId];
     if (existing) {
       existing.isCorrect = true; // Mark as mastered
-      answersRepository.recordAnswer(existing);
+      await answersRepository.recordAnswer(existing);
+      reloadAnswers();
       onUpdate();
     }
   };
 
-  const handleCreateFlashcard = (q: Question) => {
-    flashcardsRepository.createFlashcardFromQuestion(q);
+  const handleCreateFlashcard = async (q: Question) => {
+    await flashcardsRepository.createFlashcardFromQuestion(q);
     alert('Flashcard adicionado à sua rotina de repetição espaçada!');
   };
 
-  const handleSaveNote = (questionId: string) => {
-    const existing = answersRepository.getAnswers()[questionId];
+  const handleSaveNote = async (questionId: string) => {
+    const existing = (await answersRepository.getAnswers())[questionId];
     if (existing) {
       existing.userNotes = noteDraft;
-      answersRepository.recordAnswer(existing);
+      await answersRepository.recordAnswer(existing);
       setEditingNoteId(null);
+      reloadAnswers();
       onUpdate();
     }
   };

@@ -1,11 +1,15 @@
 import { StorageService } from '../services/storage';
+import { SupabaseReadingProgressRepository } from './SupabaseReadingProgressRepository';
 
 export interface ReadingProgressRepository {
-  getReadingProgress(): Record<string, { readSectionIds: string[]; percent: number }>;
-  toggleSectionRead(compendiumId: string, sectionId: string, totalSections: number): number;
+  getReadingProgress(): Promise<Record<string, { readSectionIds: string[]; percent: number }>>;
+  toggleSectionRead(compendiumId: string, sectionId: string, totalSections: number): Promise<number>;
 }
 
-class LocalStorageReadingProgressRepository implements ReadingProgressRepository {
+// Não implementa mais `ReadingProgressRepository` (agora assíncrona) —
+// mantida como código morto, documentado, sem uso pelo singleton (ver Etapa
+// Fase 4-5 wiring).
+class LocalStorageReadingProgressRepository {
   getReadingProgress(): Record<string, { readSectionIds: string[]; percent: number }> {
     return StorageService.getReadingProgress();
   }
@@ -14,4 +18,4 @@ class LocalStorageReadingProgressRepository implements ReadingProgressRepository
   }
 }
 
-export const readingProgressRepository: ReadingProgressRepository = new LocalStorageReadingProgressRepository();
+export const readingProgressRepository: ReadingProgressRepository = new SupabaseReadingProgressRepository();

@@ -1,15 +1,13 @@
 import { ErrorLogItem } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { ErrorNotebookRepository } from './ErrorNotebookRepository';
 
 // ============================================================================
-// Fase 4 — Supabase-backed ErrorNotebookRepository
+// Fase 4-5 wiring — Supabase-backed ErrorNotebookRepository
 // ============================================================================
 //
-// Mesma observação de `SupabaseMaterialsRepository.ts`: não declara
-// `implements ErrorNotebookRepository` porque essa interface é síncrona
-// (localStorage) e uma implementação Supabase real é assíncrona por
-// natureza. Os métodos espelham os nomes/parâmetros da interface original,
-// retornando Promise<T> em vez de T. Não é usada pelo singleton
+// `ErrorNotebookRepository` foi convertida para assíncrona e esta classe
+// passou a declarar `implements ErrorNotebookRepository` e a ser o singleton
 // `errorNotebookRepository` consumido pelo app.
 //
 // Mapeamento de campos (frontend <-> banco):
@@ -42,7 +40,7 @@ interface ErrorNotebookRow {
   correct_option_id: string;
 }
 
-export class SupabaseErrorNotebookRepository {
+export class SupabaseErrorNotebookRepository implements ErrorNotebookRepository {
   async getErrorLogs(): Promise<ErrorLogItem[]> {
     const { data, error } = await supabase
       .from('error_notebook')

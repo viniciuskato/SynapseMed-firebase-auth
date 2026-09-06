@@ -113,7 +113,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     setCompReferencesStr('Diretriz Oficial de Especialidade (2024)');
     setCompSections([
       {
-        id: `sec-${Date.now()}-1`,
+        id: crypto.randomUUID(),
         title: '1. Fisiopatologia e Mecanismos Moleculares',
         mechanismTag: 'Fisiopatologia',
         content: 'Descreva a cascata fisiopatológica, receptores envolvidos e desdobramentos hemodinâmicos.',
@@ -140,7 +140,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     setCompSections(
       comp.sections.map((s, idx) => ({
         ...s,
-        id: s.id || `sec-${Date.now()}-${idx}`,
+        id: s.id || crypto.randomUUID(),
       }))
     );
     setIsCompendiumFormOpen(true);
@@ -151,7 +151,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     setCompSections([
       ...compSections,
       {
-        id: `sec-${Date.now()}-${nextIdx}`,
+        id: crypto.randomUUID(),
         title: `${nextIdx}. Nova Seção Teórica`,
         mechanismTag: 'Mecanismo Clínico',
         content: 'Insira aqui a explicação médica detalhada ou tabela de conduta...',
@@ -194,7 +194,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     setCompSections(updated);
   };
 
-  const handleSaveCompendium = (e: React.FormEvent) => {
+  const handleSaveCompendium = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!compTitle.trim()) {
       showToast('Por favor, informe o título do compêndio.');
@@ -217,7 +217,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       .map((r) => r.trim())
       .filter(Boolean);
 
-    const compId = editingCompId || `comp-${Date.now()}`;
+    const compId = editingCompId || crypto.randomUUID();
 
     const newComp: Compendium = {
       id: compId,
@@ -235,30 +235,30 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       references: references.length > 0 ? references : ['Diretrizes Médicas de Referência'],
     };
 
-    materialsRepository.saveCompendium(newComp);
+    await materialsRepository.saveCompendium(newComp);
     setIsCompendiumFormOpen(false);
     setEditingCompId(null);
     onRefreshData();
     showToast(editingCompId ? 'Compêndio atualizado com sucesso!' : 'Novo compêndio incluído e indexado com sucesso!');
   };
 
-  const handleDeleteCompendium = (id: string, title: string) => {
+  const handleDeleteCompendium = async (id: string, title: string) => {
     if (window.confirm(`Tem certeza de que deseja excluir o compêndio "${title}"? Esta ação não pode ser desfeita.`)) {
-      materialsRepository.deleteCompendium(id);
+      await materialsRepository.deleteCompendium(id);
       onRefreshData();
       showToast('Compêndio excluído.');
     }
   };
 
   // ── Question Form Handlers ──────────────────────────────────────
-  const handleSaveQuestion = (e: React.FormEvent) => {
+  const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newQStem.trim()) return;
 
     const matchedComp = compendiums.find((c) => c.disciplineId === newQDiscipline);
 
     const question: Question = {
-      id: `q-custom-${Date.now()}`,
+      id: crypto.randomUUID(),
       disciplineId: newQDiscipline,
       themeId: newQTheme || themes.find((t) => t.disciplineId === newQDiscipline)?.id || 'cardio-fa',
       compendiumRefId: matchedComp?.id || 'comp-cardio-fa',
@@ -279,15 +279,15 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       tags: ['Admin', 'CMS', 'Custom'],
     };
 
-    questionsRepository.saveCustomQuestion(question);
+    await questionsRepository.saveCustomQuestion(question);
     setIsCreatingQuestion(false);
     onRefreshData();
     showToast('Questão cadastrada com sucesso e indexada no banco!');
   };
 
-  const handleDeleteQuestion = (id: string) => {
+  const handleDeleteQuestion = async (id: string) => {
     if (window.confirm('Excluir esta questão permanentemente?')) {
-      questionsRepository.deleteQuestion(id);
+      await questionsRepository.deleteQuestion(id);
       onRefreshData();
       showToast('Questão removida.');
     }
@@ -1111,8 +1111,8 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     Repetições: {fc.srs.repetitionCount}
                   </span>
                   <button
-                    onClick={() => {
-                      flashcardsRepository.deleteFlashcard(fc.id);
+                    onClick={async () => {
+                      await flashcardsRepository.deleteFlashcard(fc.id);
                       onRefreshData();
                       showToast('Flashcard removido.');
                     }}

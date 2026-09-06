@@ -1,24 +1,14 @@
 import { Discipline, Theme, Compendium, CompendiumSection } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { MaterialsRepository } from './MaterialsRepository';
 
 // ============================================================================
 // Fase 3 — Supabase-backed MaterialsRepository
 // ============================================================================
 //
-// NÃO declara `implements MaterialsRepository`. A interface em
-// `MaterialsRepository.ts` é síncrona (retorna `Discipline[]`, não
-// `Promise<Discipline[]>`) porque foi desenhada em torno do localStorage, que
-// é síncrono por natureza. Uma implementação que fala de verdade com o
-// Supabase via rede é inerentemente assíncrona — não há como uma classe
-// cumprir literalmente essa interface sem violar o compilador (ou mentir,
-// devolvendo Promises onde o tipo promete arrays já resolvidos). A instrução
-// de "não alterar as interfaces" foi respeitada; em vez de forçar isso, esta
-// classe é standalone, espelhando 1:1 os mesmos nomes de método e o mesmo
-// formato de dado de entrada/saída da interface original, mas com Promise<T>
-// no lugar de T. Ela não é (ainda) usada pelo singleton `materialsRepository`
-// consumido pelo app — só passa a ser um candidato a implementação real
-// quando a Fase 5 (migração de auth) permitir trocar o singleton com
-// segurança.
+// Fase 4-5 wiring: `MaterialsRepository` foi convertida para assíncrona e
+// esta classe passou a declarar `implements MaterialsRepository` e a ser o
+// singleton `materialsRepository` consumido pelo app.
 //
 // Mapeamento de campos (frontend <-> banco):
 //
@@ -194,7 +184,7 @@ function buildCompendium(
   };
 }
 
-export class SupabaseMaterialsRepository {
+export class SupabaseMaterialsRepository implements MaterialsRepository {
   async getDisciplines(): Promise<Discipline[]> {
     const { data, error } = await supabase.from('disciplines').select('*').order('sort_order');
     if (error) throw error;
@@ -303,6 +293,4 @@ export class SupabaseMaterialsRepository {
   }
 }
 
-// Não exportado como singleton default (ao contrário de LocalStorageMaterialsRepository):
-// esta implementação ainda não é usada por App.tsx/AdminCMSView.tsx.
 export const supabaseMaterialsRepository = new SupabaseMaterialsRepository();

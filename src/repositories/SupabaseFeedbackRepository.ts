@@ -1,15 +1,13 @@
 import { UserFeedback } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { FeedbackRepository } from './FeedbackRepository';
 
 // ============================================================================
-// Fase 4 — Supabase-backed FeedbackRepository
+// Fase 4-5 wiring — Supabase-backed FeedbackRepository
 // ============================================================================
 //
-// Mesma observação de `SupabaseMaterialsRepository.ts`: não declara
-// `implements FeedbackRepository` porque essa interface é síncrona
-// (localStorage) e uma implementação Supabase real é assíncrona por
-// natureza. Os métodos espelham os nomes/parâmetros da interface original,
-// retornando Promise<T> em vez de T. Não é usada pelo singleton
+// `FeedbackRepository` foi convertida para assíncrona e esta classe passou a
+// declarar `implements FeedbackRepository` e a ser o singleton
 // `feedbackRepository` consumido pelo app.
 //
 // Mapeamento de campos (frontend <-> banco):
@@ -38,7 +36,7 @@ interface FeedbackRow {
   created_at: string;
 }
 
-export class SupabaseFeedbackRepository {
+export class SupabaseFeedbackRepository implements FeedbackRepository {
   async getFeedbacks(): Promise<UserFeedback[]> {
     const { data, error } = await supabase.from('feedback').select('*').order('created_at', { ascending: false });
     if (error) throw error;

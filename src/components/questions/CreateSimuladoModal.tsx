@@ -60,7 +60,7 @@ export const CreateSimuladoModal: React.FC<CreateSimuladoModalProps> = ({
 
   const handleStart = () => {
     const config: SimuladoConfig = {
-      id: `sim-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: name.trim() || 'Simulado Personalizado',
       disciplineIds: selectedDisciplines,
       themeIds: [],

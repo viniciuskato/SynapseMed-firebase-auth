@@ -1,15 +1,18 @@
 import { Question } from '../types';
 import { StorageService } from '../services/storage';
+import { SupabaseQuestionsRepository } from './SupabaseQuestionsRepository';
 
 export interface QuestionsRepository {
-  getQuestions(): Question[];
-  saveQuestions(questions: Question[]): void;
-  saveQuestion(question: Question): void;
-  deleteQuestion(id: string): void;
-  saveCustomQuestion(question: Question): void;
+  getQuestions(): Promise<Question[]>;
+  saveQuestions(questions: Question[]): Promise<void>;
+  saveQuestion(question: Question): Promise<void>;
+  deleteQuestion(id: string): Promise<void>;
+  saveCustomQuestion(question: Question): Promise<void>;
 }
 
-class LocalStorageQuestionsRepository implements QuestionsRepository {
+// Não implementa mais `QuestionsRepository` (agora assíncrona) — mantida como
+// código morto, documentado, sem uso pelo singleton (ver Etapa Fase 4-5 wiring).
+class LocalStorageQuestionsRepository {
   getQuestions(): Question[] {
     return StorageService.getQuestions();
   }
@@ -27,4 +30,4 @@ class LocalStorageQuestionsRepository implements QuestionsRepository {
   }
 }
 
-export const questionsRepository: QuestionsRepository = new LocalStorageQuestionsRepository();
+export const questionsRepository: QuestionsRepository = new SupabaseQuestionsRepository();

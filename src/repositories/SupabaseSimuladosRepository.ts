@@ -1,15 +1,13 @@
 import { SimuladoSessionData } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { SimuladosRepository } from './SimuladosRepository';
 
 // ============================================================================
-// Fase 4 — Supabase-backed SimuladosRepository
+// Fase 4-5 wiring — Supabase-backed SimuladosRepository
 // ============================================================================
 //
-// Mesma observação de `SupabaseMaterialsRepository.ts`: não declara
-// `implements SimuladosRepository` porque essa interface é síncrona
-// (localStorage) e uma implementação Supabase real é assíncrona por
-// natureza. Os métodos espelham os nomes/parâmetros da interface original,
-// retornando Promise<T> em vez de T. Não é usada pelo singleton
+// `SimuladosRepository` foi convertida para assíncrona e esta classe passou
+// a declarar `implements SimuladosRepository` e a ser o singleton
 // `simuladosRepository` consumido pelo app.
 //
 // Mapeamento de campos (frontend <-> banco):
@@ -97,7 +95,7 @@ function buildSession(
   };
 }
 
-export class SupabaseSimuladosRepository {
+export class SupabaseSimuladosRepository implements SimuladosRepository {
   async getSimulados(): Promise<SimuladoSessionData[]> {
     const [
       { data: sims, error: sErr },

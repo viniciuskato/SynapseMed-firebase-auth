@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Timer,
   Plus,
@@ -30,14 +30,25 @@ export const SimuladosView: React.FC<SimuladosViewProps> = ({
   onStartCustomSimulado,
   onUpdate,
 }) => {
-  const history = simuladosRepository.getSimuladoHistory();
+  const [history, setHistory] = useState<SimuladoSessionData[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const nextHistory = await simuladosRepository.getSimuladoHistory();
+      if (!cancelled) setHistory(nextHistory);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleQuickPreset = (type: 'express' | 'enare' | 'mistakes') => {
     let config: SimuladoConfig;
 
     if (type === 'express') {
       config = {
-        id: `sim-quick-${Date.now()}`,
+        id: crypto.randomUUID(),
         name: 'Simulado Express Misto',
         disciplineIds: disciplines.map((d) => d.id),
         themeIds: [],
@@ -50,7 +61,7 @@ export const SimuladosView: React.FC<SimuladosViewProps> = ({
       };
     } else if (type === 'enare') {
       config = {
-        id: `sim-enare-${Date.now()}`,
+        id: crypto.randomUUID(),
         name: 'Simulado Padrão ENARE / USP',
         disciplineIds: disciplines.slice(0, 3).map((d) => d.id),
         themeIds: [],
@@ -63,7 +74,7 @@ export const SimuladosView: React.FC<SimuladosViewProps> = ({
       };
     } else {
       config = {
-        id: `sim-errors-${Date.now()}`,
+        id: crypto.randomUUID(),
         name: 'Simulado de Correção de Erros',
         disciplineIds: disciplines.map((d) => d.id),
         themeIds: [],

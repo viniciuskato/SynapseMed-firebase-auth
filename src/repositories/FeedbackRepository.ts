@@ -1,12 +1,15 @@
 import { UserFeedback } from '../types';
 import { StorageService } from '../services/storage';
+import { SupabaseFeedbackRepository } from './SupabaseFeedbackRepository';
 
 export interface FeedbackRepository {
-  getFeedbacks(): UserFeedback[];
-  saveFeedback(feedback: UserFeedback): void;
+  getFeedbacks(): Promise<UserFeedback[]>;
+  saveFeedback(feedback: UserFeedback): Promise<void>;
 }
 
-class LocalStorageFeedbackRepository implements FeedbackRepository {
+// Não implementa mais `FeedbackRepository` (agora assíncrona) — mantida como
+// código morto, documentado, sem uso pelo singleton (ver Etapa Fase 4-5 wiring).
+class LocalStorageFeedbackRepository {
   getFeedbacks(): UserFeedback[] {
     return StorageService.getFeedbacks();
   }
@@ -15,4 +18,4 @@ class LocalStorageFeedbackRepository implements FeedbackRepository {
   }
 }
 
-export const feedbackRepository: FeedbackRepository = new LocalStorageFeedbackRepository();
+export const feedbackRepository: FeedbackRepository = new SupabaseFeedbackRepository();

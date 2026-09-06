@@ -20,7 +20,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
       setError('Por favor, preencha o título e a descrição do feedback.');
@@ -32,7 +32,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
 
     try {
       const feedbackItem: UserFeedback = {
-        id: `fb-${Date.now()}`,
+        id: crypto.randomUUID(),
         type,
         title: title.trim(),
         description: description.trim(),
@@ -41,15 +41,13 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
         userEmail: user?.email || profile?.email || null,
       };
 
-      // Salva localmente no namespace do usuário via StorageService
-      feedbackRepository.saveFeedback(feedbackItem);
+      await feedbackRepository.saveFeedback(feedbackItem);
 
-      // Feedback estruturado para futura integração remota (ex: Cloud Function / Endpoint seguro)
       setIsSubmitting(false);
       setSubmitted(true);
     } catch (err) {
       setIsSubmitting(false);
-      setError('Ocorreu um erro ao registrar seu feedback localmente. Tente novamente.');
+      setError('Ocorreu um erro ao registrar seu feedback. Tente novamente.');
     }
   };
 

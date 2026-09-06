@@ -1,16 +1,14 @@
 import { QuestionAnswerRecord } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { AnswersRepository } from './AnswersRepository';
 
 // ============================================================================
 // Fase 4 — Supabase-backed AnswersRepository
 // ============================================================================
 //
-// Mesma observação de `SupabaseMaterialsRepository.ts`: não declara
-// `implements AnswersRepository` porque essa interface é síncrona
-// (localStorage) e uma implementação Supabase real é assíncrona por natureza.
-// Os métodos espelham os nomes/parâmetros da interface original, retornando
-// Promise<T> em vez de T. Não é usada pelo singleton `answersRepository`
-// consumido pelo app.
+// Fase 4-5 wiring: `AnswersRepository` foi convertida para assíncrona e
+// esta classe passou a declarar `implements AnswersRepository` e a ser o
+// singleton `answersRepository` consumido pelo app.
 //
 // Mapeamento de campos (frontend <-> banco):
 //
@@ -54,7 +52,7 @@ function extractLetter(joined: QuestionAttemptRow['question_options']): string {
   return joined.letter;
 }
 
-export class SupabaseAnswersRepository {
+export class SupabaseAnswersRepository implements AnswersRepository {
   async getAnswers(): Promise<Record<string, QuestionAnswerRecord>> {
     const { data, error } = await supabase
       .from('question_attempts')
