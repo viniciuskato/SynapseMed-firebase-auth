@@ -107,14 +107,14 @@ function AuthenticatedApp() {
 
   // Quando o usuário autenticado muda, recarrega os dados do namespace dele
   useEffect(() => {
-    if (user?.uid) {
+    if (user?.id) {
       refreshData();
-      const legacySummary = StorageService.checkLegacyDataSummary(user.uid);
+      const legacySummary = StorageService.checkLegacyDataSummary(user.id);
       if (legacySummary.hasLegacyData) {
         setMigrationSummary(legacySummary);
       }
     }
-  }, [user?.uid, refreshData]);
+  }, [user?.id, refreshData]);
 
   // Dark Mode synchronization
   useEffect(() => {
@@ -153,7 +153,7 @@ function AuthenticatedApp() {
   }
 
   // Bloqueio de acesso enquanto o e-mail não estiver verificado
-  const hasVerifiedEmail = user.emailVerified || isEmailVerified;
+  const hasVerifiedEmail = Boolean(user.email_confirmed_at) || isEmailVerified;
   if (!hasVerifiedEmail) {
     return <EmailVerificationScreen />;
   }
@@ -550,11 +550,11 @@ function AuthenticatedApp() {
       />
 
       {/* Modal de Migração de Dados Pessoais */}
-      {migrationSummary && user?.uid && (
+      {migrationSummary && user?.id && (
         <MigrateDataModal
           summary={migrationSummary}
-          userUid={user.uid}
-          userName={user.displayName}
+          userUid={user.id}
+          userName={user.user_metadata?.display_name ?? null}
           onComplete={() => {
             setMigrationSummary(null);
             refreshData();

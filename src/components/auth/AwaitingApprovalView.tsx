@@ -14,7 +14,7 @@ interface AwaitingApprovalViewProps {
 export const AwaitingApprovalView: React.FC<AwaitingApprovalViewProps> = ({ onReturnToLogin }) => {
   const { user, profile, logout } = useAuth();
   const userEmail = user?.email || profile?.email || 'seu-email@exemplo.com';
-  const userName = profile?.displayName || user?.displayName || 'Colega';
+  const userName = profile?.displayName || user?.user_metadata?.display_name || 'Colega';
 
   const handleLogout = async () => {
     if (onReturnToLogin) {

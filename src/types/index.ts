@@ -161,17 +161,6 @@ export type AppView =
   | 'caderno_erros'
   | 'admin';
 
-export interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  cycle: MedicalCycle;
-  plan: UserPlan;
-  streakDays: number;
-  avatarUrl?: string;
-}
-
-
 export interface QuestionAnswerRecord {
   questionId: string;
   selectedOption: 'A' | 'B' | 'C' | 'D' | 'E';
