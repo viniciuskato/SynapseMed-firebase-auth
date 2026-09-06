@@ -171,6 +171,25 @@ export interface QuestionAnswerRecord {
   userNotes?: string;
 }
 
+// Gabarito de uma questão (quem está correta, explicação por alternativa),
+// obtido via RPC (submit_question_attempt ou get_question_review) — nunca
+// por SELECT direto em question_option_keys/question_answer_keys, que não
+// têm policy de leitura para estudante (ver rls_policies.sql).
+export interface QuestionReviewOption {
+  optionId: string;
+  letter: 'A' | 'B' | 'C' | 'D' | 'E';
+  isCorrect: boolean;
+  explanation: string;
+}
+
+export interface QuestionReviewResult {
+  isCorrect: boolean;
+  correctOptionId: string;
+  generalCommentary: string;
+  highYieldSummary: string;
+  options: QuestionReviewOption[];
+}
+
 export interface SimuladoConfig {
   id: string;
   name: string;

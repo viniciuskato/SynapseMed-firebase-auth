@@ -1,6 +1,7 @@
-import { QuestionAnswerRecord } from '../types';
+import { QuestionAnswerRecord, QuestionReviewResult } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { AnswersRepository } from './AnswersRepository';
+import { mapQuestionReviewPayload } from './questionReviewMapper';
 
 // ============================================================================
 // Fase 4 — Supabase-backed AnswersRepository
@@ -78,7 +79,7 @@ export class SupabaseAnswersRepository implements AnswersRepository {
     return result;
   }
 
-  async recordAnswer(record: QuestionAnswerRecord): Promise<void> {
+  async recordAnswer(record: QuestionAnswerRecord): Promise<QuestionReviewResult> {
     const { data: option, error: optErr } = await supabase
       .from('question_options')
       .select('id')
@@ -87,7 +88,7 @@ export class SupabaseAnswersRepository implements AnswersRepository {
       .single();
     if (optErr) throw optErr;
 
-    const { error } = await supabase.rpc('submit_question_attempt', {
+    const { data, error } = await supabase.rpc('submit_question_attempt', {
       p_question_id: record.questionId,
       p_selected_option_id: option.id,
       p_time_spent_seconds: record.timeSpentSeconds,
@@ -95,6 +96,7 @@ export class SupabaseAnswersRepository implements AnswersRepository {
       p_user_notes: record.userNotes ?? null,
     });
     if (error) throw error;
+    return mapQuestionReviewPayload(data);
   }
 }
 

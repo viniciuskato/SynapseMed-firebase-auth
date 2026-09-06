@@ -1,6 +1,7 @@
-import { Question, QuestionOption } from '../types';
+import { Question, QuestionOption, QuestionReviewResult } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { QuestionsRepository } from './QuestionsRepository';
+import { mapQuestionReviewPayload } from './questionReviewMapper';
 
 // ============================================================================
 // Fase 3 — Supabase-backed QuestionsRepository
@@ -210,6 +211,14 @@ export class SupabaseQuestionsRepository implements QuestionsRepository {
     // Sem equivalente de "custom" para questions no schema atual — mesmo
     // comportamento do LocalStorageQuestionsRepository (delega a saveQuestion).
     await this.saveQuestion(question);
+  }
+
+  async getQuestionReview(questionId: string): Promise<QuestionReviewResult> {
+    const { data, error } = await supabase.rpc('get_question_review', {
+      p_question_id: questionId,
+    });
+    if (error) throw error;
+    return mapQuestionReviewPayload(data);
   }
 }
 

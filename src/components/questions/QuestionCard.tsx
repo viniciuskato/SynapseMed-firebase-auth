@@ -15,11 +15,11 @@ import {
   EyeOff,
   Stethoscope,
 } from 'lucide-react';
-import { Question, QuestionOption, QuestionAnswerRecord, Discipline, Theme } from '../../types';
-import { StorageService } from '../../services/storage';
+import { Question, QuestionAnswerRecord, QuestionReviewResult, Discipline, Theme } from '../../types';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
+import { questionsRepository } from '../../repositories/QuestionsRepository';
 
 interface QuestionCardProps {
   question: Question;
@@ -54,6 +54,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const [isNoteSaved, setIsNoteSaved] = useState(false);
   const [showErrorTagger, setShowErrorTagger] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // Gabarito (quem está correta, explicação por alternativa) obtido via RPC —
+  // question.options[].isCorrect/.explanation vêm sempre vazios para o
+  // estudante, pois question_option_keys/question_answer_keys não têm
+  // policy de SELECT direto (ver rls_policies.sql).
+  const [reviewResult, setReviewResult] = useState<QuestionReviewResult | null>(null);
 
   // Carrega a resposta/favorito já registrados para esta questão (Supabase)
   useEffect(() => {
@@ -69,6 +74,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       if (!isExamMode) {
         setSelectedOption(initialAnswer?.selectedOption || selectedOptionInExam || null);
         setIsSubmitted(!!initialAnswer);
+        if (initialAnswer) {
+          const review = await questionsRepository.getQuestionReview(question.id);
+          if (!cancelled) setReviewResult(review);
+        }
       }
       setIsBookmarked(bookmarks.questions.includes(question.id));
       setErrorReason(initialAnswer?.errorReason || 'lacuna_teorica');
@@ -109,19 +118,22 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
   const handleConfirmAnswer = async () => {
     if (!selectedOption) return;
-    const correctOpt = question.options.find((o) => o.isCorrect)?.letter;
-    const isCorrect = selectedOption === correctOpt;
 
+    // isCorrect é calculado pelo servidor (RPC submit_question_attempt); o
+    // valor aqui é só um placeholder ignorado pela API.
     const record: QuestionAnswerRecord = {
       questionId: question.id,
       selectedOption,
-      isCorrect,
+      isCorrect: false,
       timestamp: new Date().toISOString(),
       timeSpentSeconds: 45,
-      errorReason: isCorrect ? undefined : errorReason,
     };
 
-    await answersRepository.recordAnswer(record);
+    const review = await answersRepository.recordAnswer(record);
+    const isCorrect = review.isCorrect;
+    record.isCorrect = isCorrect;
+    record.errorReason = isCorrect ? undefined : errorReason;
+    setReviewResult(review);
     setIsSubmitted(true);
 
     if (onAnswerRecorded) onAnswerRecorded(record);
@@ -164,8 +176,12 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     }
   };
 
-  const isCorrect = isSubmitted && question.options.find((o) => o.letter === selectedOption)?.isCorrect;
-  const isIncorrect = isSubmitted && !isCorrect;
+  const isCorrect = isSubmitted && !!reviewResult?.isCorrect;
+  const isIncorrect = isSubmitted && !!reviewResult && !isCorrect;
+  const reviewByLetter: Map<string, QuestionReviewResult['options'][number]> = new Map();
+  for (const o of reviewResult?.options ?? []) {
+    reviewByLetter.set(o.letter, o);
+  }
 
   return (
     <div
@@ -235,6 +251,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         {question.options.map((opt) => {
           const isSelected = selectedOption === opt.letter;
           const isEliminated = eliminatedOptions.includes(opt.letter);
+          const reviewOpt = reviewByLetter.get(opt.letter);
 
           let optBg = 'bg-white border-slate-200 hover:border-slate-300';
           let letterBg = 'bg-slate-100 text-slate-700';
@@ -244,11 +261,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               optBg = 'bg-teal-50 border-teal-600 ring-2 ring-teal-600/30';
               letterBg = 'bg-teal-700 text-white';
             }
-          } else if (isSubmitted) {
-            if (opt.isCorrect) {
+          } else if (isSubmitted && reviewOpt) {
+            if (reviewOpt.isCorrect) {
               optBg = 'bg-emerald-50/90 border-emerald-400 ring-1 ring-emerald-300';
               letterBg = 'bg-emerald-600 text-white';
-            } else if (isSelected && !opt.isCorrect) {
+            } else if (isSelected && !reviewOpt.isCorrect) {
               optBg = 'bg-rose-50/90 border-rose-400 ring-1 ring-rose-300';
               letterBg = 'bg-rose-600 text-white';
             }
@@ -293,23 +310,23 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               </div>
 
               {/* Individual Alternative Explanation (When Answered in Study Mode) */}
-              {isSubmitted && !isExamMode && (
+              {isSubmitted && !isExamMode && reviewOpt && (
                 <div
                   className={`mt-2 pt-2 border-t text-xs leading-relaxed ${
-                    opt.isCorrect
+                    reviewOpt.isCorrect
                       ? 'border-emerald-200 text-emerald-900 bg-emerald-100/40 p-2.5 rounded-xl'
                       : 'border-slate-200/80 text-slate-600 bg-slate-50 p-2.5 rounded-xl'
                   }`}
                 >
                   <div className="flex items-center gap-1.5 font-bold mb-1">
-                    {opt.isCorrect ? (
+                    {reviewOpt.isCorrect ? (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     ) : (
                       <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     )}
-                    <span>{opt.isCorrect ? 'Por que está correta:' : 'Por que está incorreta (distrator):'}</span>
+                    <span>{reviewOpt.isCorrect ? 'Por que está correta:' : 'Por que está incorreta (distrator):'}</span>
                   </div>
-                  <p>{opt.explanation}</p>
+                  <p>{reviewOpt.explanation}</p>
                   {opt.mechanismReference && (
                     <p className="mt-1 text-[11px] font-mono text-slate-500 italic">
                       Mecanismo: {opt.mechanismReference}
@@ -356,7 +373,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   Confirmação Clínica · Resposta Correta
                 </span>
                 <p className="text-xs leading-relaxed text-emerald-900/90 dark:text-emerald-200/90">
-                  {question.generalCommentary}
+                  {reviewResult?.generalCommentary}
                 </p>
               </div>
             </div>
@@ -368,10 +385,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   Mecanismo Negligenciado ou Distrator Identificado
                 </span>
                 <p className="text-xs leading-relaxed text-rose-900/90 dark:text-rose-200/90">
-                  {question.generalCommentary}
+                  {reviewResult?.generalCommentary}
                 </p>
                 <div className="p-2.5 rounded-xl bg-rose-100/60 dark:bg-rose-900/40 border border-rose-200 dark:border-rose-800 text-[11px] text-rose-900 dark:text-rose-200">
-                  <strong>Ponto-chave negligenciado:</strong> {question.highYieldSummary}
+                  <strong>Ponto-chave negligenciado:</strong> {reviewResult?.highYieldSummary}
                 </div>
               </div>
             </div>
@@ -383,7 +400,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
               Pérola High-Yield (Resumo Prático):
             </span>
-            <p className="leading-relaxed font-medium text-teal-950/90 dark:text-teal-200/90">{question.highYieldSummary}</p>
+            <p className="leading-relaxed font-medium text-teal-950/90 dark:text-teal-200/90">{reviewResult?.highYieldSummary}</p>
           </div>
 
           {/* Próximos Passos Claros (Fisiopatologia, Caderno de Erros, Flashcard) */}
