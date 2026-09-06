@@ -1,14 +1,12 @@
 import { supabase } from '../lib/supabaseClient';
+import { BookmarksRepository } from './BookmarksRepository';
 
 // ============================================================================
-// Fase 4 — Supabase-backed BookmarksRepository
+// Fase 4-5 wiring — Supabase-backed BookmarksRepository
 // ============================================================================
 //
-// Mesma observação de `SupabaseMaterialsRepository.ts`: não declara
-// `implements BookmarksRepository` porque essa interface é síncrona
-// (localStorage) e uma implementação Supabase real é assíncrona por
-// natureza. Os métodos espelham os nomes/parâmetros da interface original,
-// retornando Promise<T> em vez de T. Não é usada pelo singleton
+// `BookmarksRepository` foi convertida para assíncrona e esta classe passou a
+// declarar `implements BookmarksRepository` e a ser o singleton
 // `bookmarksRepository` consumido pelo app.
 //
 // Mapeamento de campos (frontend <-> banco):
@@ -39,7 +37,7 @@ interface BookmarkRow {
   flashcard_id: string | null;
 }
 
-export class SupabaseBookmarksRepository {
+export class SupabaseBookmarksRepository implements BookmarksRepository {
   async getBookmarks(): Promise<{
     questions: string[];
     compendiums: string[];

@@ -97,7 +97,7 @@ $$;
 grant usage on schema tests to anon, authenticated;
 grant execute on function tests.clear_auth() to anon, authenticated;
 
-select plan(80);
+select plan(83);
 
 -- ----------------------------------------------------------------------------
 -- Fixtures: usuários, conteúdo em draft/published/archived
@@ -409,6 +409,29 @@ select is(
   (select count(*)::int from public.question_attempts where question_id = :'v_question_a_id'),
   2,
   'duas tentativas foram registradas para a questão A (uma por chamada acima)'
+);
+
+-- ============================================================================
+-- 6b) get_question_review: revisão do gabarito fora do fluxo de submissão
+-- ============================================================================
+
+select tests.authenticate_as(:'v_active_a');
+select isnt_empty(
+  format($$ select 1 from jsonb_array_elements((public.get_question_review(%L))->'options') $$, :'v_question_a_id'),
+  'active_a (já respondeu a questão A) recebe o payload de revisão com as alternativas'
+);
+
+select tests.authenticate_as(:'v_active_b');
+select throws_ok(
+  format($$ select public.get_question_review(%L) $$, :'v_question_a_id'),
+  NULL::char(5), NULL::text,
+  'active_b (nunca respondeu a questão A) não pode revisar o gabarito'
+);
+
+select tests.authenticate_as(:'v_admin');
+select lives_ok(
+  format($$ select public.get_question_review(%L) $$, :'v_question_a_id'),
+  'admin revisa o gabarito mesmo sem ter respondido a questão'
 );
 
 -- ============================================================================

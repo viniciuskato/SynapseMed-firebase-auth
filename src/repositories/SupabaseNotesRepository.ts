@@ -1,15 +1,13 @@
 import { supabase } from '../lib/supabaseClient';
+import { NotesRepository } from './NotesRepository';
 
 // ============================================================================
-// Fase 4 — Supabase-backed NotesRepository
+// Fase 4-5 wiring — Supabase-backed NotesRepository
 // ============================================================================
 //
-// Mesma observação de `SupabaseMaterialsRepository.ts`: não declara
-// `implements NotesRepository` porque essa interface é síncrona
-// (localStorage) e uma implementação Supabase real é assíncrona por
-// natureza. Os métodos espelham os nomes/parâmetros da interface original,
-// retornando Promise<T> em vez de T. Não é usada pelo singleton
-// `notesRepository` consumido pelo app.
+// `NotesRepository` foi convertida para assíncrona e esta classe passou a
+// declarar `implements NotesRepository` e a ser o singleton `notesRepository`
+// consumido pelo app.
 //
 // Mapeamento de campos (frontend <-> banco):
 //
@@ -62,7 +60,7 @@ async function resolveNoteColumn(targetId: string): Promise<NoteTargetColumn> {
   );
 }
 
-export class SupabaseNotesRepository {
+export class SupabaseNotesRepository implements NotesRepository {
   async getNotes(): Promise<Record<string, string>> {
     const { data, error } = await supabase
       .from('notes')

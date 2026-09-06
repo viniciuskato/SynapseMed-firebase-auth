@@ -1,18 +1,21 @@
 import { Discipline, Theme, Compendium } from '../types';
 import { StorageService } from '../services/storage';
+import { SupabaseMaterialsRepository } from './SupabaseMaterialsRepository';
 
 export interface MaterialsRepository {
-  getDisciplines(): Discipline[];
-  saveDisciplines(disciplines: Discipline[]): void;
-  getThemes(): Theme[];
-  saveThemes(themes: Theme[]): void;
-  getCompendiums(): Compendium[];
-  saveCompendiums(compendiums: Compendium[]): void;
-  saveCompendium(compendium: Compendium): void;
-  deleteCompendium(id: string): void;
+  getDisciplines(): Promise<Discipline[]>;
+  saveDisciplines(disciplines: Discipline[]): Promise<void>;
+  getThemes(): Promise<Theme[]>;
+  saveThemes(themes: Theme[]): Promise<void>;
+  getCompendiums(): Promise<Compendium[]>;
+  saveCompendiums(compendiums: Compendium[]): Promise<void>;
+  saveCompendium(compendium: Compendium): Promise<void>;
+  deleteCompendium(id: string): Promise<void>;
 }
 
-class LocalStorageMaterialsRepository implements MaterialsRepository {
+// Não implementa mais `MaterialsRepository` (agora assíncrona) — mantida como
+// código morto, documentado, sem uso pelo singleton (ver Etapa Fase 4-5 wiring).
+class LocalStorageMaterialsRepository {
   getDisciplines(): Discipline[] {
     return StorageService.getDisciplines();
   }
@@ -39,4 +42,4 @@ class LocalStorageMaterialsRepository implements MaterialsRepository {
   }
 }
 
-export const materialsRepository: MaterialsRepository = new LocalStorageMaterialsRepository();
+export const materialsRepository: MaterialsRepository = new SupabaseMaterialsRepository();

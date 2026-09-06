@@ -27,7 +27,7 @@ export const CreateFlashcardModal: React.FC<CreateFlashcardModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!front.trim() || !back.trim()) return;
 
@@ -35,7 +35,7 @@ export const CreateFlashcardModal: React.FC<CreateFlashcardModalProps> = ({
     const th = themes.find((t) => t.id === themeId);
 
     const newCard: Flashcard = {
-      id: `fc-custom-${Date.now()}`,
+      id: crypto.randomUUID(),
       disciplineId,
       themeId: themeId || (themes.find((t) => t.disciplineId === disciplineId)?.id || 'general'),
       front: front.trim(),
@@ -54,7 +54,7 @@ export const CreateFlashcardModal: React.FC<CreateFlashcardModalProps> = ({
       },
     };
 
-    const saved = flashcardsRepository.saveFlashcard(newCard);
+    const saved = await flashcardsRepository.saveFlashcard(newCard);
     onFlashcardCreated(saved);
     onClose();
   };

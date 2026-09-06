@@ -1,16 +1,14 @@
 import { Flashcard, FlashcardSRS, Question } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { calculateNextSRS, createInitialSRS } from '../services/srsAlgorithm';
+import { FlashcardsRepository } from './FlashcardsRepository';
 
 // ============================================================================
-// Fase 4 — Supabase-backed FlashcardsRepository
+// Fase 4-5 wiring — Supabase-backed FlashcardsRepository
 // ============================================================================
 //
-// Mesma observação de `SupabaseMaterialsRepository.ts`: não declara
-// `implements FlashcardsRepository` porque essa interface é síncrona
-// (localStorage) e uma implementação Supabase real é assíncrona por
-// natureza. Os métodos espelham os nomes/parâmetros da interface original,
-// retornando Promise<T> em vez de T. Não é usada pelo singleton
+// `FlashcardsRepository` foi convertida para assíncrona e esta classe passou
+// a declarar `implements FlashcardsRepository` e a ser o singleton
 // `flashcardsRepository` consumido pelo app.
 //
 // Mapeamento de campos (frontend <-> banco):
@@ -138,7 +136,7 @@ function srsToRow(flashcardId: string, srs: FlashcardSRS) {
   };
 }
 
-export class SupabaseFlashcardsRepository {
+export class SupabaseFlashcardsRepository implements FlashcardsRepository {
   async getFlashcards(): Promise<Flashcard[]> {
     const [{ data: cards, error: cErr }, { data: srsStates, error: sErr }, { data: reviews, error: rErr }] =
       await Promise.all([

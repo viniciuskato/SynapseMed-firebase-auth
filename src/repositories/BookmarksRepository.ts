@@ -1,15 +1,18 @@
 import { StorageService } from '../services/storage';
+import { SupabaseBookmarksRepository } from './SupabaseBookmarksRepository';
 
 export interface BookmarksRepository {
-  getBookmarks(): {
+  getBookmarks(): Promise<{
     questions: string[];
     compendiums: string[];
     flashcards: string[];
-  };
-  toggleBookmark(type: 'questions' | 'compendiums' | 'flashcards', id: string): boolean;
+  }>;
+  toggleBookmark(type: 'questions' | 'compendiums' | 'flashcards', id: string): Promise<boolean>;
 }
 
-class LocalStorageBookmarksRepository implements BookmarksRepository {
+// Não implementa mais `BookmarksRepository` (agora assíncrona) — mantida como
+// código morto, documentado, sem uso pelo singleton (ver Etapa Fase 4-5 wiring).
+class LocalStorageBookmarksRepository {
   getBookmarks(): {
     questions: string[];
     compendiums: string[];
@@ -22,4 +25,4 @@ class LocalStorageBookmarksRepository implements BookmarksRepository {
   }
 }
 
-export const bookmarksRepository: BookmarksRepository = new LocalStorageBookmarksRepository();
+export const bookmarksRepository: BookmarksRepository = new SupabaseBookmarksRepository();

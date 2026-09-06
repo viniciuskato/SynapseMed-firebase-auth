@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
   XCircle,
@@ -15,11 +15,11 @@ import {
   EyeOff,
   Stethoscope,
 } from 'lucide-react';
-import { Question, QuestionOption, QuestionAnswerRecord, Discipline, Theme } from '../../types';
-import { StorageService } from '../../services/storage';
+import { Question, QuestionAnswerRecord, QuestionReviewResult, Discipline, Theme } from '../../types';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
+import { questionsRepository } from '../../repositories/QuestionsRepository';
 
 interface QuestionCardProps {
   question: Question;
@@ -43,33 +43,62 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   onSelectOptionInExam,
 }) => {
   // Local state for study mode
-  const initialAnswer = answersRepository.getAnswers()[question.id];
   const [selectedOption, setSelectedOption] = useState<'A' | 'B' | 'C' | 'D' | 'E' | null>(
-    initialAnswer?.selectedOption || selectedOptionInExam || null
+    selectedOptionInExam || null
   );
-  const [isSubmitted, setIsSubmitted] = useState<boolean>(!!initialAnswer && !isExamMode);
-  const [isBookmarked, setIsBookmarked] = useState<boolean>(
-    bookmarksRepository.getBookmarks().questions.includes(question.id)
-  );
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
+  const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
-  const [errorReason, setErrorReason] = useState<QuestionAnswerRecord['errorReason']>(
-    initialAnswer?.errorReason || 'lacuna_teorica'
-  );
-  const [userNote, setUserNote] = useState<string>(initialAnswer?.userNotes || '');
+  const [errorReason, setErrorReason] = useState<QuestionAnswerRecord['errorReason']>('lacuna_teorica');
+  const [userNote, setUserNote] = useState<string>('');
   const [isNoteSaved, setIsNoteSaved] = useState(false);
   const [showErrorTagger, setShowErrorTagger] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  // Gabarito (quem está correta, explicação por alternativa) obtido via RPC —
+  // question.options[].isCorrect/.explanation vêm sempre vazios para o
+  // estudante, pois question_option_keys/question_answer_keys não têm
+  // policy de SELECT direto (ver rls_policies.sql).
+  const [reviewResult, setReviewResult] = useState<QuestionReviewResult | null>(null);
+
+  // Carrega a resposta/favorito já registrados para esta questão (Supabase)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [answers, bookmarks] = await Promise.all([
+        answersRepository.getAnswers(),
+        bookmarksRepository.getBookmarks(),
+      ]);
+      if (cancelled) return;
+
+      const initialAnswer = answers[question.id];
+      if (!isExamMode) {
+        setSelectedOption(initialAnswer?.selectedOption || selectedOptionInExam || null);
+        setIsSubmitted(!!initialAnswer);
+        if (initialAnswer) {
+          const review = await questionsRepository.getQuestionReview(question.id);
+          if (!cancelled) setReviewResult(review);
+        }
+      }
+      setIsBookmarked(bookmarks.questions.includes(question.id));
+      setErrorReason(initialAnswer?.errorReason || 'lacuna_teorica');
+      setUserNote(initialAnswer?.userNotes || '');
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleSaveNote = () => {
-    const existing = answersRepository.getAnswers()[question.id];
+  const handleSaveNote = async () => {
+    const existing = (await answersRepository.getAnswers())[question.id];
     if (existing) {
       existing.userNotes = userNote;
-      answersRepository.recordAnswer(existing);
+      await answersRepository.recordAnswer(existing);
       setIsNoteSaved(true);
       showToast('Anotação pessoal vinculada ao erro salva com sucesso!');
       setTimeout(() => setIsNoteSaved(false), 2000);
@@ -87,21 +116,24 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     setSelectedOption(letter);
   };
 
-  const handleConfirmAnswer = () => {
+  const handleConfirmAnswer = async () => {
     if (!selectedOption) return;
-    const correctOpt = question.options.find((o) => o.isCorrect)?.letter;
-    const isCorrect = selectedOption === correctOpt;
 
+    // isCorrect é calculado pelo servidor (RPC submit_question_attempt); o
+    // valor aqui é só um placeholder ignorado pela API.
     const record: QuestionAnswerRecord = {
       questionId: question.id,
       selectedOption,
-      isCorrect,
+      isCorrect: false,
       timestamp: new Date().toISOString(),
       timeSpentSeconds: 45,
-      errorReason: isCorrect ? undefined : errorReason,
     };
 
-    answersRepository.recordAnswer(record);
+    const review = await answersRepository.recordAnswer(record);
+    const isCorrect = review.isCorrect;
+    record.isCorrect = isCorrect;
+    record.errorReason = isCorrect ? undefined : errorReason;
+    setReviewResult(review);
     setIsSubmitted(true);
 
     if (onAnswerRecorded) onAnswerRecorded(record);
@@ -123,29 +155,33 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     }
   };
 
-  const handleToggleBookmark = () => {
-    const bookmarked = bookmarksRepository.toggleBookmark('questions', question.id);
+  const handleToggleBookmark = async () => {
+    const bookmarked = await bookmarksRepository.toggleBookmark('questions', question.id);
     setIsBookmarked(bookmarked);
     showToast(bookmarked ? 'Questão adicionada aos seus favoritos' : 'Removida dos favoritos');
   };
 
-  const handleAddFlashcard = () => {
-    flashcardsRepository.createFlashcardFromQuestion(question);
+  const handleAddFlashcard = async () => {
+    await flashcardsRepository.createFlashcardFromQuestion(question);
     showToast('Flashcard adicionado à sua rotina de Revisão Espaçada (SRS)!');
   };
 
-  const handleUpdateErrorReason = (reason: QuestionAnswerRecord['errorReason']) => {
+  const handleUpdateErrorReason = async (reason: QuestionAnswerRecord['errorReason']) => {
     setErrorReason(reason);
-    const existing = answersRepository.getAnswers()[question.id];
+    const existing = (await answersRepository.getAnswers())[question.id];
     if (existing) {
       existing.errorReason = reason;
-      answersRepository.recordAnswer(existing);
+      await answersRepository.recordAnswer(existing);
       showToast('Motivo do erro atualizado no seu Caderno de Erros.');
     }
   };
 
-  const isCorrect = isSubmitted && question.options.find((o) => o.letter === selectedOption)?.isCorrect;
-  const isIncorrect = isSubmitted && !isCorrect;
+  const isCorrect = isSubmitted && !!reviewResult?.isCorrect;
+  const isIncorrect = isSubmitted && !!reviewResult && !isCorrect;
+  const reviewByLetter: Map<string, QuestionReviewResult['options'][number]> = new Map();
+  for (const o of reviewResult?.options ?? []) {
+    reviewByLetter.set(o.letter, o);
+  }
 
   return (
     <div
@@ -215,6 +251,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         {question.options.map((opt) => {
           const isSelected = selectedOption === opt.letter;
           const isEliminated = eliminatedOptions.includes(opt.letter);
+          const reviewOpt = reviewByLetter.get(opt.letter);
 
           let optBg = 'bg-white border-slate-200 hover:border-slate-300';
           let letterBg = 'bg-slate-100 text-slate-700';
@@ -224,11 +261,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               optBg = 'bg-teal-50 border-teal-600 ring-2 ring-teal-600/30';
               letterBg = 'bg-teal-700 text-white';
             }
-          } else if (isSubmitted) {
-            if (opt.isCorrect) {
+          } else if (isSubmitted && reviewOpt) {
+            if (reviewOpt.isCorrect) {
               optBg = 'bg-emerald-50/90 border-emerald-400 ring-1 ring-emerald-300';
               letterBg = 'bg-emerald-600 text-white';
-            } else if (isSelected && !opt.isCorrect) {
+            } else if (isSelected && !reviewOpt.isCorrect) {
               optBg = 'bg-rose-50/90 border-rose-400 ring-1 ring-rose-300';
               letterBg = 'bg-rose-600 text-white';
             }
@@ -273,23 +310,23 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               </div>
 
               {/* Individual Alternative Explanation (When Answered in Study Mode) */}
-              {isSubmitted && !isExamMode && (
+              {isSubmitted && !isExamMode && reviewOpt && (
                 <div
                   className={`mt-2 pt-2 border-t text-xs leading-relaxed ${
-                    opt.isCorrect
+                    reviewOpt.isCorrect
                       ? 'border-emerald-200 text-emerald-900 bg-emerald-100/40 p-2.5 rounded-xl'
                       : 'border-slate-200/80 text-slate-600 bg-slate-50 p-2.5 rounded-xl'
                   }`}
                 >
                   <div className="flex items-center gap-1.5 font-bold mb-1">
-                    {opt.isCorrect ? (
+                    {reviewOpt.isCorrect ? (
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     ) : (
                       <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     )}
-                    <span>{opt.isCorrect ? 'Por que está correta:' : 'Por que está incorreta (distrator):'}</span>
+                    <span>{reviewOpt.isCorrect ? 'Por que está correta:' : 'Por que está incorreta (distrator):'}</span>
                   </div>
-                  <p>{opt.explanation}</p>
+                  <p>{reviewOpt.explanation}</p>
                   {opt.mechanismReference && (
                     <p className="mt-1 text-[11px] font-mono text-slate-500 italic">
                       Mecanismo: {opt.mechanismReference}
@@ -336,7 +373,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   Confirmação Clínica · Resposta Correta
                 </span>
                 <p className="text-xs leading-relaxed text-emerald-900/90 dark:text-emerald-200/90">
-                  {question.generalCommentary}
+                  {reviewResult?.generalCommentary}
                 </p>
               </div>
             </div>
@@ -348,10 +385,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   Mecanismo Negligenciado ou Distrator Identificado
                 </span>
                 <p className="text-xs leading-relaxed text-rose-900/90 dark:text-rose-200/90">
-                  {question.generalCommentary}
+                  {reviewResult?.generalCommentary}
                 </p>
                 <div className="p-2.5 rounded-xl bg-rose-100/60 dark:bg-rose-900/40 border border-rose-200 dark:border-rose-800 text-[11px] text-rose-900 dark:text-rose-200">
-                  <strong>Ponto-chave negligenciado:</strong> {question.highYieldSummary}
+                  <strong>Ponto-chave negligenciado:</strong> {reviewResult?.highYieldSummary}
                 </div>
               </div>
             </div>
@@ -363,7 +400,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
               Pérola High-Yield (Resumo Prático):
             </span>
-            <p className="leading-relaxed font-medium text-teal-950/90 dark:text-teal-200/90">{question.highYieldSummary}</p>
+            <p className="leading-relaxed font-medium text-teal-950/90 dark:text-teal-200/90">{reviewResult?.highYieldSummary}</p>
           </div>
 
           {/* Próximos Passos Claros (Fisiopatologia, Caderno de Erros, Flashcard) */}
@@ -381,11 +418,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
             {/* 2. Adicionar / Mapear no Caderno de Erros */}
             <button
-              onClick={() => {
-                const existing = answersRepository.getAnswers()[question.id];
+              onClick={async () => {
+                const existing = (await answersRepository.getAnswers())[question.id];
                 if (existing) {
                   existing.errorReason = errorReason;
-                  answersRepository.recordAnswer(existing);
+                  await answersRepository.recordAnswer(existing);
                   showToast('Questão catalogada no Caderno de Erros!');
                 }
               }}

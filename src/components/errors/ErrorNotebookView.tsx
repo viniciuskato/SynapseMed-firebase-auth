@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   BookMarked,
   Tag,
@@ -15,10 +15,10 @@ import {
   FileEdit,
   Save,
 } from 'lucide-react';
-import { Question, Discipline, Theme, QuestionAnswerRecord } from '../../types';
-import { StorageService } from '../../services/storage';
+import { Question, Discipline, Theme, QuestionAnswerRecord, QuestionReviewResult } from '../../types';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
+import { questionsRepository } from '../../repositories/QuestionsRepository';
 
 interface ErrorNotebookViewProps {
   questions: Question[];
@@ -45,11 +45,42 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState<string>('');
 
-  const answers = answersRepository.getAnswers();
+  const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
+  // Gabarito por questão, obtido via RPC (question_option_keys/
+  // question_answer_keys não têm policy de SELECT direto para estudante).
+  const [reviews, setReviews] = useState<Record<string, QuestionReviewResult>>({});
+
+  const reloadAnswers = () => {
+    answersRepository.getAnswers().then(setAnswers);
+  };
+
+  useEffect(() => {
+    reloadAnswers();
+  }, []);
+
+  useEffect(() => {
+    const mistakeIds = Object.keys(answers).filter((qid) => !answers[qid].isCorrect && !reviews[qid]);
+    if (mistakeIds.length === 0) return;
+    let cancelled = false;
+    Promise.all(
+      mistakeIds.map((id) => questionsRepository.getQuestionReview(id).then((r) => [id, r] as const))
+    ).then((pairs) => {
+      if (cancelled) return;
+      setReviews((prev) => {
+        const next = { ...prev };
+        for (const [id, r] of pairs) next[id] = r;
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [answers]);
 
   // Filter mistakes
   const mistakes = useMemo(() => {
-    return Object.values(answers)
+    return (Object.values(answers) as QuestionAnswerRecord[])
       .filter((a) => !a.isCorrect)
       .map((ans) => {
         const q = questions.find((item) => item.id === ans.questionId);
@@ -85,26 +116,28 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
     tempo_esgotado: { label: 'Tempo Esgotado', color: 'bg-slate-100 text-slate-800 border-slate-300' },
   };
 
-  const handleResolveError = (questionId: string) => {
-    const existing = answersRepository.getAnswers()[questionId];
+  const handleResolveError = async (questionId: string) => {
+    const existing = (await answersRepository.getAnswers())[questionId];
     if (existing) {
       existing.isCorrect = true; // Mark as mastered
-      answersRepository.recordAnswer(existing);
+      await answersRepository.recordAnswer(existing);
+      reloadAnswers();
       onUpdate();
     }
   };
 
-  const handleCreateFlashcard = (q: Question) => {
-    flashcardsRepository.createFlashcardFromQuestion(q);
+  const handleCreateFlashcard = async (q: Question) => {
+    await flashcardsRepository.createFlashcardFromQuestion(q);
     alert('Flashcard adicionado à sua rotina de repetição espaçada!');
   };
 
-  const handleSaveNote = (questionId: string) => {
-    const existing = answersRepository.getAnswers()[questionId];
+  const handleSaveNote = async (questionId: string) => {
+    const existing = (await answersRepository.getAnswers())[questionId];
     if (existing) {
       existing.userNotes = noteDraft;
-      answersRepository.recordAnswer(existing);
+      await answersRepository.recordAnswer(existing);
       setEditingNoteId(null);
+      reloadAnswers();
       onUpdate();
     }
   };
@@ -191,8 +224,18 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
           {mistakes.map(({ answer, question }) => {
             const disc = disciplines.find((d) => d.id === question.disciplineId);
             const th = themes.find((t) => t.id === question.themeId);
-            const correctOpt = question.options.find((o) => o.isCorrect);
-            const selectedOpt = question.options.find((o) => o.letter === answer.selectedOption);
+            const review = reviews[question.id];
+            const reviewCorrectOpt = review?.options.find((o) => o.isCorrect);
+            const reviewSelectedOpt = review?.options.find((o) => o.letter === answer.selectedOption);
+            const correctOpt = {
+              letter: reviewCorrectOpt?.letter,
+              text: question.options.find((o) => o.letter === reviewCorrectOpt?.letter)?.text,
+              explanation: reviewCorrectOpt?.explanation,
+            };
+            const selectedOpt = {
+              text: question.options.find((o) => o.letter === answer.selectedOption)?.text,
+              explanation: reviewSelectedOpt?.explanation,
+            };
             const reasonConfig = reasonLabels[answer.errorReason || 'lacuna_teorica'];
 
             return (
@@ -266,7 +309,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
                   <Sparkles className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold block">Pérola de Aprendizado:</span>
-                    <p className="font-medium mt-0.5">{question.highYieldSummary}</p>
+                    <p className="font-medium mt-0.5">{review?.highYieldSummary}</p>
                   </div>
                 </div>
 

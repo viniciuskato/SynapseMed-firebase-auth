@@ -1,18 +1,21 @@
 import { Flashcard, Question } from '../types';
 import { StorageService } from '../services/storage';
+import { SupabaseFlashcardsRepository } from './SupabaseFlashcardsRepository';
 
 export interface FlashcardsRepository {
-  getFlashcards(): Flashcard[];
-  saveFlashcards(flashcards: Flashcard[]): void;
-  saveFlashcard(flashcard: Flashcard): Flashcard;
-  deleteFlashcard(id: string): void;
-  getDueFlashcards(): Flashcard[];
-  updateFlashcardSRS(cardId: string, srs: any): void;
-  createFlashcardFromQuestion(question: Question): Flashcard;
-  reviewFlashcard(cardId: string, rating: 1 | 2 | 3 | 4): Flashcard | null;
+  getFlashcards(): Promise<Flashcard[]>;
+  saveFlashcards(flashcards: Flashcard[]): Promise<void>;
+  saveFlashcard(flashcard: Flashcard): Promise<Flashcard>;
+  deleteFlashcard(id: string): Promise<void>;
+  getDueFlashcards(): Promise<Flashcard[]>;
+  updateFlashcardSRS(cardId: string, srs: any): Promise<void>;
+  createFlashcardFromQuestion(question: Question): Promise<Flashcard>;
+  reviewFlashcard(cardId: string, rating: 1 | 2 | 3 | 4): Promise<Flashcard | null>;
 }
 
-class LocalStorageFlashcardsRepository implements FlashcardsRepository {
+// Não implementa mais `FlashcardsRepository` (agora assíncrona) — mantida
+// como código morto, documentado, sem uso pelo singleton (ver Etapa Fase 4-5 wiring).
+class LocalStorageFlashcardsRepository {
   getFlashcards(): Flashcard[] {
     return StorageService.getFlashcards();
   }
@@ -39,4 +42,4 @@ class LocalStorageFlashcardsRepository implements FlashcardsRepository {
   }
 }
 
-export const flashcardsRepository: FlashcardsRepository = new LocalStorageFlashcardsRepository();
+export const flashcardsRepository: FlashcardsRepository = new SupabaseFlashcardsRepository();

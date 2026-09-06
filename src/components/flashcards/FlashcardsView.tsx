@@ -84,8 +84,8 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
     }
   };
 
-  const handleDeleteCard = (cardId: string) => {
-    flashcardsRepository.deleteFlashcard(cardId);
+  const handleDeleteCard = async (cardId: string) => {
+    await flashcardsRepository.deleteFlashcard(cardId);
     onFlashcardUpdated();
   };
 

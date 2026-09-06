@@ -1,16 +1,15 @@
-import { Question, QuestionOption } from '../types';
+import { Question, QuestionOption, QuestionReviewResult } from '../types';
 import { supabase } from '../lib/supabaseClient';
+import { QuestionsRepository } from './QuestionsRepository';
+import { mapQuestionReviewPayload } from './questionReviewMapper';
 
 // ============================================================================
 // Fase 3 — Supabase-backed QuestionsRepository
 // ============================================================================
 //
-// Mesma observação de `SupabaseMaterialsRepository.ts`: não declara
-// `implements QuestionsRepository` porque essa interface é síncrona
-// (localStorage) e uma implementação Supabase real é assíncrona por natureza
-// (I/O de rede). Os métodos espelham os nomes/parâmetros da interface
-// original, retornando Promise<T> em vez de T. Não é usada pelo singleton
-// `questionsRepository` consumido pelo app.
+// Fase 4-5 wiring: `QuestionsRepository` foi convertida para assíncrona e
+// esta classe passou a declarar `implements QuestionsRepository` e a ser o
+// singleton `questionsRepository` consumido pelo app.
 //
 // Mapeamento de campos (frontend <-> banco):
 //
@@ -117,7 +116,7 @@ function buildQuestion(
   };
 }
 
-export class SupabaseQuestionsRepository {
+export class SupabaseQuestionsRepository implements QuestionsRepository {
   async getQuestions(): Promise<Question[]> {
     const [
       { data: questions, error: qErr },
@@ -212,6 +211,14 @@ export class SupabaseQuestionsRepository {
     // Sem equivalente de "custom" para questions no schema atual — mesmo
     // comportamento do LocalStorageQuestionsRepository (delega a saveQuestion).
     await this.saveQuestion(question);
+  }
+
+  async getQuestionReview(questionId: string): Promise<QuestionReviewResult> {
+    const { data, error } = await supabase.rpc('get_question_review', {
+      p_question_id: questionId,
+    });
+    if (error) throw error;
+    return mapQuestionReviewPayload(data);
   }
 }
 

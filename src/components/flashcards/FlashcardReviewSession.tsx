@@ -42,7 +42,7 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
   const theme = themes.find((t) => t.id === currentCard?.themeId);
 
   const handleRate = useCallback(
-    (rating: 1 | 2 | 3 | 4) => {
+    async (rating: 1 | 2 | 3 | 4) => {
       if (!currentCard) return;
 
       const updatedSrs = calculateNextSRS(currentCard.srs, rating);
@@ -51,7 +51,7 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
         srs: updatedSrs,
       };
 
-      flashcardsRepository.updateFlashcardSRS(currentCard.id, updatedSrs);
+      await flashcardsRepository.updateFlashcardSRS(currentCard.id, updatedSrs);
       setReviewedCount((prev) => prev + 1);
 
       // If rating is 1 (Errei), add back to the end of the current session queue for immediate reinforcement

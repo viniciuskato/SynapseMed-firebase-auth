@@ -1,15 +1,13 @@
 import { supabase } from '../lib/supabaseClient';
+import { ReadingProgressRepository } from './ReadingProgressRepository';
 
 // ============================================================================
-// Fase 4 — Supabase-backed ReadingProgressRepository
+// Fase 4-5 wiring — Supabase-backed ReadingProgressRepository
 // ============================================================================
 //
-// Mesma observação de `SupabaseMaterialsRepository.ts`: não declara
-// `implements ReadingProgressRepository` porque essa interface é síncrona
-// (localStorage) e uma implementação Supabase real é assíncrona por
-// natureza. Os métodos espelham os nomes/parâmetros da interface original,
-// retornando Promise<T> em vez de T. Não é usada pelo singleton
-// `readingProgressRepository` consumido pelo app.
+// `ReadingProgressRepository` foi convertida para assíncrona e esta classe
+// passou a declarar `implements ReadingProgressRepository` e a ser o
+// singleton `readingProgressRepository` consumido pelo app.
 //
 // Mapeamento de campos (frontend <-> banco):
 //
@@ -31,7 +29,7 @@ interface ReadingProgressRow {
   percent: number;
 }
 
-export class SupabaseReadingProgressRepository {
+export class SupabaseReadingProgressRepository implements ReadingProgressRepository {
   async getReadingProgress(): Promise<Record<string, { readSectionIds: string[]; percent: number }>> {
     const { data, error } = await supabase.from('reading_progress').select('material_id, read_section_ids, percent');
     if (error) throw error;

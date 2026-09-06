@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   Flame,
   Layers,
@@ -21,7 +21,7 @@ import {
   Target,
   ChevronRight,
 } from 'lucide-react';
-import { Discipline, Theme, Question, Compendium, Flashcard } from '../../types';
+import { Discipline, Theme, Question, Compendium, Flashcard, QuestionAnswerRecord, ErrorLogItem } from '../../types';
 import { StorageService } from '../../services/storage';
 import { answersRepository } from '../../repositories/AnswersRepository';
 import { readingProgressRepository } from '../../repositories/ReadingProgressRepository';
@@ -57,11 +57,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Persistence data (isolado por UID)
   const stats = StorageService.getStats();
-  const answers = answersRepository.getAnswers();
-  const readingProgress = readingProgressRepository.getReadingProgress();
-  const errorLogs = errorNotebookRepository.getErrorLogs();
+  const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
+  const [readingProgress, setReadingProgress] = useState<
+    Record<string, { readSectionIds: string[]; percent: number }>
+  >({});
+  const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
 
-  const answersArray = Object.values(answers);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [nextAnswers, nextProgress, nextErrorLogs] = await Promise.all([
+        answersRepository.getAnswers(),
+        readingProgressRepository.getReadingProgress(),
+        errorNotebookRepository.getErrorLogs(),
+      ]);
+      if (cancelled) return;
+      setAnswers(nextAnswers);
+      setReadingProgress(nextProgress);
+      setErrorLogs(nextErrorLogs);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const answersArray: QuestionAnswerRecord[] = Object.values(answers);
   const totalAnswered = answersArray.length;
   const totalCorrect = answersArray.filter((a) => a.isCorrect).length;
   const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;

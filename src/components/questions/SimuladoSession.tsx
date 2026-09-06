@@ -13,7 +13,7 @@ import {
   Flame,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { Question, SimuladoConfig, Discipline, Theme, SimuladoSessionData } from '../../types';
+import { Question, SimuladoConfig, Discipline, Theme, SimuladoSessionData, QuestionReviewResult } from '../../types';
 import { answersRepository } from '../../repositories/AnswersRepository';
 import { simuladosRepository } from '../../repositories/SimuladosRepository';
 import { QuestionCard } from './QuestionCard';
@@ -45,6 +45,7 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
     scorePercent: number;
     timeSpentSeconds: number;
   } | null>(null);
+  const [reviewResults, setReviewResults] = useState<Record<string, QuestionReviewResult>>({});
 
   // Countdown timer
   useEffect(() => {
@@ -71,33 +72,43 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
     }));
   };
 
-  const handleFinishExam = () => {
+  const handleFinishExam = async () => {
     if (isFinished) return;
 
-    let correct = 0;
     const sessionAnswersRecord: SimuladoSessionData['answers'] = {};
+    // isCorrect é calculado pelo servidor (RPC submit_question_attempt);
+    // o valor aqui é só um placeholder ignorado pela API.
+    const pendingRecordings: Promise<[string, QuestionReviewResult]>[] = [];
 
     questions.forEach((q) => {
       const selected = answers[q.id];
-      const isCor = selected === q.options.find((o) => o.isCorrect)?.letter;
-      if (isCor) correct += 1;
+      if (!selected) return;
 
-      if (selected) {
-        sessionAnswersRecord[q.id] = {
-          selectedOption: selected,
-          timeSpent: Math.round((config.timeLimitMinutes * 60 - secondsRemaining) / questions.length),
-        };
-        // Record in global answers storage
-        answersRepository.recordAnswer({
-          questionId: q.id,
-          selectedOption: selected,
-          isCorrect: isCor,
-          timestamp: new Date().toISOString(),
-          timeSpentSeconds: 45,
-          errorReason: isCor ? undefined : 'lacuna_teorica',
-        });
-      }
+      sessionAnswersRecord[q.id] = {
+        selectedOption: selected,
+        timeSpent: Math.round((config.timeLimitMinutes * 60 - secondsRemaining) / questions.length),
+      };
+      pendingRecordings.push(
+        answersRepository
+          .recordAnswer({
+            questionId: q.id,
+            selectedOption: selected,
+            isCorrect: false,
+            timestamp: new Date().toISOString(),
+            timeSpentSeconds: 45,
+          })
+          .then((review) => [q.id, review] as [string, QuestionReviewResult])
+      );
     });
+
+    const recordedReviews = await Promise.all(pendingRecordings);
+    const newReviewResults: Record<string, QuestionReviewResult> = {};
+    let correct = 0;
+    for (const [questionId, review] of recordedReviews) {
+      newReviewResults[questionId] = review;
+      if (review.isCorrect) correct += 1;
+    }
+    setReviewResults(newReviewResults);
 
     const totalTimeSpent = config.timeLimitMinutes * 60 - secondsRemaining;
     const scorePct = Math.round((correct / Math.max(1, questions.length)) * 100);
@@ -113,7 +124,7 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
       totalTimeSeconds: totalTimeSpent,
     };
 
-    simuladosRepository.saveSimuladoSession(sessionData);
+    await simuladosRepository.saveSimuladoSession(sessionData);
 
     setSessionResults({
       correctCount: correct,
@@ -202,9 +213,7 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
               {questions.map((q, idx) => {
                 const isSelected = answers[q.id] !== undefined;
                 const isCurrent = currentIdx === idx;
-                const isCor =
-                  isFinished &&
-                  answers[q.id] === q.options.find((o) => o.isCorrect)?.letter;
+                const isCor = isFinished && !!reviewResults[q.id]?.isCorrect;
                 const isWrong = isFinished && isSelected && !isCor;
 
                 let btnClass = 'bg-slate-100 text-slate-600 hover:bg-slate-200';
