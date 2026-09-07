@@ -75,6 +75,7 @@ interface MaterialRow {
   author: string | null;
   tags: string[];
   updated_at: string;
+  status: string;
 }
 
 interface MaterialSectionRow {
@@ -172,6 +173,7 @@ function buildCompendium(
     author: material.author ?? '',
     mode: (material.mode as Compendium['mode']) ?? undefined,
     studyLens: (material.study_lens as Compendium['studyLens']) ?? undefined,
+    publicationStatus: (material.status as Compendium['publicationStatus']) ?? 'draft',
     tags: material.tags ?? [],
     sections: sections
       .filter((s) => s.material_id === material.id)
@@ -289,6 +291,19 @@ export class SupabaseMaterialsRepository implements MaterialsRepository {
   async deleteCompendium(id: string): Promise<void> {
     // material_sections/material_references têm ON DELETE CASCADE em material_id.
     const { error } = await supabase.from('materials').delete().eq('id', id);
+    if (error) throw error;
+  }
+
+  async publishCompendium(id: string): Promise<void> {
+    // Não há RPC dedicada nem trigger de validação para materials (diferente
+    // de questions/publish_question) — a política materials_admin_write
+    // ("for all") permite este UPDATE direto para admin autenticado.
+    const { error } = await supabase.from('materials').update({ status: 'published' }).eq('id', id);
+    if (error) throw error;
+  }
+
+  async unpublishCompendium(id: string): Promise<void> {
+    const { error } = await supabase.from('materials').update({ status: 'draft' }).eq('id', id);
     if (error) throw error;
   }
 }

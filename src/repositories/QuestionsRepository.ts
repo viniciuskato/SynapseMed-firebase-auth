@@ -9,6 +9,8 @@ export interface QuestionsRepository {
   deleteQuestion(id: string): Promise<void>;
   saveCustomQuestion(question: Question): Promise<void>;
   getQuestionReview(questionId: string): Promise<QuestionReviewResult>;
+  publishQuestion(id: string): Promise<void>;
+  unpublishQuestion(id: string): Promise<void>;
 }
 
 // Não implementa mais `QuestionsRepository` (agora assíncrona) — mantida como

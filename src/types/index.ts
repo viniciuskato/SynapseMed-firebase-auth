@@ -82,6 +82,8 @@ export interface Compendium {
   mode?: 'atlas' | 'mecanismos';
   studyLens?: StudyLens;
   editorialStatus?: EditorialStatus;
+  /** Controla visibilidade para estudantes via RLS (materials.status). Distinto de editorialStatus. */
+  publicationStatus?: 'draft' | 'published' | 'archived';
   tags?: string[];
   dependencies?: { title: string; linkId?: string }[];
   sections: CompendiumSection[];
@@ -113,6 +115,8 @@ export interface Question {
   generalCommentary: string;
   highYieldSummary: string;
   tags: string[];
+  /** Controla visibilidade para estudantes via RLS (questions.status). */
+  publicationStatus?: 'draft' | 'published' | 'archived';
   flashcardTemplate?: {
     front: string;
     back: string;

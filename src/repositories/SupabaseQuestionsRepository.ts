@@ -54,6 +54,7 @@ interface QuestionRow {
   clinical_vignette: string;
   question_stem: string;
   tags: string[];
+  status: string;
 }
 
 interface QuestionOptionRow {
@@ -113,6 +114,7 @@ function buildQuestion(
     generalCommentary: answerKey?.general_commentary ?? '',
     highYieldSummary: answerKey?.high_yield_summary ?? '',
     tags: q.tags ?? [],
+    publicationStatus: (q.status as Question['publicationStatus']) ?? 'draft',
   };
 }
 
@@ -219,6 +221,23 @@ export class SupabaseQuestionsRepository implements QuestionsRepository {
     });
     if (error) throw error;
     return mapQuestionReviewPayload(data);
+  }
+
+  async publishQuestion(id: string): Promise<void> {
+    // Única via de transição para 'published' — valida (>=2 alternativas,
+    // question_option_keys completo, exatamente 1 correta, comentários
+    // preenchidos) antes de liberar. Lança erro descritivo se a questão
+    // estiver incompleta.
+    const { error } = await supabase.rpc('publish_question', { p_question_id: id });
+    if (error) throw error;
+  }
+
+  async unpublishQuestion(id: string): Promise<void> {
+    // Sem RPC dedicada para o caminho inverso — não há validação necessária
+    // para tirar de circulação, só materials_admin_write/questions_admin_write
+    // ("for all") permitindo o UPDATE direto.
+    const { error } = await supabase.from('questions').update({ status: 'draft' }).eq('id', id);
+    if (error) throw error;
   }
 }
 

@@ -11,6 +11,8 @@ export interface MaterialsRepository {
   saveCompendiums(compendiums: Compendium[]): Promise<void>;
   saveCompendium(compendium: Compendium): Promise<void>;
   deleteCompendium(id: string): Promise<void>;
+  publishCompendium(id: string): Promise<void>;
+  unpublishCompendium(id: string): Promise<void>;
 }
 
 // Não implementa mais `MaterialsRepository` (agora assíncrona) — mantida como

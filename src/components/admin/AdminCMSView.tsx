@@ -310,6 +310,69 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     }
   };
 
+  const [bulkPublishing, setBulkPublishing] = useState(false);
+
+  const handlePublishAllDraftCompendiums = async () => {
+    const drafts = compendiums.filter((c) => c.publicationStatus !== 'published');
+    if (drafts.length === 0) {
+      showToast('Nenhum compêndio em rascunho.');
+      return;
+    }
+    if (!window.confirm(`Publicar os ${drafts.length} compêndios em rascunho? Ficam visíveis para estudantes imediatamente.`)) return;
+    setBulkPublishing(true);
+    let ok = 0;
+    for (const c of drafts) {
+      try {
+        await materialsRepository.publishCompendium(c.id);
+        ok++;
+      } catch (err) {
+        console.error(`Falha ao publicar ${c.id}:`, err);
+      }
+    }
+    setBulkPublishing(false);
+    onRefreshData();
+    showToast(`${ok}/${drafts.length} compêndios publicados.`);
+  };
+
+  const handlePublishAllDraftQuestions = async () => {
+    const drafts = questions.filter((q) => q.publicationStatus !== 'published');
+    if (drafts.length === 0) {
+      showToast('Nenhuma questão em rascunho.');
+      return;
+    }
+    if (!window.confirm(`Tentar publicar as ${drafts.length} questões em rascunho? Questões incompletas (sem 2 alternativas, sem explicação etc.) ficam de fora e são reportadas.`)) return;
+    setBulkPublishing(true);
+    let ok = 0;
+    const failures: string[] = [];
+    for (const q of drafts) {
+      try {
+        await questionsRepository.publishQuestion(q.id);
+        ok++;
+      } catch (err) {
+        failures.push(`${q.questionStem.slice(0, 40)}...: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    setBulkPublishing(false);
+    onRefreshData();
+    showToast(`${ok}/${drafts.length} questões publicadas.${failures.length > 0 ? ` ${failures.length} falharam (ver console).` : ''}`);
+    if (failures.length > 0) console.warn('Questões não publicadas:\n' + failures.join('\n'));
+  };
+
+  const handleTogglePublishCompendium = async (id: string, title: string, currentStatus?: string) => {
+    try {
+      if (currentStatus === 'published') {
+        await materialsRepository.unpublishCompendium(id);
+        showToast(`"${title}" voltou para rascunho — estudantes não veem mais.`);
+      } else {
+        await materialsRepository.publishCompendium(id);
+        showToast(`"${title}" publicado — visível para estudantes agora.`);
+      }
+      onRefreshData();
+    } catch (err) {
+      showToast(`Erro ao alterar publicação: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  };
+
   // ── Question Form Handlers ──────────────────────────────────────
   const handleSaveQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -350,6 +413,21 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       await questionsRepository.deleteQuestion(id);
       onRefreshData();
       showToast('Questão removida.');
+    }
+  };
+
+  const handleTogglePublishQuestion = async (id: string, currentStatus?: string) => {
+    try {
+      if (currentStatus === 'published') {
+        await questionsRepository.unpublishQuestion(id);
+        showToast('Questão voltou para rascunho — estudantes não veem mais.');
+      } else {
+        await questionsRepository.publishQuestion(id);
+        showToast('Questão publicada — visível para estudantes agora.');
+      }
+      onRefreshData();
+    } catch (err) {
+      showToast(`Não publicada: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -474,6 +552,16 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
             </div>
+
+            <button
+              onClick={handlePublishAllDraftCompendiums}
+              disabled={bulkPublishing}
+              className="px-3.5 py-2 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50"
+              title="Publica todos os compêndios que ainda estão em rascunho"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Publicar rascunhos ({compendiums.filter((c) => c.publicationStatus !== 'published').length})</span>
+            </button>
 
             <button
               onClick={handleOpenNewCompendium}
@@ -872,6 +960,15 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                         <span className="text-[10px] font-semibold text-stone-500 dark:text-stone-400">
                           {disc?.name || c.disciplineId}
                         </span>
+                        <span
+                          className={`text-[9px] px-2 py-0.5 rounded font-bold border ${
+                            c.publicationStatus === 'published'
+                              ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900'
+                              : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900'
+                          }`}
+                        >
+                          {c.publicationStatus === 'published' ? 'publicado' : 'rascunho'}
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-1 text-[11px] text-stone-400 font-mono-code">
@@ -912,6 +1009,28 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
                     <div className="flex items-center gap-2">
                       <button
+                        onClick={() => handleTogglePublishCompendium(c.id, c.title, c.publicationStatus)}
+                        className={`px-3 py-1.5 rounded-lg border font-semibold text-xs flex items-center gap-1 transition-colors ${
+                          c.publicationStatus === 'published'
+                            ? 'border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300'
+                            : 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
+                        }`}
+                        title={c.publicationStatus === 'published' ? 'Despublicar (volta a rascunho)' : 'Publicar (fica visível para estudantes)'}
+                      >
+                        {c.publicationStatus === 'published' ? (
+                          <>
+                            <ShieldBan className="w-3.5 h-3.5" />
+                            <span>Despublicar</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Publicar</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
                         onClick={() => handleEditCompendium(c)}
                         className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 font-semibold text-xs flex items-center gap-1 transition-colors"
                         title="Editar compêndio"
@@ -951,13 +1070,25 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
               </p>
             </div>
 
-            <button
-              onClick={() => setIsCreatingQuestion(!isCreatingQuestion)}
-              className="px-4 py-2 bg-amber-900 hover:bg-amber-800 text-white dark:bg-[#d4924a] dark:text-[#111010] dark:hover:bg-[#e5a45f] font-bold text-xs rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
-            >
-              <Plus className="w-4 h-4" />
-              <span>{isCreatingQuestion ? 'Fechar Formulário' : 'Nova Questão'}</span>
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={handlePublishAllDraftQuestions}
+                disabled={bulkPublishing}
+                className="px-3.5 py-2 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                title="Tenta publicar todas as questões em rascunho; incompletas ficam de fora"
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>Publicar rascunhos ({questions.filter((q) => q.publicationStatus !== 'published').length})</span>
+              </button>
+
+              <button
+                onClick={() => setIsCreatingQuestion(!isCreatingQuestion)}
+                className="px-4 py-2 bg-amber-900 hover:bg-amber-800 text-white dark:bg-[#d4924a] dark:text-[#111010] dark:hover:bg-[#e5a45f] font-bold text-xs rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
+              >
+                <Plus className="w-4 h-4" />
+                <span>{isCreatingQuestion ? 'Fechar Formulário' : 'Nova Questão'}</span>
+              </button>
+            </div>
           </div>
 
           {/* Creation Form */}
@@ -1135,12 +1266,37 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     <span className="text-[10px] px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 font-semibold">
                       {q.difficulty}
                     </span>
+                    <span
+                      className={`text-[9px] px-2 py-0.5 rounded font-bold border ${
+                        q.publicationStatus === 'published'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900'
+                          : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900'
+                      }`}
+                    >
+                      {q.publicationStatus === 'published' ? 'publicada' : 'rascunho'}
+                    </span>
                   </div>
                   <p className="text-stone-600 dark:text-stone-400 font-medium line-clamp-1">{q.questionStem}</p>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-stone-400 text-[11px]">{q.options.length} alternativas</span>
+                  <button
+                    onClick={() => handleTogglePublishQuestion(q.id, q.publicationStatus)}
+                    className={`px-2.5 py-1 rounded-lg border font-semibold flex items-center gap-1 transition-colors ${
+                      q.publicationStatus === 'published'
+                        ? 'border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300'
+                        : 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
+                    }`}
+                    title={q.publicationStatus === 'published' ? 'Despublicar (volta a rascunho)' : 'Publicar (fica visível para estudantes)'}
+                  >
+                    {q.publicationStatus === 'published' ? (
+                      <ShieldBan className="w-3.5 h-3.5" />
+                    ) : (
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                    )}
+                    <span>{q.publicationStatus === 'published' ? 'Despublicar' : 'Publicar'}</span>
+                  </button>
                   <button
                     onClick={() => handleDeleteQuestion(q.id)}
                     className="p-1.5 rounded-lg text-stone-400 hover:text-rose-600 transition-colors"
