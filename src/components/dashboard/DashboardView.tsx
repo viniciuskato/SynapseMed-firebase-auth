@@ -114,8 +114,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Gamificação: Cálculo de XP, Nível e Missões Diárias
   const totalXp = useMemo(() => {
-    return GamificationService.calculateXp(answers, stats, readingProgress);
-  }, [answers, stats, readingProgress]);
+    return GamificationService.calculateXp(answers, stats, readingProgress, questions);
+  }, [answers, stats, readingProgress, questions]);
 
   const levelInfo = useMemo(() => {
     return GamificationService.getLevelInfo(totalXp);

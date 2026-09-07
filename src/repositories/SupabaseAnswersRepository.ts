@@ -17,6 +17,7 @@ import { mapQuestionReviewPayload } from './questionReviewMapper';
 //   questionId <-> question_id | isCorrect <-> is_correct
 //   timestamp <-> answered_at | timeSpentSeconds <-> time_spent_seconds
 //   errorReason <-> error_reason | userNotes <-> user_notes
+//   answerMode <-> answer_mode | answerStrategy <-> answer_strategy
 //   selectedOption (letra) <-> resolvida via question_options.letter, pois
 //     question_attempts guarda selected_option_id (uuid), não a letra.
 //
@@ -44,6 +45,8 @@ interface QuestionAttemptRow {
   time_spent_seconds: number;
   error_reason: QuestionAnswerRecord['errorReason'] | null;
   user_notes: string | null;
+  answer_mode: QuestionAnswerRecord['answerMode'] | null;
+  answer_strategy: QuestionAnswerRecord['answerStrategy'] | null;
   question_options: { letter: string } | { letter: string }[] | null;
 }
 
@@ -58,7 +61,7 @@ export class SupabaseAnswersRepository implements AnswersRepository {
     const { data, error } = await supabase
       .from('question_attempts')
       .select(
-        'question_id, is_correct, answered_at, time_spent_seconds, error_reason, user_notes, question_options(letter)'
+        'question_id, is_correct, answered_at, time_spent_seconds, error_reason, user_notes, answer_mode, answer_strategy, question_options(letter)'
       )
       .order('answered_at', { ascending: false });
     if (error) throw error;
@@ -74,6 +77,8 @@ export class SupabaseAnswersRepository implements AnswersRepository {
         timeSpentSeconds: row.time_spent_seconds,
         errorReason: row.error_reason ?? undefined,
         userNotes: row.user_notes ?? undefined,
+        answerMode: row.answer_mode ?? undefined,
+        answerStrategy: row.answer_strategy ?? undefined,
       };
     }
     return result;
@@ -94,6 +99,8 @@ export class SupabaseAnswersRepository implements AnswersRepository {
       p_time_spent_seconds: record.timeSpentSeconds,
       p_error_reason: record.errorReason ?? null,
       p_user_notes: record.userNotes ?? null,
+      p_answer_mode: record.answerMode ?? null,
+      p_answer_strategy: record.answerStrategy ?? null,
     });
     if (error) throw error;
     return mapQuestionReviewPayload(data);

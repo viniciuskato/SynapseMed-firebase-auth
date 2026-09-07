@@ -1,5 +1,28 @@
 import confetti from 'canvas-confetti';
-import { QuestionAnswerRecord, UserStats, Flashcard } from '../types';
+import { QuestionAnswerRecord, UserStats, Flashcard, Question, DifficultyLevel } from '../types';
+
+// XP por questão respondida, ponderado por dificuldade (fácil < médio <
+// difícil). Valores de referência escolhidos para manter o total próximo
+// do que a fórmula linear anterior (15 XP fixos) já rendia em média.
+const DIFFICULTY_XP: Record<DifficultyLevel, number> = {
+  facil: 10,
+  medio: 15,
+  dificil: 22,
+};
+
+// Recall correto (o aluno soube a resposta antes de ver as alternativas)
+// vale mais que reconhecimento correto entre as opções.
+const OPEN_RECALL_CORRECT_BONUS_XP = 15;
+
+// Bônus fixo por preencher a autoavaliação de estratégia — igual para as 4
+// opções de propósito: se variasse por opção, incentivaria o aluno a mentir
+// na autoavaliação para não perder pontos.
+const ANSWER_STRATEGY_BONUS_XP = 5;
+
+// Sequência de acertos, dentro da mesma disciplina, que dispara celebração
+// automática (ver QuestionCard.tsx, que calcula essa sequência on-the-fly a
+// partir de `answers` no momento de decidir se dispara).
+export const CELEBRATION_STREAK_LENGTH = 10;
 
 export interface GamificationLevel {
   level: number;
@@ -50,11 +73,25 @@ export class GamificationService {
   static calculateXp(
     answers: Record<string, QuestionAnswerRecord>,
     stats: UserStats,
-    readingProgress: Record<string, { readSectionIds: string[]; percent: number }>
+    readingProgress: Record<string, { readSectionIds: string[]; percent: number }>,
+    questions: Question[] = []
   ): number {
+    // `answers` já vem deduplicado a uma entrada por questionId (ver
+    // SupabaseAnswersRepository.getAnswers()), então somar sobre
+    // answersArray naturalmente conta XP uma única vez por questão, mesmo
+    // que existam múltiplas tentativas no banco.
     const answersArray = Object.values(answers);
-    const totalAnswered = answersArray.length;
     const totalCorrect = answersArray.filter((a) => a.isCorrect).length;
+    const questionById = new Map(questions.map((q) => [q.id, q]));
+
+    let questionsXp = 0;
+    for (const a of answersArray) {
+      const difficulty = questionById.get(a.questionId)?.difficulty ?? 'medio';
+      let xp = DIFFICULTY_XP[difficulty];
+      if (a.isCorrect && a.answerMode === 'open_recall') xp += OPEN_RECALL_CORRECT_BONUS_XP;
+      if (a.answerStrategy) xp += ANSWER_STRATEGY_BONUS_XP;
+      questionsXp += xp;
+    }
 
     // Seções de compêndios lidas
     const totalSectionsRead = Object.values(readingProgress).reduce(
@@ -62,7 +99,6 @@ export class GamificationService {
       0
     );
 
-    const questionsXp = totalAnswered * 15;
     const correctBonusXp = totalCorrect * 35;
     const streakXp = (stats.streakDays || 0) * 50;
     const flashcardsXp = (stats.cardsReviewedToday || 0) * 20;

@@ -20,6 +20,7 @@ import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
 import { questionsRepository } from '../../repositories/QuestionsRepository';
+import { GamificationService, CELEBRATION_STREAK_LENGTH } from '../../services/gamification';
 
 interface QuestionCardProps {
   question: Question;
@@ -50,6 +51,12 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
   const [errorReason, setErrorReason] = useState<QuestionAnswerRecord['errorReason']>('lacuna_teorica');
+  // Modo de resposta (recall livre vs. múltipla escolha): escolhido antes de
+  // ver as alternativas, em modo de estudo, e travado até a questão ser
+  // respondida ou trocada (ver useEffect abaixo, que reseta por question.id).
+  const [answerMode, setAnswerMode] = useState<QuestionAnswerRecord['answerMode']>(undefined);
+  const [alternativesRevealed, setAlternativesRevealed] = useState<boolean>(false);
+  const [answerStrategy, setAnswerStrategy] = useState<QuestionAnswerRecord['answerStrategy']>(undefined);
   const [userNote, setUserNote] = useState<string>('');
   const [isNoteSaved, setIsNoteSaved] = useState(false);
   const [showErrorTagger, setShowErrorTagger] = useState(false);
@@ -82,6 +89,9 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       setIsBookmarked(bookmarks.questions.includes(question.id));
       setErrorReason(initialAnswer?.errorReason || 'lacuna_teorica');
       setUserNote(initialAnswer?.userNotes || '');
+      setAnswerMode(initialAnswer?.answerMode);
+      setAlternativesRevealed(isExamMode || !!initialAnswer);
+      setAnswerStrategy(initialAnswer?.answerStrategy);
     })();
     return () => {
       cancelled = true;
@@ -127,6 +137,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       isCorrect: false,
       timestamp: new Date().toISOString(),
       timeSpentSeconds: 45,
+      answerMode,
     };
 
     const review = await answersRepository.recordAnswer(record);
@@ -143,6 +154,33 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       showToast('Resposta incorreta. O elo de revisão foi ativado!');
     } else {
       showToast('Resposta correta! Excelente raciocínio clínico.');
+      await checkStreakCelebration();
+    }
+  };
+
+  // Confete automático só em marcos reais: ao completar uma sequência de
+  // CELEBRATION_STREAK_LENGTH respostas corretas seguidas dentro da mesma
+  // disciplina. Calculado em memória a partir de `answers`, sem persistir
+  // nada novo no banco.
+  const checkStreakCelebration = async () => {
+    const [allAnswers, allQuestions] = await Promise.all([
+      answersRepository.getAnswers(),
+      questionsRepository.getQuestions(),
+    ]);
+    const disciplineByQuestionId = new Map(allQuestions.map((q) => [q.id, q.disciplineId]));
+
+    const sameDisciplineAnswers = Object.values(allAnswers)
+      .filter((a) => disciplineByQuestionId.get(a.questionId) === question.disciplineId)
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    let streak = 0;
+    for (let i = sameDisciplineAnswers.length - 1; i >= 0; i--) {
+      if (!sameDisciplineAnswers[i].isCorrect) break;
+      streak++;
+    }
+
+    if (streak > 0 && streak % CELEBRATION_STREAK_LENGTH === 0) {
+      GamificationService.triggerCelebration();
     }
   };
 
@@ -175,6 +213,25 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       showToast('Motivo do erro atualizado no seu Caderno de Erros.');
     }
   };
+
+  const handleUpdateAnswerStrategy = async (strategy: QuestionAnswerRecord['answerStrategy']) => {
+    setAnswerStrategy(strategy);
+    const existing = (await answersRepository.getAnswers())[question.id];
+    if (existing) {
+      existing.answerStrategy = strategy;
+      await answersRepository.recordAnswer(existing);
+      showToast('Estratégia de resposta registrada.');
+    }
+  };
+
+  // Alternativas só ficam totalmente visíveis em modo de prova, depois de
+  // responder, quando o modo escolhido é "ver alternativas", ou quando o
+  // aluno já revelou as alternativas no modo de recall livre.
+  const showOptionsFully =
+    isExamMode ||
+    isSubmitted ||
+    answerMode === 'multiple_choice' ||
+    (answerMode === 'open_recall' && alternativesRevealed);
 
   const isCorrect = isSubmitted && !!reviewResult?.isCorrect;
   const isIncorrect = isSubmitted && !!reviewResult && !isCorrect;
@@ -246,7 +303,63 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         </p>
       </div>
 
+      {/* Escolha do modo de resposta (recall livre vs. múltipla escolha) —
+          só em modo de estudo, antes de responder, e travada após escolhida. */}
+      {!isExamMode && !isSubmitted && !answerMode && (
+        <div className="mb-6 p-4 rounded-2xl bg-slate-50 dark:bg-[#142038] border border-slate-200 dark:border-[#243452] flex flex-col sm:flex-row items-center gap-3">
+          <p className="text-xs text-slate-600 dark:text-slate-300 font-medium flex-1">
+            Antes de ver as alternativas: você já sabe a resposta ou prefere reconhecê-la entre as opções?
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setAnswerMode('open_recall');
+                setAlternativesRevealed(false);
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white transition-colors cursor-pointer elev-xs"
+            >
+              Já sei a resposta
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAnswerMode('multiple_choice');
+                setAlternativesRevealed(true);
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+            >
+              Ver alternativas
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Recall livre: alternativas ficam ocultas até o aluno revelar */}
+      {!isExamMode && !isSubmitted && answerMode === 'open_recall' && !alternativesRevealed && (
+        <div className="mb-6 p-6 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center gap-3 text-center">
+          <div className="space-y-2 select-none blur-sm pointer-events-none opacity-60 w-full">
+            {question.options.map((opt) => (
+              <div
+                key={opt.letter}
+                className="rounded-xl border border-slate-200 dark:border-[#243452] p-3 text-xs text-slate-500 dark:text-slate-400 text-left"
+              >
+                {opt.letter}) {opt.text}
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setAlternativesRevealed(true)}
+            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white transition-colors cursor-pointer elev-xs"
+          >
+            Revelar alternativas para marcar minha resposta
+          </button>
+        </div>
+      )}
+
       {/* Options List */}
+      {showOptionsFully && (
       <div className="space-y-3 mb-6">
         {question.options.map((opt) => {
           const isSelected = selectedOption === opt.letter;
@@ -338,9 +451,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           );
         })}
       </div>
+      )}
 
       {/* Action / Submit Area (Study Mode) */}
-      {!isExamMode && !isSubmitted && (
+      {!isExamMode && !isSubmitted && showOptionsFully && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-xs text-slate-400 dark:text-slate-500">
             {selectedOption
@@ -403,6 +517,38 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <p className="leading-relaxed font-medium text-teal-950/90 dark:text-teal-200/90">{reviewResult?.highYieldSummary}</p>
           </div>
 
+          {/* Estratégia de Resposta (toda resposta, certa ou errada) —
+              taxonomia separada de errorReason, que só se aplica a erro. */}
+          <div className="p-3.5 bg-slate-50 dark:bg-[#142038] border border-slate-200 dark:border-[#243452] rounded-2xl text-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <HelpCircle className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                Como você chegou a essa escolha?
+              </span>
+              <span className="text-[10px] text-slate-400">Autoavaliação metacognitiva</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { id: 'recognition', label: 'Reconheci a alternativa certa' },
+                { id: 'elimination', label: 'Usei exclusão' },
+                { id: 'false_confidence', label: 'Achei que sabia — confiança equivocada' },
+                { id: 'guess', label: 'Chutei' },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleUpdateAnswerStrategy(item.id as any)}
+                  className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
+                    answerStrategy === item.id
+                      ? 'bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-950/60 dark:text-teal-200 dark:border-teal-800'
+                      : 'bg-white dark:bg-[#0B1220] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-[#243452] hover:bg-slate-100 dark:hover:bg-[#1A2845]'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Próximos Passos Claros (Fisiopatologia, Caderno de Erros, Flashcard) */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
             {/* 1. Revisar Fisiopatologia */}
@@ -450,7 +596,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   <Tag className="w-3.5 h-3.5 text-rose-500" />
                   Mapear Motivo do Erro:
                 </span>
-                <span className="text-[10px] text-slate-400">Classificação pedagógica</span>
+                <span className="text-[10px] text-slate-400">Por que errei (categoria separada da estratégia acima)</span>
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                 {[

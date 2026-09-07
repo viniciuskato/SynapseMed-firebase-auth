@@ -173,6 +173,8 @@ export interface QuestionAnswerRecord {
   timeSpentSeconds: number;
   errorReason?: 'lacuna_teorica' | 'pegadinha' | 'falta_atencao' | 'tempo_esgotado' | 'raciocinio_clinico';
   userNotes?: string;
+  answerMode?: 'open_recall' | 'multiple_choice';
+  answerStrategy?: 'recognition' | 'elimination' | 'false_confidence' | 'guess';
 }
 
 // Gabarito de uma questão (quem está correta, explicação por alternativa),
