@@ -31,6 +31,7 @@ import { questionsRepository } from './repositories/QuestionsRepository';
 import { flashcardsRepository } from './repositories/FlashcardsRepository';
 import { answersRepository } from './repositories/AnswersRepository';
 import { isCardDueToday } from './services/srsAlgorithm';
+import { GamificationService } from './services/gamification';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoadingScreen } from './components/common/LoadingScreen';
 import { LoginView } from './components/auth/LoginView';
@@ -112,7 +113,7 @@ function AuthenticatedApp() {
     setQuestions(nextQuestions);
     setFlashcards(nextFlashcards);
     setAnswers(nextAnswers);
-    setStats(StorageService.getStats());
+    setStats(GamificationService.computeRealStats(nextAnswers, nextFlashcards));
     setPlan(StorageService.getUserPlan());
     setTheme(StorageService.getTheme());
   }, []);

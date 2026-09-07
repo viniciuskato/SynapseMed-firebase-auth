@@ -36,7 +36,6 @@ import {
   QuestionAnswerRecord,
   ErrorLogItem,
 } from '../../types';
-import { StorageService } from '../../services/storage';
 import { answersRepository } from '../../repositories/AnswersRepository';
 import { readingProgressRepository } from '../../repositories/ReadingProgressRepository';
 import { errorNotebookRepository } from '../../repositories/ErrorNotebookRepository';
@@ -75,7 +74,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const userName = profile?.displayName || user?.user_metadata?.display_name || 'Colega';
 
   // Persistence data
-  const stats = StorageService.getStats();
   const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
   const [readingProgress, setReadingProgress] = useState<
     Record<string, { readSectionIds: string[]; percent: number }>
@@ -105,6 +103,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const totalAnswered = answersArray.length;
   const totalCorrect = answersArray.filter((a) => a.isCorrect).length;
   const accuracy = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : 0;
+
+  // Estatísticas (XP, ofensiva, cards revisados hoje) calculadas a partir dos
+  // dados reais sincronizados (answers/flashcards/readingProgress acima),
+  // não do StorageService local — ver GamificationService.computeRealStats.
+  const stats = useMemo(
+    () => GamificationService.computeRealStats(answers, flashcards, readingProgress),
+    [answers, flashcards, readingProgress]
+  );
 
   // Gamificação: Cálculo de XP, Nível e Missões Diárias
   const totalXp = useMemo(() => {

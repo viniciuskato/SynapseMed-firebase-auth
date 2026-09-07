@@ -1,5 +1,5 @@
 import confetti from 'canvas-confetti';
-import { QuestionAnswerRecord, UserStats } from '../types';
+import { QuestionAnswerRecord, UserStats, Flashcard } from '../types';
 
 export interface GamificationLevel {
   level: number;
@@ -253,6 +253,70 @@ export class GamificationService {
         rewardXp: 300,
       },
     ];
+  }
+
+  /**
+   * Calcula UserStats a partir de dados reais e sincronizados (respostas de
+   * questões e revisões de flashcard já vindas do Supabase via os
+   * repositórios, não do StorageService local isolado). Substitui
+   * StorageService.getUserStats(), cujo `streakDays` era um valor fixo
+   * (`totalAnswered > 0 ? 4 : 1`) que nunca refletiu uso real — achado ao
+   * investigar por que o Dashboard mostrava XP/ofensiva para uma conta sem
+   * nenhuma questão registrada no banco.
+   *
+   * streakDays: dias consecutivos com pelo menos uma questão respondida ou
+   * um flashcard revisado, terminando hoje (ou ontem, se ainda não houve
+   * atividade hoje — a sequência só quebra depois de um dia inteiro sem
+   * nenhuma das duas atividades, não à meia-noite).
+   */
+  static computeRealStats(
+    answers: Record<string, QuestionAnswerRecord>,
+    flashcards: Flashcard[],
+    readingProgress: Record<string, { readSectionIds: string[]; percent: number }> = {}
+  ): UserStats {
+    const answersArray = Object.values(answers);
+    const totalAnswered = answersArray.length;
+    const totalCorrect = answersArray.filter((a) => a.isCorrect).length;
+
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const cardsReviewedToday = flashcards.reduce((acc, c) => {
+      const reviewedToday = (c.srs?.reviewHistory || []).some((h) => h?.date?.startsWith(todayStr));
+      return acc + (reviewedToday ? 1 : 0);
+    }, 0);
+
+    const compendiumsReadCount = Object.values(readingProgress).filter(
+      (p) => p && p.percent >= 80
+    ).length;
+
+    const activityDates = new Set<string>();
+    for (const a of answersArray) {
+      if (a.timestamp) activityDates.add(a.timestamp.slice(0, 10));
+    }
+    for (const c of flashcards) {
+      for (const h of c.srs?.reviewHistory || []) {
+        if (h?.date) activityDates.add(h.date.slice(0, 10));
+      }
+    }
+
+    let streakDays = 0;
+    const cursor = new Date();
+    cursor.setHours(0, 0, 0, 0);
+    if (!activityDates.has(cursor.toISOString().slice(0, 10))) {
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    while (activityDates.has(cursor.toISOString().slice(0, 10))) {
+      streakDays++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+
+    return {
+      totalAnswered,
+      totalCorrect,
+      streakDays,
+      lastActiveDate: new Date().toISOString(),
+      cardsReviewedToday,
+      compendiumsReadCount,
+    };
   }
 
   /**
