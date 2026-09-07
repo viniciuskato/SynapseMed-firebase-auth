@@ -63,7 +63,7 @@ class ResilientMaterialsRepository implements MaterialsRepository {
   async saveDisciplines(disciplines: Discipline[]): Promise<void> {
     this.local.saveDisciplines(disciplines);
     if (isSupabaseConfigured) {
-      try { await this.supa.saveDisciplines(disciplines); } catch {}
+      try { await this.supa.saveDisciplines(disciplines); } catch (err) { console.error(`[MaterialsRepository] falha ao sincronizar saveDisciplines com Supabase:`, err); throw err; }
     }
   }
 
@@ -80,7 +80,7 @@ class ResilientMaterialsRepository implements MaterialsRepository {
   async saveThemes(themes: Theme[]): Promise<void> {
     this.local.saveThemes(themes);
     if (isSupabaseConfigured) {
-      try { await this.supa.saveThemes(themes); } catch {}
+      try { await this.supa.saveThemes(themes); } catch (err) { console.error(`[MaterialsRepository] falha ao sincronizar saveThemes com Supabase:`, err); throw err; }
     }
   }
 
@@ -97,33 +97,33 @@ class ResilientMaterialsRepository implements MaterialsRepository {
   async saveCompendiums(compendiums: Compendium[]): Promise<void> {
     this.local.saveCompendiums(compendiums);
     if (isSupabaseConfigured) {
-      try { await this.supa.saveCompendiums(compendiums); } catch {}
+      try { await this.supa.saveCompendiums(compendiums); } catch (err) { console.error(`[MaterialsRepository] falha ao sincronizar saveCompendiums com Supabase:`, err); throw err; }
     }
   }
 
   async saveCompendium(compendium: Compendium): Promise<void> {
     this.local.saveCompendium(compendium);
     if (isSupabaseConfigured) {
-      try { await this.supa.saveCompendium(compendium); } catch {}
+      try { await this.supa.saveCompendium(compendium); } catch (err) { console.error(`[MaterialsRepository] falha ao sincronizar saveCompendium com Supabase:`, err); throw err; }
     }
   }
 
   async deleteCompendium(id: string): Promise<void> {
     this.local.deleteCompendium(id);
     if (isSupabaseConfigured) {
-      try { await this.supa.deleteCompendium(id); } catch {}
+      try { await this.supa.deleteCompendium(id); } catch (err) { console.error(`[MaterialsRepository] falha ao sincronizar deleteCompendium com Supabase:`, err); throw err; }
     }
   }
 
   async publishCompendium(id: string): Promise<void> {
     if (isSupabaseConfigured) {
-      try { await this.supa.publishCompendium(id); } catch {}
+      try { await this.supa.publishCompendium(id); } catch (err) { console.error(`[MaterialsRepository] falha ao sincronizar publishCompendium com Supabase:`, err); throw err; }
     }
   }
 
   async unpublishCompendium(id: string): Promise<void> {
     if (isSupabaseConfigured) {
-      try { await this.supa.unpublishCompendium(id); } catch {}
+      try { await this.supa.unpublishCompendium(id); } catch (err) { console.error(`[MaterialsRepository] falha ao sincronizar unpublishCompendium com Supabase:`, err); throw err; }
     }
   }
 }

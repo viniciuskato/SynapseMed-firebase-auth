@@ -69,28 +69,28 @@ class ResilientQuestionsRepository implements QuestionsRepository {
   async saveQuestions(questions: Question[]): Promise<void> {
     this.local.saveQuestions(questions);
     if (isSupabaseConfigured) {
-      try { await this.supa.saveQuestions(questions); } catch {}
+      try { await this.supa.saveQuestions(questions); } catch (err) { console.error(`[QuestionsRepository] falha ao sincronizar saveQuestions com Supabase:`, err); throw err; }
     }
   }
 
   async saveQuestion(question: Question): Promise<void> {
     this.local.saveQuestion(question);
     if (isSupabaseConfigured) {
-      try { await this.supa.saveQuestion(question); } catch {}
+      try { await this.supa.saveQuestion(question); } catch (err) { console.error(`[QuestionsRepository] falha ao sincronizar saveQuestion com Supabase:`, err); throw err; }
     }
   }
 
   async deleteQuestion(id: string): Promise<void> {
     this.local.deleteQuestion(id);
     if (isSupabaseConfigured) {
-      try { await this.supa.deleteQuestion(id); } catch {}
+      try { await this.supa.deleteQuestion(id); } catch (err) { console.error(`[QuestionsRepository] falha ao sincronizar deleteQuestion com Supabase:`, err); throw err; }
     }
   }
 
   async saveCustomQuestion(question: Question): Promise<void> {
     this.local.saveCustomQuestion(question);
     if (isSupabaseConfigured) {
-      try { await this.supa.saveCustomQuestion(question); } catch {}
+      try { await this.supa.saveCustomQuestion(question); } catch (err) { console.error(`[QuestionsRepository] falha ao sincronizar saveCustomQuestion com Supabase:`, err); throw err; }
     }
   }
 
@@ -105,13 +105,13 @@ class ResilientQuestionsRepository implements QuestionsRepository {
 
   async publishQuestion(id: string): Promise<void> {
     if (isSupabaseConfigured) {
-      try { await this.supa.publishQuestion(id); } catch {}
+      try { await this.supa.publishQuestion(id); } catch (err) { console.error(`[QuestionsRepository] falha ao sincronizar publishQuestion com Supabase:`, err); throw err; }
     }
   }
 
   async unpublishQuestion(id: string): Promise<void> {
     if (isSupabaseConfigured) {
-      try { await this.supa.unpublishQuestion(id); } catch {}
+      try { await this.supa.unpublishQuestion(id); } catch (err) { console.error(`[QuestionsRepository] falha ao sincronizar unpublishQuestion com Supabase:`, err); throw err; }
     }
   }
 }

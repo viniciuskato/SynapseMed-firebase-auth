@@ -436,26 +436,32 @@ export const LoginView: React.FC = () => {
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
 
-            {/* Acesso rápido em modo demonstração / avaliação */}
-            <button
-              id="btn-demo-quick-login"
-              type="button"
-              disabled={isSubmitting}
-              onClick={async () => {
-                try {
-                  setIsSubmitting(true);
-                  await loginWithDemo();
-                } catch (e: any) {
-                  // handled by context
-                } finally {
-                  setIsSubmitting(false);
-                }
-              }}
-              className="w-full h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer border border-slate-300 dark:border-slate-700 transition-all mt-2"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Acesso Rápido de Demonstração (1-Clique)</span>
-            </button>
+            {/* Acesso rápido em modo demonstração — só existe quando o Supabase real
+                não está configurado (preview local/AI Studio). Em produção
+                (isConfigured=true) este botão nunca é renderizado: logar como
+                'admin' sem nenhuma autenticação real furaria por completo o
+                fluxo de aprovação de usuários. */}
+            {!isConfigured && (
+              <button
+                id="btn-demo-quick-login"
+                type="button"
+                disabled={isSubmitting}
+                onClick={async () => {
+                  try {
+                    setIsSubmitting(true);
+                    await loginWithDemo();
+                  } catch (e: any) {
+                    // handled by context
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                className="w-full h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer border border-slate-300 dark:border-slate-700 transition-all mt-2"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>Acesso Rápido de Demonstração (1-Clique)</span>
+              </button>
+            )}
           </form>
 
           {/* Divisor "ou continue com" */}
