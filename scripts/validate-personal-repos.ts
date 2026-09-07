@@ -560,6 +560,7 @@ async function main() {
       title: 'Sugestão de teste (Fase 4)',
       description: 'Descrição de teste (Fase 4).',
       createdAt: new Date().toISOString(),
+      status: 'pendente',
     });
   });
 

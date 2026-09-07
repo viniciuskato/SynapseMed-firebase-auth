@@ -34,6 +34,24 @@ interface FeedbackRow {
   title: string;
   description: string;
   created_at: string;
+  question_id: string | null;
+  material_id: string | null;
+  status: UserFeedback['status'];
+}
+
+function rowToFeedback(row: FeedbackRow): UserFeedback {
+  return {
+    id: row.id,
+    type: row.type,
+    title: row.title,
+    description: row.description,
+    createdAt: row.created_at,
+    userId: row.user_id,
+    userEmail: null,
+    questionId: row.question_id,
+    materialId: row.material_id,
+    status: row.status,
+  };
 }
 
 export class SupabaseFeedbackRepository implements FeedbackRepository {
@@ -41,15 +59,7 @@ export class SupabaseFeedbackRepository implements FeedbackRepository {
     const { data, error } = await supabase.from('feedback').select('*').order('created_at', { ascending: false });
     if (error) throw error;
 
-    return ((data ?? []) as FeedbackRow[]).map((row) => ({
-      id: row.id,
-      type: row.type,
-      title: row.title,
-      description: row.description,
-      createdAt: row.created_at,
-      userId: row.user_id,
-      userEmail: null,
-    }));
+    return ((data ?? []) as FeedbackRow[]).map(rowToFeedback);
   }
 
   async saveFeedback(feedback: UserFeedback): Promise<void> {
@@ -62,7 +72,23 @@ export class SupabaseFeedbackRepository implements FeedbackRepository {
       type: feedback.type,
       title: feedback.title,
       description: feedback.description,
+      question_id: feedback.questionId ?? null,
+      material_id: feedback.materialId ?? null,
     });
+    if (error) throw error;
+  }
+
+  // Só devolve resultado útil para admin ativo — a RLS (feedback_admin_select_all)
+  // é quem de fato barra estudantes; aqui é só o select simples.
+  async getAllFeedback(): Promise<UserFeedback[]> {
+    const { data, error } = await supabase.from('feedback').select('*').order('created_at', { ascending: false });
+    if (error) throw error;
+
+    return ((data ?? []) as FeedbackRow[]).map(rowToFeedback);
+  }
+
+  async updateFeedbackStatus(id: string, status: UserFeedback['status']): Promise<void> {
+    const { error } = await supabase.from('feedback').update({ status }).eq('id', id);
     if (error) throw error;
   }
 }

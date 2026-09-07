@@ -25,12 +25,17 @@ import {
   Users,
   ShieldBan,
   ShieldCheck,
+  MessageSquareWarning,
+  ArrowRight,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
-import { Discipline, Theme, Question, Compendium, Flashcard, CompendiumSection } from '../../types';
+import { Discipline, Theme, Question, Compendium, Flashcard, CompendiumSection, UserFeedback, FeedbackStatus } from '../../types';
 import { StorageService } from '../../services/storage';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { materialsRepository } from '../../repositories/MaterialsRepository';
 import { questionsRepository } from '../../repositories/QuestionsRepository';
+import { feedbackRepository } from '../../repositories/FeedbackRepository';
 import { supabase } from '../../lib/supabaseClient';
 
 interface AdminProfileRow {
@@ -59,8 +64,9 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
   flashcards,
   onRefreshData,
 }) => {
-  const [activeTab, setActiveTab] = useState<'compendiums' | 'questions' | 'flashcards' | 'users' | 'database'>('compendiums');
+  const [activeTab, setActiveTab] = useState<'compendiums' | 'questions' | 'flashcards' | 'users' | 'feedback' | 'database'>('compendiums');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [highlightedQuestionId, setHighlightedQuestionId] = useState<string | null>(null);
 
   // ── Users/Approval State ───────────────────────────────────────
   const [profiles, setProfiles] = useState<AdminProfileRow[]>([]);
@@ -108,6 +114,87 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
   };
 
   const pendingCount = profiles.filter((p) => p.status === 'pending').length;
+
+  // ── Feedback State ──────────────────────────────────────────────
+  const [feedbackList, setFeedbackList] = useState<UserFeedback[]>([]);
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [updatingFeedbackId, setUpdatingFeedbackId] = useState<string | null>(null);
+  const [reactionCounts, setReactionCounts] = useState<Record<string, { up: number; down: number }>>({});
+
+  const loadFeedback = useCallback(async () => {
+    setFeedbackLoading(true);
+    setFeedbackError(null);
+    try {
+      const list = await feedbackRepository.getAllFeedback();
+      setFeedbackList(list);
+    } catch (err) {
+      setFeedbackError(err instanceof Error ? err.message : String(err));
+    }
+    setFeedbackLoading(false);
+  }, []);
+
+  const loadReactionCounts = useCallback(async () => {
+    const { data, error } = await supabase.from('question_reactions').select('question_id, reaction');
+    if (error) return;
+    const counts: Record<string, { up: number; down: number }> = {};
+    for (const row of (data ?? []) as { question_id: string; reaction: 'up' | 'down' }[]) {
+      if (!counts[row.question_id]) counts[row.question_id] = { up: 0, down: 0 };
+      counts[row.question_id][row.reaction]++;
+    }
+    setReactionCounts(counts);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'feedback') loadFeedback();
+    if (activeTab === 'questions') loadReactionCounts();
+  }, [activeTab, loadFeedback, loadReactionCounts]);
+
+  const NEXT_FEEDBACK_STATUS: Record<FeedbackStatus, FeedbackStatus | null> = {
+    pendente: 'em_analise',
+    em_analise: 'resolvido',
+    resolvido: null,
+  };
+
+  const handleAdvanceFeedbackStatus = async (item: UserFeedback) => {
+    const next = NEXT_FEEDBACK_STATUS[item.status];
+    if (!next) return;
+    setUpdatingFeedbackId(item.id);
+    try {
+      await feedbackRepository.updateFeedbackStatus(item.id, next);
+      showToast(`Feedback marcado como "${next.replace('_', ' ')}".`);
+      await loadFeedback();
+    } catch (err) {
+      showToast(`Erro ao atualizar feedback: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    setUpdatingFeedbackId(null);
+  };
+
+  const handleOpenFeedbackTarget = (item: UserFeedback) => {
+    if (item.materialId) {
+      const comp = compendiums.find((c) => c.id === item.materialId);
+      if (comp) {
+        setActiveTab('compendiums');
+        handleEditCompendium(comp);
+        return;
+      }
+    }
+    if (item.questionId) {
+      setActiveTab('questions');
+      setHighlightedQuestionId(item.questionId);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'questions' && highlightedQuestionId) {
+      const elem = document.getElementById(`admin-question-${highlightedQuestionId}`);
+      if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const timeout = setTimeout(() => setHighlightedQuestionId(null), 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [activeTab, highlightedQuestionId]);
+
+  const feedbackPendingCount = feedbackList.filter((f) => f.status === 'pendente').length;
 
   // ── Compendium State ───────────────────────────────────────────
   const [isCompendiumFormOpen, setIsCompendiumFormOpen] = useState(false);
@@ -532,6 +619,18 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
         >
           <Users className="w-4 h-4" />
           <span>Usuários{pendingCount > 0 ? ` (${pendingCount} pendente${pendingCount > 1 ? 's' : ''})` : ''}</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('feedback')}
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+            activeTab === 'feedback'
+              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white elev-xs font-bold'
+              : 'bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-300 hover:bg-stone-200 dark:hover:bg-[#1A2845]'
+          }`}
+        >
+          <MessageSquareWarning className="w-4 h-4" />
+          <span>Feedback{feedbackPendingCount > 0 ? ` (${feedbackPendingCount} pendente${feedbackPendingCount > 1 ? 's' : ''})` : ''}</span>
         </button>
       </div>
 
@@ -1257,7 +1356,13 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
           {/* List of existing questions */}
           <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden elev-xs">
             {questions.map((q) => (
-              <div key={q.id} className="p-4 flex items-center justify-between gap-4 text-xs">
+              <div
+                key={q.id}
+                id={`admin-question-${q.id}`}
+                className={`p-4 flex items-center justify-between gap-4 text-xs transition-colors ${
+                  highlightedQuestionId === q.id ? 'bg-teal-50 dark:bg-teal-950/30' : ''
+                }`}
+              >
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-stone-900 dark:text-slate-100">
@@ -1275,6 +1380,12 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     >
                       {q.publicationStatus === 'published' ? 'publicada' : 'rascunho'}
                     </span>
+                    {(reactionCounts[q.id]?.up || reactionCounts[q.id]?.down) ? (
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-stone-100 dark:bg-[#142038] text-stone-500 dark:text-slate-400 font-semibold flex items-center gap-1.5">
+                        <span className="flex items-center gap-0.5"><ThumbsUp className="w-3 h-3" />{reactionCounts[q.id]?.up || 0}</span>
+                        <span className="flex items-center gap-0.5"><ThumbsDown className="w-3 h-3" />{reactionCounts[q.id]?.down || 0}</span>
+                      </span>
+                    ) : null}
                   </div>
                   <p className="text-stone-600 dark:text-slate-400 font-medium line-clamp-1">{q.questionStem}</p>
                 </div>
@@ -1439,6 +1550,102 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     >
                       <ShieldBan className="w-3.5 h-3.5" />
                       <span>Bloquear</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* ── TAB: FEEDBACK ──────────────────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {activeTab === 'feedback' && (
+        <div className="space-y-4">
+          <div className="bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] elev-xs flex items-center justify-between">
+            <div>
+              <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-slate-100">
+                Feedback dos Participantes
+              </h3>
+              <p className="text-[11px] text-stone-500 dark:text-slate-400">
+                Relatos de problema/sugestão/elogio enviados pelos estudantes, com ou sem vínculo a uma questão ou compêndio específico.
+              </p>
+            </div>
+            <button
+              onClick={loadFeedback}
+              disabled={feedbackLoading}
+              className="px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-[#142038] hover:bg-stone-200 hover:dark:bg-stone-700 text-stone-700 dark:text-slate-300 border border-stone-200 dark:border-[#243452] text-xs font-semibold transition-colors flex items-center gap-2 shrink-0 disabled:opacity-50"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${feedbackLoading ? 'animate-spin' : ''}`} />
+              <span>Atualizar</span>
+            </button>
+          </div>
+
+          {feedbackError && (
+            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 rounded-xl p-4 text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>Erro ao carregar feedback: {feedbackError}</span>
+            </div>
+          )}
+
+          <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden elev-xs">
+            {feedbackLoading && feedbackList.length === 0 && (
+              <div className="p-6 text-center text-xs text-stone-500 dark:text-slate-400">Carregando feedback…</div>
+            )}
+            {!feedbackLoading && feedbackList.length === 0 && !feedbackError && (
+              <div className="p-6 text-center text-xs text-stone-500 dark:text-slate-400">Nenhum feedback recebido ainda.</div>
+            )}
+            {feedbackList.map((f) => (
+              <div key={f.id} className="p-4 space-y-2 text-xs">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className={`text-[9px] px-2 py-0.5 rounded font-bold border uppercase tracking-wider ${
+                      f.type === 'problema'
+                        ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-900'
+                        : f.type === 'sugestao'
+                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900'
+                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900'
+                    }`}
+                  >
+                    {f.type}
+                  </span>
+                  <span
+                    className={`text-[9px] px-2 py-0.5 rounded font-bold border ${
+                      f.status === 'resolvido'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900'
+                        : f.status === 'em_analise'
+                        ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900'
+                        : 'bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-300 border-stone-200 dark:border-[#243452]'
+                    }`}
+                  >
+                    {f.status.replace('_', ' ')}
+                  </span>
+                  <span className="font-bold text-stone-900 dark:text-slate-100">{f.title}</span>
+                  {(f.questionId || f.materialId) && (
+                    <button
+                      onClick={() => handleOpenFeedbackTarget(f)}
+                      className="text-[11px] text-teal-700 dark:text-teal-400 font-semibold hover:underline flex items-center gap-1"
+                    >
+                      <span>{f.questionId ? 'Ver questão' : 'Ver compêndio'}</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                <p className="text-stone-600 dark:text-slate-400 leading-relaxed">{f.description}</p>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[10px] text-stone-400">
+                    {f.userEmail || 'e-mail não disponível'} · {new Date(f.createdAt).toLocaleString('pt-BR')}
+                  </span>
+                  {NEXT_FEEDBACK_STATUS[f.status] && (
+                    <button
+                      onClick={() => handleAdvanceFeedbackStatus(f)}
+                      disabled={updatingFeedbackId === f.id}
+                      className="px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Marcar como "{NEXT_FEEDBACK_STATUS[f.status]?.replace('_', ' ')}"</span>
                     </button>
                   )}
                 </div>

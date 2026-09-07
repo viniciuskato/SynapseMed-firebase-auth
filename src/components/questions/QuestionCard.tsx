@@ -14,13 +14,17 @@ import {
   Clock,
   EyeOff,
   Stethoscope,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
-import { Question, QuestionAnswerRecord, QuestionReviewResult, Discipline, Theme } from '../../types';
+import { Question, QuestionAnswerRecord, QuestionReviewResult, Discipline, Theme, QuestionReactionValue } from '../../types';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
 import { questionsRepository } from '../../repositories/QuestionsRepository';
+import { questionReactionsRepository } from '../../repositories/QuestionReactionsRepository';
 import { GamificationService, CELEBRATION_STREAK_LENGTH } from '../../services/gamification';
+import { ContextualFeedbackPopover } from '../feedback/ContextualFeedbackPopover';
 
 interface QuestionCardProps {
   question: Question;
@@ -66,14 +70,16 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   // estudante, pois question_option_keys/question_answer_keys não têm
   // policy de SELECT direto (ver rls_policies.sql).
   const [reviewResult, setReviewResult] = useState<QuestionReviewResult | null>(null);
+  const [myReaction, setMyReaction] = useState<QuestionReactionValue | null>(null);
 
   // Carrega a resposta/favorito já registrados para esta questão (Supabase)
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [answers, bookmarks] = await Promise.all([
+      const [answers, bookmarks, reaction] = await Promise.all([
         answersRepository.getAnswers(),
         bookmarksRepository.getBookmarks(),
+        questionReactionsRepository.getMyReaction(question.id),
       ]);
       if (cancelled) return;
 
@@ -92,12 +98,23 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       setAnswerMode(initialAnswer?.answerMode);
       setAlternativesRevealed(isExamMode || !!initialAnswer);
       setAnswerStrategy(initialAnswer?.answerStrategy);
+      setMyReaction(reaction);
     })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question.id]);
+
+  const handleToggleReaction = async (reaction: QuestionReactionValue) => {
+    if (myReaction === reaction) {
+      setMyReaction(null);
+      await questionReactionsRepository.removeReaction(question.id);
+    } else {
+      setMyReaction(reaction);
+      await questionReactionsRepository.setReaction(question.id, reaction);
+    }
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -276,7 +293,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <ContextualFeedbackPopover questionId={question.id} />
           <button
             onClick={handleToggleBookmark}
             className={`p-2 rounded-xl border text-xs transition-colors cursor-pointer ${
@@ -515,6 +533,35 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               Pérola High-Yield (Resumo Prático):
             </span>
             <p className="leading-relaxed font-medium text-teal-950/90 dark:text-teal-200/90">{reviewResult?.highYieldSummary}</p>
+          </div>
+
+          {/* Reação rápida à explicação */}
+          <div className="flex items-center justify-end gap-2">
+            <span className="text-[10px] text-slate-400">Esta explicação te ajudou?</span>
+            <button
+              type="button"
+              onClick={() => handleToggleReaction('up')}
+              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                myReaction === 'up'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                  : 'bg-white dark:bg-[#142038] text-slate-400 dark:text-slate-500 border-slate-200 dark:border-[#243452] hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title="Explicação útil"
+            >
+              <ThumbsUp className={`w-3.5 h-3.5 ${myReaction === 'up' ? 'fill-emerald-500' : ''}`} />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleToggleReaction('down')}
+              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                myReaction === 'down'
+                  ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+                  : 'bg-white dark:bg-[#142038] text-slate-400 dark:text-slate-500 border-slate-200 dark:border-[#243452] hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title="Explicação confusa"
+            >
+              <ThumbsDown className={`w-3.5 h-3.5 ${myReaction === 'down' ? 'fill-rose-500' : ''}`} />
+            </button>
           </div>
 
           {/* Estratégia de Resposta (toda resposta, certa ou errada) —

@@ -100,6 +100,17 @@ protótipo).
    passo opcional posterior. Sempre conferir depois com uma query direta
    (ex.: `select pronargs from pg_proc where proname = '...'`) — não
    confiar só na mensagem de sucesso do CLI.
+9. **`service_role` (usado por `SUPABASE_SERVICE_ROLE_KEY` via REST/
+   supabase-js) NÃO é o mesmo que o usuário Postgres `postgres`.** O
+   trigger `protect_profile_fields` só libera alterar `role`/`status`
+   em `public.profiles` quando `current_user = 'postgres'` — chamar
+   `.update({role, status})` com a service role key pelo REST local
+   ainda cai nessa checagem e falha. Pra promover um usuário de teste a
+   admin/ativo direto no banco LOCAL (bootstrapping de script de teste,
+   sem passar por `admin_set_profile_status`), rode via `docker exec
+   supabase_db_synapsemed psql -U postgres -c "update ..."` (conecta
+   como `postgres` de verdade), não via cliente Supabase JS mesmo com a
+   service role key.
 
 ## Convenções de trabalho
 
@@ -140,10 +151,21 @@ protótipo).
   remoto e verificada): modo de resposta aberta (recall antes de ver
   alternativas) + captura de estratégia de resposta em toda resposta +
   XP ponderado por dificuldade/modo/primeira-tentativa.
-- **Em andamento / combinado mas não implementado ainda**: feedback
-  contextual vinculado a questão/compêndio + reação rápida 👍/👎 + aba de
-  Feedback no admin (prompt pronto para uma sessão executiva). Se você
-  está lendo isto e esse trabalho já foi feito, atualize este parágrafo.
+- **Implementado em 2026-09-07, na branch `feature/feedback-contextual`
+  (AINDA NÃO mesclado em `main`, migration AINDA NÃO aplicada no
+  remoto)**: feedback contextual vinculado a questão/compêndio (link
+  discreto "Algo errado aqui?" em `QuestionCard.tsx` e
+  `CompendiumReader.tsx`) + reação rápida 👍/👎 por questão
+  (`question_reactions`, toggle) + aba "Feedback" no admin (lista,
+  filtro por status, avanço pendente → em_analise → resolvido, link
+  para abrir a questão/compêndio de origem) + badge de contagem de
+  reações na aba "Questões Comentadas". Migration:
+  `supabase/migrations/20260907130000_feedback_contextual.sql`. Quando
+  essa branch for mesclada em `main`, aplicar a migration no remoto
+  (`supabase db push --linked --yes`, rodado pelo usuário — ver
+  armadilha #3) faz parte do merge, não é opcional (ver armadilha #8).
+  Se você está lendo isto e o merge/push já aconteceu, atualize este
+  parágrafo e remova a ressalva de "ainda não".
 
 ## Manter este arquivo atualizado
 

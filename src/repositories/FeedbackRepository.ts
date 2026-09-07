@@ -6,6 +6,8 @@ import { isSupabaseConfigured } from '../lib/supabaseClient';
 export interface FeedbackRepository {
   getFeedbacks(): Promise<UserFeedback[]>;
   saveFeedback(feedback: UserFeedback): Promise<void>;
+  getAllFeedback(): Promise<UserFeedback[]>;
+  updateFeedbackStatus(id: string, status: UserFeedback['status']): Promise<void>;
 }
 
 class LocalStorageFeedbackRepository implements FeedbackRepository {
@@ -14,6 +16,14 @@ class LocalStorageFeedbackRepository implements FeedbackRepository {
   }
   async saveFeedback(feedback: UserFeedback): Promise<void> {
     StorageService.saveFeedback(feedback);
+  }
+  async getAllFeedback(): Promise<UserFeedback[]> {
+    return StorageService.getFeedbacks();
+  }
+  async updateFeedbackStatus(id: string, status: UserFeedback['status']): Promise<void> {
+    const list = await StorageService.getFeedbacks();
+    const item = list.find((f) => f.id === id);
+    if (item) item.status = status;
   }
 }
 
@@ -35,6 +45,16 @@ class ResilientFeedbackRepository implements FeedbackRepository {
     if (isSupabaseConfigured) {
       try { await this.supa.saveFeedback(feedback); } catch {}
     }
+  }
+
+  async getAllFeedback(): Promise<UserFeedback[]> {
+    if (!isSupabaseConfigured) return this.local.getAllFeedback();
+    return this.supa.getAllFeedback();
+  }
+
+  async updateFeedbackStatus(id: string, status: UserFeedback['status']): Promise<void> {
+    if (!isSupabaseConfigured) return this.local.updateFeedbackStatus(id, status);
+    return this.supa.updateFeedbackStatus(id, status);
   }
 }
 

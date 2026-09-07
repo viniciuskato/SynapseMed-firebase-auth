@@ -242,6 +242,8 @@ export interface UserStats {
 
 export type FeedbackType = 'sugestao' | 'problema' | 'elogio';
 
+export type FeedbackStatus = 'pendente' | 'em_analise' | 'resolvido';
+
 export interface UserFeedback {
   id: string;
   type: FeedbackType;
@@ -250,4 +252,9 @@ export interface UserFeedback {
   createdAt: string;
   userId?: string | null;
   userEmail?: string | null;
+  questionId?: string | null;
+  materialId?: string | null;
+  status: FeedbackStatus;
 }
+
+export type QuestionReactionValue = 'up' | 'down';

@@ -39,6 +39,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
         createdAt: new Date().toISOString(),
         userId: user?.id || null,
         userEmail: user?.email || profile?.email || null,
+        status: 'pendente',
       };
 
       await feedbackRepository.saveFeedback(feedbackItem);

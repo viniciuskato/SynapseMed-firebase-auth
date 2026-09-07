@@ -38,6 +38,7 @@ export const STORAGE_KEYS = {
   HIGHLIGHTS: 'synapse_compendium_highlights_v1',
   THEME: 'synapse_theme_v1',
   FEEDBACK: 'synapse_feedback_v1',
+  QUESTION_REACTIONS: 'synapse_question_reactions_v1',
 };
 
 // Current active user ID for isolated storage
@@ -355,6 +356,21 @@ export const StorageService = {
     const list = this.getFeedbacks();
     list.unshift(feedback);
     setItem(getUserKey(STORAGE_KEYS.FEEDBACK), list);
+  },
+
+  // --- Reação rápida 👍/👎 por questão (Isolado por UID) ---
+  getQuestionReactions(): Record<string, 'up' | 'down'> {
+    return getItem<Record<string, 'up' | 'down'>>(getUserKey(STORAGE_KEYS.QUESTION_REACTIONS), {});
+  },
+  setQuestionReaction(questionId: string, reaction: 'up' | 'down'): void {
+    const reactions = this.getQuestionReactions();
+    reactions[questionId] = reaction;
+    setItem(getUserKey(STORAGE_KEYS.QUESTION_REACTIONS), reactions);
+  },
+  removeQuestionReaction(questionId: string): void {
+    const reactions = this.getQuestionReactions();
+    delete reactions[questionId];
+    setItem(getUserKey(STORAGE_KEYS.QUESTION_REACTIONS), reactions);
   },
 
   // --- Simulados Sessions (Isolado por UID) ---

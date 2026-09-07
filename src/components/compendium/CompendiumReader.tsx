@@ -22,6 +22,7 @@ import { notesRepository } from '../../repositories/NotesRepository';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { readingProgressRepository } from '../../repositories/ReadingProgressRepository';
 import { SafeMarkdown } from '../common/SafeMarkdown';
+import { ContextualFeedbackPopover } from '../feedback/ContextualFeedbackPopover';
 
 interface CompendiumReaderProps {
   compendium: Compendium;
@@ -212,6 +213,8 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
 
           {/* Simple Action Bar */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <ContextualFeedbackPopover materialId={compendium.id} />
+
             {/* Índice lateral toggle */}
             <button
               onClick={() => setIsIndexOpen((prev) => !prev)}
