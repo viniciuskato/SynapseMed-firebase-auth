@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { UserPlan, UserStats, ThemeMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { Logo } from './common/Logo';
 
 interface HeaderProps {
   currentPlan: UserPlan;
@@ -132,9 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onSelectView('dashboard')}
             className="flex items-center gap-2.5 text-left group focus:outline-hidden cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-600 to-cyan-500 text-white flex items-center justify-center font-serif font-bold text-base shadow-sm shadow-teal-600/30 group-hover:scale-105 transition-transform">
-              N
-            </div>
+            <Logo className="w-8 h-8 rounded-xl shadow-sm shadow-teal-600/30 group-hover:scale-105 transition-transform" />
             <div>
               <span className="font-serif font-bold text-lg tracking-tight bg-gradient-to-r from-slate-900 to-teal-800 dark:from-white dark:to-teal-300 bg-clip-text text-transparent">
                 NexusMed

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Stethoscope,
   BookOpen,
   HelpCircle,
   Layers,
@@ -19,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
+import { Logo } from '../common/Logo';
 
 export const LoginView: React.FC = () => {
   const {
@@ -135,9 +135,7 @@ export const LoginView: React.FC = () => {
         <div>
           {/* Logo e Nome */}
           <div className="flex items-center gap-3 mb-10">
-            <div className="w-12 h-12 rounded-xl bg-teal-600 dark:bg-teal-500 text-white flex items-center justify-center shadow-md shadow-teal-700/20">
-              <Stethoscope className="w-6 h-6" />
-            </div>
+            <Logo className="w-12 h-12 rounded-xl shadow-md shadow-teal-700/20" />
             <div>
               <span className="text-2xl font-bold font-serif-reading tracking-tight text-slate-900 dark:text-white">
                 NexusMed
