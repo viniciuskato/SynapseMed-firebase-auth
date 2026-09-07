@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Database,
   Plus,
@@ -22,12 +22,25 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Users,
+  ShieldBan,
+  ShieldCheck,
 } from 'lucide-react';
 import { Discipline, Theme, Question, Compendium, Flashcard, CompendiumSection } from '../../types';
 import { StorageService } from '../../services/storage';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { materialsRepository } from '../../repositories/MaterialsRepository';
 import { questionsRepository } from '../../repositories/QuestionsRepository';
+import { supabase } from '../../lib/supabaseClient';
+
+interface AdminProfileRow {
+  id: string;
+  email: string;
+  display_name: string | null;
+  role: 'student' | 'admin';
+  status: 'active' | 'pending' | 'blocked';
+  created_at: string;
+}
 
 interface AdminCMSViewProps {
   disciplines: Discipline[];
@@ -46,8 +59,55 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
   flashcards,
   onRefreshData,
 }) => {
-  const [activeTab, setActiveTab] = useState<'compendiums' | 'questions' | 'flashcards' | 'database'>('compendiums');
+  const [activeTab, setActiveTab] = useState<'compendiums' | 'questions' | 'flashcards' | 'users' | 'database'>('compendiums');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // ── Users/Approval State ───────────────────────────────────────
+  const [profiles, setProfiles] = useState<AdminProfileRow[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
+  const [updatingProfileId, setUpdatingProfileId] = useState<string | null>(null);
+
+  const loadProfiles = useCallback(async () => {
+    setProfilesLoading(true);
+    setProfilesError(null);
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, email, display_name, role, status, created_at')
+      .order('created_at', { ascending: false });
+    if (error) {
+      setProfilesError(error.message);
+    } else {
+      setProfiles((data ?? []) as AdminProfileRow[]);
+    }
+    setProfilesLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'users') {
+      loadProfiles();
+    }
+  }, [activeTab, loadProfiles]);
+
+  const handleSetProfileStatus = async (profile: AdminProfileRow, status: 'active' | 'blocked') => {
+    setUpdatingProfileId(profile.id);
+    const { error } = await supabase.rpc('admin_set_profile_status', {
+      p_user_id: profile.id,
+      p_role: profile.role,
+      p_status: status,
+    });
+    setUpdatingProfileId(null);
+    if (error) {
+      showToast(`Erro ao atualizar ${profile.email}: ${error.message}`);
+      return;
+    }
+    showToast(
+      status === 'active' ? `${profile.email} aprovado(a).` : `${profile.email} bloqueado(a).`
+    );
+    loadProfiles();
+  };
+
+  const pendingCount = profiles.filter((p) => p.status === 'pending').length;
 
   // ── Compendium State ───────────────────────────────────────────
   const [isCompendiumFormOpen, setIsCompendiumFormOpen] = useState(false);
@@ -382,6 +442,18 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
         >
           <Layers className="w-4 h-4" />
           <span>Flashcards SRS ({flashcards.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('users')}
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 ${
+            activeTab === 'users'
+              ? 'bg-amber-900 text-white dark:bg-[#d4924a] dark:text-[#111010] shadow-xs font-bold'
+              : 'bg-stone-100 dark:bg-[#1a1919] text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-800'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Usuários{pendingCount > 0 ? ` (${pendingCount} pendente${pendingCount > 1 ? 's' : ''})` : ''}</span>
         </button>
       </div>
 
@@ -1121,6 +1193,98 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {/* ── TAB: USUÁRIOS & APROVAÇÃO ─────────────────────────────── */}
+      {/* ══════════════════════════════════════════════════════════════ */}
+      {activeTab === 'users' && (
+        <div className="space-y-4">
+          <div className="bg-white dark:bg-[#1a1919] p-4 rounded-xl border border-stone-200 dark:border-stone-800 shadow-xs flex items-center justify-between">
+            <div>
+              <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-[#e2ddd6]">
+                Cadastros e Aprovação de Acesso
+              </h3>
+              <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                Novas contas nascem como "pendente" e só acessam o conteúdo depois de aprovadas aqui.
+              </p>
+            </div>
+            <button
+              onClick={loadProfiles}
+              disabled={profilesLoading}
+              className="px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 hover:dark:bg-stone-700 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-xs font-semibold transition-colors flex items-center gap-2 shrink-0 disabled:opacity-50"
+            >
+              <RotateCcw className={`w-3.5 h-3.5 ${profilesLoading ? 'animate-spin' : ''}`} />
+              <span>Atualizar</span>
+            </button>
+          </div>
+
+          {profilesError && (
+            <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-700 dark:text-rose-300 rounded-xl p-4 text-xs font-semibold flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>Erro ao carregar usuários: {profilesError}</span>
+            </div>
+          )}
+
+          <div className="bg-white dark:bg-[#1a1919] rounded-xl border border-stone-200 dark:border-stone-800 divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden shadow-xs">
+            {profilesLoading && profiles.length === 0 && (
+              <div className="p-6 text-center text-xs text-stone-500 dark:text-stone-400">Carregando usuários…</div>
+            )}
+            {!profilesLoading && profiles.length === 0 && !profilesError && (
+              <div className="p-6 text-center text-xs text-stone-500 dark:text-stone-400">Nenhum usuário cadastrado ainda.</div>
+            )}
+            {profiles.map((p) => (
+              <div key={p.id} className="p-4 flex items-center justify-between gap-4 text-xs">
+                <div className="space-y-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-stone-900 dark:text-[#e2ddd6] truncate">
+                      {p.display_name || p.email}
+                    </span>
+                    {p.role === 'admin' && (
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 dark:bg-[#2a1810] text-amber-900 dark:text-[#d4924a] font-bold border border-amber-200 dark:border-[#d4924a]/40 shrink-0">
+                        admin
+                      </span>
+                    )}
+                    <span
+                      className={`text-[10px] px-2 py-0.5 rounded font-bold border shrink-0 ${
+                        p.status === 'active'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900'
+                          : p.status === 'pending'
+                          ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900'
+                          : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 border-stone-200 dark:border-stone-700'
+                      }`}
+                    >
+                      {p.status === 'active' ? 'ativo' : p.status === 'pending' ? 'pendente' : 'bloqueado'}
+                    </span>
+                  </div>
+                  <p className="text-stone-500 dark:text-stone-400 truncate">{p.email}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {p.status !== 'active' && (
+                    <button
+                      onClick={() => handleSetProfileStatus(p, 'active')}
+                      disabled={updatingProfileId === p.id}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-900 font-semibold flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Aprovar</span>
+                    </button>
+                  )}
+                  {p.status !== 'blocked' && p.role !== 'admin' && (
+                    <button
+                      onClick={() => handleSetProfileStatus(p, 'blocked')}
+                      disabled={updatingProfileId === p.id}
+                      className="px-3 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 hover:dark:bg-rose-900/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 font-semibold flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      <ShieldBan className="w-3.5 h-3.5" />
+                      <span>Bloquear</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
