@@ -133,7 +133,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onSelectView('dashboard')}
             className="flex items-center gap-2.5 text-left group focus:outline-hidden cursor-pointer"
           >
-            <Logo className="w-8 h-8 rounded-xl shadow-sm shadow-teal-600/30 group-hover:scale-105 transition-transform" />
+            <Logo className="w-8 h-8 rounded-xl elev-sm shadow-teal-600/30 group-hover:scale-105 transition-transform" />
             <div>
               <span className="font-serif font-bold text-lg tracking-tight bg-gradient-to-r from-slate-900 to-teal-800 dark:from-white dark:to-teal-300 bg-clip-text text-transparent">
                 NexusMed
@@ -164,7 +164,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => onSelectView(item.id)}
                 className={`relative flex items-center gap-2 px-3 xl:px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-white dark:bg-[#0B1220] text-teal-700 dark:text-teal-300 shadow-xs border border-slate-200/70 dark:border-teal-500/40 font-bold'
+                    ? 'bg-white dark:bg-[#0B1220] text-teal-700 dark:text-teal-300 elev-xs border border-slate-200/70 dark:border-teal-500/40 font-bold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-[#1A2845]/70 border border-transparent'
                 }`}
               >
@@ -286,7 +286,7 @@ export const Header: React.FC<HeaderProps> = ({
                   role="menu"
                   aria-orientation="vertical"
                   aria-labelledby="btn-user-profile-menu"
-                  className="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#263244] shadow-lg py-2 z-50 transition-colors"
+                  className="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#263244] elev-lg py-2 z-50 transition-colors"
                 >
                   <div className="px-4 py-2 border-b border-[#E2E8F0] dark:border-[#263244]">
                     <div className="flex items-center justify-between">

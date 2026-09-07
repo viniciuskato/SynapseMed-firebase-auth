@@ -118,7 +118,7 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
             {/* Flashcard Card Element */}
             <div
               onClick={() => setIsFlipped(!isFlipped)}
-              className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] p-8 sm:p-12 shadow-sm hover:shadow-md transition-all cursor-pointer min-h-[340px] flex flex-col justify-between relative group"
+              className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] p-8 sm:p-12 elev-sm hover:elev-md transition-all cursor-pointer min-h-[340px] flex flex-col justify-between relative group"
             >
               {/* Card Meta Header */}
               <div className="flex items-center justify-between gap-2 pb-4 border-b border-slate-100 dark:border-slate-800 text-xs">
@@ -199,7 +199,7 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
 
             {/* SRS Rating Actions (Visible when flipped) */}
             {isFlipped ? (
-              <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-xs space-y-3 animate-in fade-in">
+              <div className="bg-white rounded-3xl border border-slate-200 p-4 elev-xs space-y-3 animate-in fade-in">
                 <div className="text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Como foi a sua recordação deste conceito? (Algoritmo SM-2)
                 </div>
@@ -254,7 +254,7 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
               <div className="text-center">
                 <button
                   onClick={() => setIsFlipped(true)}
-                  className="px-8 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 dark:bg-slate-900 dark:hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all"
+                  className="px-8 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 dark:bg-slate-900 dark:hover:bg-slate-800 text-white font-bold text-xs elev-md transition-all"
                 >
                   Mostrar Resposta (Espaço)
                 </button>
@@ -263,7 +263,7 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
           </div>
         ) : (
           /* Session Completed Screen */
-          <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center space-y-6 shadow-sm animate-in fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center space-y-6 elev-sm animate-in fade-in">
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
               <Award className="w-8 h-8" />
             </div>
@@ -280,7 +280,7 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
             <div className="pt-4 flex justify-center gap-3">
               <button
                 onClick={onFinish}
-                className="px-6 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
+                className="px-6 py-2.5 bg-teal-700 hover:bg-teal-800 text-white rounded-xl text-xs font-bold elev-xs transition-colors"
               >
                 Voltar aos Decks
               </button>

@@ -222,7 +222,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
               onClick={() => setViewMode('grid')}
               className={`p-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 viewMode === 'grid'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 elev-xs'
                   : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
               }`}
               title="Exibição em Cartões"
@@ -234,7 +234,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
               onClick={() => setViewMode('list')}
               className={`p-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 viewMode === 'list'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 elev-xs'
                   : 'text-slate-500 hover:text-slate-800 dark:text-slate-400'
               }`}
               title="Exibição em Lista Editorial"
@@ -263,7 +263,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
             onClick={() => setSelectedDisciplineId('all')}
             className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition-all cursor-pointer ${
               selectedDisciplineId === 'all'
-                ? 'bg-slate-900 dark:bg-teal-600 text-white shadow-xs'
+                ? 'bg-slate-900 dark:bg-teal-600 text-white elev-xs'
                 : 'bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
             }`}
           >
@@ -278,7 +278,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
                 onClick={() => setSelectedDisciplineId(disc.id)}
                 className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition-all flex items-center gap-1.5 cursor-pointer ${
                   isSelected
-                    ? 'bg-slate-900 dark:bg-teal-600 text-white shadow-xs'
+                    ? 'bg-slate-900 dark:bg-teal-600 text-white elev-xs'
                     : 'bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
                 }`}
               >
@@ -319,7 +319,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
                 onClick={() => setSelectedLens(isSelected ? 'all' : lens.id)}
                 className={`p-2.5 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
                   isSelected
-                    ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700 shadow-xs'
+                    ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700 elev-xs'
                     : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
                 }`}
               >
@@ -358,7 +358,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
       </div>
 
       {/* ── Search & Secondary Filters Bar ────────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-3.5 elev-xs flex flex-col sm:flex-row items-center justify-between gap-3">
         {/* Search Input */}
         <div className="w-full sm:w-80 relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
@@ -410,7 +410,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
               setStatusFilter('all');
               setSearchQuery('');
             }}
-            className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold elev-xs transition-colors cursor-pointer"
           >
             Redefinir Filtros
           </button>
@@ -449,7 +449,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
                     return (
                       <div
                         key={comp.id}
-                        className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/60 p-5 shadow-xs transition-all flex flex-col justify-between group"
+                        className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 hover:border-teal-500/60 dark:hover:border-teal-500/60 p-5 elev-xs transition-all flex flex-col justify-between group"
                       >
                         <div className="space-y-3">
                           {/* Top Meta: Lente + Read Time + Status */}
@@ -553,7 +553,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
                             </button>
                             <button
                               onClick={() => onOpenCompendium(comp.id)}
-                              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-teal-600 dark:hover:bg-teal-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1 cursor-pointer"
+                              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-teal-600 dark:hover:bg-teal-700 text-white text-xs font-semibold elev-xs transition-colors flex items-center gap-1 cursor-pointer"
                             >
                               <span>Ler</span>
                               <ChevronRight className="w-3 h-3" />
@@ -570,7 +570,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
         </div>
       ) : (
         /* ── MODO LISTA EDITORIAL (LIST) ─────────────────────────── */
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 shadow-xs">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 elev-xs">
           {filteredCompendiums.map((comp) => {
             const disc = disciplines.find((d) => d.id === comp.disciplineId);
             const compProgress = readingProgress[comp.id] || { readSectionIds: [], percent: 0 };
@@ -659,7 +659,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
 
                   <button
                     onClick={() => onOpenCompendium(comp.id)}
-                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-teal-600 dark:hover:bg-teal-700 text-white text-xs font-semibold shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-teal-600 dark:hover:bg-teal-700 text-white text-xs font-semibold elev-xs transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     <span>Acessar</span>
                     <ChevronRight className="w-3.5 h-3.5" />

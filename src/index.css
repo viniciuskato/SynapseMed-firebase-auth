@@ -190,3 +190,99 @@ html {
   background-size: 200% 100%;
 }
 
+/* ── Sombra flutuante ("floating blocks") ────────────────────────
+   Classes .elev-xs/sm/md/lg/xl/2xl (+ .hover\:elev-md) substituem as
+   utilidades shadow-* do Tailwind nos ~130 lugares do app que tinham
+   shadow-xs/sm/md/lg/xl/2xl (cards, modais, botões) — ver
+   src/components/**. Sistema de sombra em duas camadas: uma de
+   contato, mais próxima e nítida, e uma ambiente, mais larga e
+   difusa, em vez da sombra única e achatada do padrão Tailwind. É o
+   mesmo truque usado por painéis "soft UI": a camada de contato
+   ancora o bloco na superfície, a ambiente é que dá a sensação de
+   flutuação.
+
+   No modo escuro, uma sombra preta comum "some" (o fundo já é
+   escuro), então em vez de só escurecer mais, cada bloco ganha:
+   (1) uma sombra ainda mais profunda que o próprio fundo, pra criar
+   contraste real, e (2) uma linha de luz sutil no topo (inset), como
+   se pegasse um brilho de cima — é essa borda de luz que faz o bloco
+   parecer elevado em vez de só "mais escuro que o resto".
+
+   Por que nomes próprios (.elev-*) em vez de sobrescrever shadow-*
+   direto: no Tailwind v4 qualquer seletor com nome de utilidade
+   conhecida (mesmo fora de @layer) é reprocessado/descartado pelo
+   próprio compilador do Tailwind — confirmado via build (a
+   sobrescrita simplesmente não aparecia no CSS final). Nomes que o
+   Tailwind não reconhece não sofrem esse problema. */
+  .elev-xs {
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.04),
+      0 6px 16px -6px rgb(15 23 42 / 0.10);
+  }
+  .elev-sm {
+    box-shadow:
+      0 1px 2px rgb(15 23 42 / 0.05),
+      0 8px 20px -6px rgb(15 23 42 / 0.12);
+  }
+  .elev-md {
+    box-shadow:
+      0 2px 4px rgb(15 23 42 / 0.05),
+      0 14px 32px -10px rgb(15 23 42 / 0.16);
+  }
+  .elev-lg {
+    box-shadow:
+      0 4px 8px rgb(15 23 42 / 0.06),
+      0 24px 48px -14px rgb(15 23 42 / 0.20);
+  }
+  .elev-xl, .elev-2xl {
+    box-shadow:
+      0 8px 16px rgb(15 23 42 / 0.08),
+      0 32px 64px -16px rgb(15 23 42 / 0.24);
+  }
+  .hover\:elev-md:hover {
+    box-shadow:
+      0 2px 4px rgb(15 23 42 / 0.05),
+      0 14px 32px -10px rgb(15 23 42 / 0.16);
+  }
+
+  .dark .elev-xs {
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.035),
+      0 1px 2px rgb(0 0 0 / 0.30),
+      0 6px 16px -6px rgb(0 0 0 / 0.45);
+  }
+  .dark .elev-sm {
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.04),
+      0 1px 2px rgb(0 0 0 / 0.32),
+      0 8px 20px -6px rgb(0 0 0 / 0.50);
+  }
+  .dark .elev-md {
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.05),
+      0 2px 4px rgb(0 0 0 / 0.35),
+      0 14px 32px -10px rgb(0 0 0 / 0.55),
+      0 0 32px -12px rgb(20 184 166 / 0.10);
+  }
+  .dark .elev-lg {
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.06),
+      0 4px 8px rgb(0 0 0 / 0.38),
+      0 24px 48px -14px rgb(0 0 0 / 0.60),
+      0 0 48px -14px rgb(20 184 166 / 0.14);
+  }
+  .dark .elev-xl, .dark .elev-2xl {
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.07),
+      0 8px 16px rgb(0 0 0 / 0.40),
+      0 32px 64px -16px rgb(0 0 0 / 0.65),
+      0 0 64px -16px rgb(20 184 166 / 0.16);
+  }
+  .dark .hover\:elev-md:hover {
+    box-shadow:
+      inset 0 1px 0 0 rgb(255 255 255 / 0.05),
+      0 2px 4px rgb(0 0 0 / 0.35),
+      0 14px 32px -10px rgb(0 0 0 / 0.55),
+      0 0 32px -12px rgb(20 184 166 / 0.10);
+  }
+

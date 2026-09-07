@@ -191,7 +191,7 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
             {!isFinished && (
               <button
                 onClick={handleFinishExam}
-                className="px-4 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-xs transition-colors"
+                className="px-4 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs elev-xs transition-colors"
               >
                 Finalizar Prova
               </button>
@@ -205,7 +205,7 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
         {/* Left / Navigation Palette (3 cols) */}
         <div className="lg:col-span-4 order-2 lg:order-1 space-y-4">
           {/* Questions Grid */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs">
+          <div className="bg-white rounded-3xl border border-slate-200 p-5 elev-xs">
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">
               Matriz de Questões
             </h3>
@@ -250,7 +250,7 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
 
           {/* If finished: Final Score Card */}
           {isFinished && sessionResults && (
-            <div className="bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900 text-white rounded-3xl p-6 shadow-md space-y-4">
+            <div className="bg-gradient-to-br from-slate-900 via-teal-950 to-slate-900 text-white rounded-3xl p-6 elev-md space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-teal-400 uppercase tracking-wider">
                   Resultado do Simulado

@@ -77,7 +77,7 @@ export const CreateSimuladoModal: React.FC<CreateSimuladoModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-2xl bg-white rounded-3xl elev-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-6 bg-gradient-to-r from-teal-900 to-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -125,7 +125,7 @@ export const CreateSimuladoModal: React.FC<CreateSimuladoModalProps> = ({
               onClick={() => setOnlyMistakes(!onlyMistakes)}
               className={`px-3 py-1.5 rounded-xl font-bold transition-all text-xs ${
                 onlyMistakes
-                  ? 'bg-rose-600 text-white shadow-xs'
+                  ? 'bg-rose-600 text-white elev-xs'
                   : 'bg-white text-rose-800 border border-rose-300'
               }`}
             >
@@ -211,7 +211,7 @@ export const CreateSimuladoModal: React.FC<CreateSimuladoModalProps> = ({
               onClick={() => setIsExamMode(true)}
               className={`p-3.5 rounded-2xl border text-left transition-all ${
                 isExamMode
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                  ? 'bg-slate-900 text-white border-slate-900 elev-sm'
                   : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
               }`}
             >
@@ -225,7 +225,7 @@ export const CreateSimuladoModal: React.FC<CreateSimuladoModalProps> = ({
               onClick={() => setIsExamMode(false)}
               className={`p-3.5 rounded-2xl border text-left transition-all ${
                 !isExamMode
-                  ? 'bg-teal-700 text-white border-teal-700 shadow-sm'
+                  ? 'bg-teal-700 text-white border-teal-700 elev-sm'
                   : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
               }`}
             >
@@ -247,7 +247,7 @@ export const CreateSimuladoModal: React.FC<CreateSimuladoModalProps> = ({
           </button>
           <button
             onClick={handleStart}
-            className="px-6 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
+            className="px-6 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs elev-md transition-all flex items-center gap-2"
           >
             <Timer className="w-4 h-4" />
             <span>Iniciar Simulado</span>

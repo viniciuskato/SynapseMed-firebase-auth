@@ -408,7 +408,7 @@ function AuthenticatedApp() {
             ) : (
               <div
                 id="admin-access-denied-box"
-                className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center max-w-lg mx-auto my-12 shadow-md"
+                className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-center max-w-lg mx-auto my-12 elev-md"
               >
                 <div className="w-12 h-12 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto mb-4">
                   <ShieldAlert className="w-6 h-6" />
@@ -422,7 +422,7 @@ function AuthenticatedApp() {
                 <button
                   type="button"
                   onClick={() => setActiveView('dashboard')}
-                  className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold cursor-pointer transition-colors shadow-xs"
+                  className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-semibold cursor-pointer transition-colors elev-xs"
                 >
                   Voltar ao Painel de Estudos
                 </button>

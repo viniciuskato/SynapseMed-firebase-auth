@@ -26,7 +26,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl elev-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-6 sm:p-8 bg-gradient-to-br from-teal-50 via-white to-cyan-50 dark:bg-slate-900 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 text-slate-900 dark:text-white relative">
           <button
@@ -87,7 +87,7 @@ export const PlanModal: React.FC<PlanModalProps> = ({
         <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs elev-xs transition-colors cursor-pointer"
           >
             Entendido
           </button>

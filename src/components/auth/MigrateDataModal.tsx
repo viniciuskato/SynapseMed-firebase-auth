@@ -49,7 +49,7 @@ export const MigrateDataModal: React.FC<MigrateDataModalProps> = ({
     >
       <div
         id="migrate-data-modal-content"
-        className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden transition-colors"
+        className="w-full max-w-lg rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 elev-2xl overflow-hidden transition-colors"
       >
         {/* Header */}
         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-start gap-4">
@@ -146,7 +146,7 @@ export const MigrateDataModal: React.FC<MigrateDataModalProps> = ({
             id="btn-confirm-migration"
             onClick={handleMigrate}
             disabled={isProcessing}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white shadow-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-semibold bg-teal-600 hover:bg-teal-700 text-white elev-xs flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98]"
           >
             <ShieldCheck className="w-4 h-4" />
             <span>{isProcessing ? 'Validando e Migrando...' : 'Associar à Minha Conta'}</span>

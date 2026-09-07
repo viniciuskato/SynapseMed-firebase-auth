@@ -135,7 +135,7 @@ export const LoginView: React.FC = () => {
         <div>
           {/* Logo e Nome */}
           <div className="flex items-center gap-3 mb-10">
-            <Logo className="w-12 h-12 rounded-xl shadow-md shadow-teal-700/20" />
+            <Logo className="w-12 h-12 rounded-xl elev-md shadow-teal-700/20" />
             <div>
               <span className="text-2xl font-bold font-serif-reading tracking-tight text-slate-900 dark:text-white">
                 NexusMed
@@ -164,7 +164,7 @@ export const LoginView: React.FC = () => {
 
           {/* Pilares da Plataforma */}
           <div className="grid sm:grid-cols-2 gap-4 max-w-xl">
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 shadow-xs">
+            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 elev-xs">
               <div className="flex items-center gap-2.5 text-teal-700 dark:text-teal-400 font-semibold text-sm mb-1.5">
                 <BookOpen className="w-4 h-4" />
                 <span>Compêndios & Atlas</span>
@@ -174,7 +174,7 @@ export const LoginView: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 shadow-xs">
+            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 elev-xs">
               <div className="flex items-center gap-2.5 text-teal-700 dark:text-teal-400 font-semibold text-sm mb-1.5">
                 <HelpCircle className="w-4 h-4" />
                 <span>Questões & Caderno</span>
@@ -184,7 +184,7 @@ export const LoginView: React.FC = () => {
               </p>
             </div>
 
-            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 shadow-xs">
+            <div className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 elev-xs">
               <div className="flex items-center gap-2.5 text-teal-700 dark:text-teal-400 font-semibold text-sm mb-1.5">
                 <Layers className="w-4 h-4" />
                 <span>Flashcards SRS (SM-2)</span>
@@ -230,7 +230,7 @@ export const LoginView: React.FC = () => {
               onClick={() => handleTabSwitch('login')}
               className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 authMode === 'login'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white elev-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -243,7 +243,7 @@ export const LoginView: React.FC = () => {
               onClick={() => handleTabSwitch('register')}
               className={`py-2 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                 authMode === 'register'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white elev-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
@@ -420,7 +420,7 @@ export const LoginView: React.FC = () => {
               id="btn-auth-submit"
               type="submit"
               disabled={isSubmitting}
-              className="w-full h-11 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.99] text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-teal-700/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              className="w-full h-11 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.99] text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer elev-md shadow-teal-700/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               <span>
                 {isSubmitting
@@ -481,7 +481,7 @@ export const LoginView: React.FC = () => {
               type="button"
               disabled={isSubmitting}
               onClick={handleGoogleLogin}
-              className="w-full h-11 px-5 rounded-xl border flex items-center justify-center gap-3 text-xs font-semibold transition-all shadow-xs bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-400 active:scale-[0.99] cursor-pointer"
+              className="w-full h-11 px-5 rounded-xl border flex items-center justify-center gap-3 text-xs font-semibold transition-all elev-xs bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-400 active:scale-[0.99] cursor-pointer"
             >
               {/* Ícone Oficial do Google */}
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">

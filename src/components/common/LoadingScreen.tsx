@@ -11,7 +11,7 @@ export const LoadingScreen: React.FC<{ message?: string }> = ({
     >
       <div className="flex flex-col items-center max-w-sm text-center">
         {/* Logo / Brand Icon */}
-        <div className="w-16 h-16 rounded-2xl bg-teal-600 dark:bg-teal-500 text-white flex items-center justify-center shadow-lg shadow-teal-700/20 mb-6">
+        <div className="w-16 h-16 rounded-2xl bg-teal-600 dark:bg-teal-500 text-white flex items-center justify-center elev-lg shadow-teal-700/20 mb-6">
           <Stethoscope className="w-8 h-8" />
         </div>
 

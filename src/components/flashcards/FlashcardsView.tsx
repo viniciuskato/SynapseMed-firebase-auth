@@ -105,7 +105,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
   return (
     <div className="space-y-6">
       {/* View Header */}
-      <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-emerald-950 rounded-3xl p-6 sm:p-8 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-teal-900 via-slate-900 to-emerald-950 rounded-3xl p-6 sm:p-8 text-white elev-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="max-w-2xl space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-semibold border border-teal-400/30">
             <Brain className="w-3.5 h-3.5" />
@@ -123,7 +123,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
           <button
             onClick={() => onStartReview(dueCards.length > 0 ? dueCards : flashcards)}
             disabled={flashcards.length === 0}
-            className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-teal-400 to-emerald-400 hover:from-teal-300 hover:to-emerald-300 text-slate-950 font-extrabold text-xs shadow-lg shadow-teal-500/20 transition-all flex items-center justify-center gap-2"
+            className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-teal-400 to-emerald-400 hover:from-teal-300 hover:to-emerald-300 text-slate-950 font-extrabold text-xs elev-lg shadow-teal-500/20 transition-all flex items-center justify-center gap-2"
           >
             <Play className="w-4 h-4 fill-slate-950" />
             <span>
@@ -176,7 +176,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white dark:bg-[#0F172A] rounded-2xl border border-slate-200 dark:border-[#243452] p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#0F172A] rounded-2xl border border-slate-200 dark:border-[#243452] p-4 elev-xs flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="w-full md:w-80 relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -210,7 +210,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
               onClick={() => setSelectedStatus(st.id as any)}
               className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition-all cursor-pointer ${
                 selectedStatus === st.id
-                  ? 'bg-slate-900 dark:bg-teal-600 text-white shadow-xs'
+                  ? 'bg-slate-900 dark:bg-teal-600 text-white elev-xs'
                   : 'bg-slate-100 dark:bg-[#142038] text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#1A2845]'
               }`}
             >
@@ -238,10 +238,10 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
               <div
                 key={card.id}
                 onClick={() => toggleFlip(card.id)}
-                className={`bg-white dark:bg-[#0F172A] rounded-3xl border transition-all p-5 shadow-xs flex flex-col justify-between cursor-pointer group select-none min-h-[220px] ${
+                className={`bg-white dark:bg-[#0F172A] rounded-3xl border transition-all p-5 elev-xs flex flex-col justify-between cursor-pointer group select-none min-h-[220px] ${
                   isFlipped
                     ? 'border-teal-300 dark:border-teal-600 bg-teal-50/20 dark:bg-teal-950/30 ring-1 ring-teal-400/20'
-                    : 'border-slate-200 dark:border-[#243452] hover:border-teal-200 dark:hover:border-teal-600 hover:shadow-md'
+                    : 'border-slate-200 dark:border-[#243452] hover:border-teal-200 dark:hover:border-teal-600 hover:elev-md'
                 }`}
               >
                 <div>

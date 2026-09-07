@@ -182,7 +182,7 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
 
       {/* ── Toast Notification ───────────────────────────────────── */}
       {notification && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#111827] dark:bg-[#182235] text-[#E5E7EB] px-4 py-2.5 rounded-lg shadow-lg border border-[#263244] text-xs font-medium flex items-center gap-2 animate-in fade-in">
+        <div className="fixed bottom-6 right-6 z-50 bg-[#111827] dark:bg-[#182235] text-[#E5E7EB] px-4 py-2.5 rounded-lg elev-lg border border-[#263244] text-xs font-medium flex items-center gap-2 animate-in fade-in">
           <Sparkles className="w-3.5 h-3.5 text-teal-400 shrink-0" />
           <span>{notification}</span>
         </div>
@@ -277,7 +277,7 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
             onClick={() => setIsIndexOpen(false)}
             aria-hidden="true"
           />
-          <aside className="fixed top-0 left-0 z-50 w-72 sm:w-80 h-full bg-white dark:bg-[#111827] border-r border-[#E2E8F0] dark:border-[#263244] shadow-xl p-5 flex flex-col justify-between animate-in slide-in-from-left duration-200">
+          <aside className="fixed top-0 left-0 z-50 w-72 sm:w-80 h-full bg-white dark:bg-[#111827] border-r border-[#E2E8F0] dark:border-[#263244] elev-xl p-5 flex flex-col justify-between animate-in slide-in-from-left duration-200">
             <div>
               <div className="flex items-center justify-between pb-3 border-b border-[#E2E8F0] dark:border-[#263244]">
                 <div className="flex items-center gap-2">
@@ -341,7 +341,7 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
       <main className="max-w-[780px] w-full mx-auto px-4 sm:px-8 py-8 sm:py-12">
         {/* Anotações Pessoais Panel */}
         {showNoteDrawer && (
-          <div className="mb-8 p-4 sm:p-5 rounded-xl border border-[#E2E8F0] dark:border-[#263244] bg-white dark:bg-[#111827] shadow-xs">
+          <div className="mb-8 p-4 sm:p-5 rounded-xl border border-[#E2E8F0] dark:border-[#263244] bg-white dark:bg-[#111827] elev-xs">
             <div className="flex items-center justify-between mb-2.5">
               <div className="flex items-center gap-2 text-xs font-semibold text-[#172033] dark:text-[#E5E7EB]">
                 <MessageSquare className="w-4 h-4 text-[#0F766E] dark:text-[#14B8A6]" />

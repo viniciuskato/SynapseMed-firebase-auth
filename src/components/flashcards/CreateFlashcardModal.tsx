@@ -63,7 +63,7 @@ export const CreateFlashcardModal: React.FC<CreateFlashcardModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="w-full max-w-xl bg-white dark:bg-[#0F172A] rounded-3xl shadow-2xl border border-slate-200 dark:border-[#243452] overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="w-full max-w-xl bg-white dark:bg-[#0F172A] rounded-3xl elev-2xl border border-slate-200 dark:border-[#243452] overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-6 bg-gradient-to-r from-teal-900 to-slate-900 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -175,7 +175,7 @@ export const CreateFlashcardModal: React.FC<CreateFlashcardModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-6 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold shadow-md transition-all cursor-pointer"
+              className="px-6 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold elev-md transition-all cursor-pointer"
             >
               Criar Flashcard
             </button>

@@ -454,14 +454,14 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     <div className="space-y-6 max-w-6xl mx-auto pb-20">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 dark:bg-[#142038] text-white dark:text-slate-100 px-4 py-3 rounded-xl shadow-2xl border border-slate-700 dark:border-[#243452] text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3">
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 dark:bg-[#142038] text-white dark:text-slate-100 px-4 py-3 rounded-xl elev-2xl border border-slate-700 dark:border-[#243452] text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3">
           <Sparkles className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* ── Page Banner / Header ───────────────────────────────────── */}
-      <div className="bg-white dark:bg-[#0F172A] border border-stone-200 dark:border-[#243452] rounded-2xl p-6 sm:p-8 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#0F172A] border border-stone-200 dark:border-[#243452] rounded-2xl p-6 sm:p-8 elev-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 text-xs font-bold border border-teal-200 dark:border-teal-800/60 font-mono-code">
             <Database className="w-3.5 h-3.5" />
@@ -490,7 +490,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
           onClick={() => setActiveTab('compendiums')}
           className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'compendiums'
-              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white shadow-xs font-bold'
+              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white elev-xs font-bold'
               : 'bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-300 hover:bg-stone-200 dark:hover:bg-[#1A2845]'
           }`}
         >
@@ -502,7 +502,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
           onClick={() => setActiveTab('questions')}
           className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'questions'
-              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white shadow-xs font-bold'
+              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white elev-xs font-bold'
               : 'bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-300 hover:bg-stone-200 dark:hover:bg-[#1A2845]'
           }`}
         >
@@ -514,7 +514,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
           onClick={() => setActiveTab('flashcards')}
           className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'flashcards'
-              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white shadow-xs font-bold'
+              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white elev-xs font-bold'
               : 'bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-300 hover:bg-stone-200 dark:hover:bg-[#1A2845]'
           }`}
         >
@@ -526,7 +526,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
           onClick={() => setActiveTab('users')}
           className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'users'
-              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white shadow-xs font-bold'
+              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white elev-xs font-bold'
               : 'bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-300 hover:bg-stone-200 dark:hover:bg-[#1A2845]'
           }`}
         >
@@ -541,7 +541,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       {activeTab === 'compendiums' && (
         <div className="space-y-6">
           {/* Top Control Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] shadow-xs">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] elev-xs">
             <div className="relative flex-1 max-w-md">
               <Search className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
               <input
@@ -565,7 +565,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
             <button
               onClick={handleOpenNewCompendium}
-              className="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:hover:bg-teal-500 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
+              className="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:hover:bg-teal-500 text-xs font-bold transition-all flex items-center justify-center gap-1.5 elev-xs shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Novo Compêndio / Mecanismo</span>
@@ -576,7 +576,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
           {isCompendiumFormOpen && (
             <form
               onSubmit={handleSaveCompendium}
-              className="bg-white dark:bg-[#0F172A] rounded-2xl border-2 border-teal-500/50 dark:border-teal-500/60 p-6 sm:p-8 shadow-md space-y-6 text-xs animate-in fade-in"
+              className="bg-white dark:bg-[#0F172A] rounded-2xl border-2 border-teal-500/50 dark:border-teal-500/60 p-6 sm:p-8 elev-md space-y-6 text-xs animate-in fade-in"
             >
               {/* Form Title */}
               <div className="flex items-center justify-between border-b border-stone-200 dark:border-[#243452] pb-3">
@@ -925,7 +925,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:text-white dark:hover:bg-teal-500 font-bold shadow-xs flex items-center gap-1.5 transition-all"
+                  className="px-6 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:text-white dark:hover:bg-teal-500 font-bold elev-xs flex items-center gap-1.5 transition-all"
                 >
                   <Save className="w-4 h-4" />
                   <span>{editingCompId ? 'Atualizar Compêndio' : 'Publicar Compêndio'}</span>
@@ -943,7 +943,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
               return (
                 <div
                   key={c.id}
-                  className={`bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-amber-400 dark:hover:border-teal-500 transition-all ${
+                  className={`bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] p-5 elev-xs flex flex-col justify-between space-y-4 hover:border-amber-400 dark:hover:border-teal-500 transition-all ${
                     isAtlas ? 'border-l-4 border-l-[#5b8dd9]' : 'border-l-4 border-l-[#c0604a]'
                   }`}
                 >
@@ -1060,7 +1060,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       {/* ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'questions' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] shadow-xs">
+          <div className="flex items-center justify-between bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] elev-xs">
             <div>
               <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-slate-100">
                 Banco de Questões Cadastradas
@@ -1083,7 +1083,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
               <button
                 onClick={() => setIsCreatingQuestion(!isCreatingQuestion)}
-                className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:text-white dark:hover:bg-teal-500 font-bold text-xs rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
+                className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:text-white dark:hover:bg-teal-500 font-bold text-xs rounded-lg elev-xs transition-colors flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
                 <span>{isCreatingQuestion ? 'Fechar Formulário' : 'Nova Questão'}</span>
@@ -1095,7 +1095,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
           {isCreatingQuestion && (
             <form
               onSubmit={handleSaveQuestion}
-              className="bg-white dark:bg-[#0F172A] rounded-2xl border-2 border-amber-500/50 dark:border-teal-500/60 p-6 shadow-sm space-y-4 text-xs animate-in fade-in"
+              className="bg-white dark:bg-[#0F172A] rounded-2xl border-2 border-amber-500/50 dark:border-teal-500/60 p-6 elev-sm space-y-4 text-xs animate-in fade-in"
             >
               <h4 className="font-serif-reading font-bold text-sm text-stone-900 dark:text-slate-100 pb-2 border-b border-stone-200 dark:border-[#243452]">
                 Cadastrar Questão com Explicação por Alternativa
@@ -1245,7 +1245,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:text-white dark:hover:bg-teal-500 font-bold shadow-xs flex items-center gap-1.5"
+                  className="px-6 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:text-white dark:hover:bg-teal-500 font-bold elev-xs flex items-center gap-1.5"
                 >
                   <Save className="w-4 h-4" />
                   <span>Publicar Questão</span>
@@ -1255,7 +1255,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
           )}
 
           {/* List of existing questions */}
-          <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden shadow-xs">
+          <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden elev-xs">
             {questions.map((q) => (
               <div key={q.id} className="p-4 flex items-center justify-between gap-4 text-xs">
                 <div className="space-y-1">
@@ -1316,7 +1316,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       {/* ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'flashcards' && (
         <div className="space-y-4">
-          <div className="bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] shadow-xs flex items-center justify-between">
+          <div className="bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] elev-xs flex items-center justify-between">
             <div>
               <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-slate-100">
                 Flashcards SRS no Sistema
@@ -1327,7 +1327,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden shadow-xs">
+          <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden elev-xs">
             {flashcards.map((fc) => (
               <div key={fc.id} className="p-4 flex items-center justify-between gap-4 text-xs">
                 <div className="space-y-1">
@@ -1361,7 +1361,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       {/* ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'users' && (
         <div className="space-y-4">
-          <div className="bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] shadow-xs flex items-center justify-between">
+          <div className="bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] elev-xs flex items-center justify-between">
             <div>
               <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-slate-100">
                 Cadastros e Aprovação de Acesso
@@ -1387,7 +1387,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
             </div>
           )}
 
-          <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden shadow-xs">
+          <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden elev-xs">
             {profilesLoading && profiles.length === 0 && (
               <div className="p-6 text-center text-xs text-stone-500 dark:text-slate-400">Carregando usuários…</div>
             )}

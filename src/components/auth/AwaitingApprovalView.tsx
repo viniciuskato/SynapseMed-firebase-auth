@@ -26,9 +26,9 @@ export const AwaitingApprovalView: React.FC<AwaitingApprovalViewProps> = ({ onRe
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col items-center justify-center p-4 sm:p-6 transition-colors">
-      <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl p-6 sm:p-8 space-y-6 text-center">
+      <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 elev-xl p-6 sm:p-8 space-y-6 text-center">
         {/* Brand Icon */}
-        <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-teal-600 to-cyan-500 text-white flex items-center justify-center text-2xl font-serif-reading font-bold shadow-md shadow-teal-600/30">
+        <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-teal-600 to-cyan-500 text-white flex items-center justify-center text-2xl font-serif-reading font-bold elev-md shadow-teal-600/30">
           N
         </div>
 
@@ -77,7 +77,7 @@ export const AwaitingApprovalView: React.FC<AwaitingApprovalViewProps> = ({ onRe
               <span className="text-emerald-600 block text-[10px] font-bold mt-1">✓ Concluído</span>
             </div>
 
-            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 font-semibold shadow-xs">
+            <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 font-semibold elev-xs">
               <span className="font-bold block text-amber-700 dark:text-amber-400 text-[10px]">Passo 3</span>
               <span>Moderação privada</span>
               <span className="text-amber-700 dark:text-amber-400 block text-[10px] font-bold mt-1">Em análise</span>

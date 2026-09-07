@@ -74,13 +74,13 @@ export const EmailVerificationScreen: React.FC = () => {
       id="email-verification-screen"
       className="min-h-screen bg-slate-100/70 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col justify-center items-center p-4 sm:p-6"
     >
-      <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-xl text-center relative overflow-hidden">
+      <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 elev-xl text-center relative overflow-hidden">
         {/* Accent top banner */}
         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-teal-500 to-emerald-500" />
 
         {/* Logo NexusMed */}
         <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-xs">
+          <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center elev-xs">
             <Stethoscope className="w-5 h-5" />
           </div>
           <span className="font-serif-reading font-bold text-xl text-slate-900 dark:text-white">
@@ -89,7 +89,7 @@ export const EmailVerificationScreen: React.FC = () => {
         </div>
 
         {/* Envelope Icon */}
-        <div className="w-16 h-16 rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800/80 text-teal-600 dark:text-teal-400 flex items-center justify-center mx-auto mb-5 shadow-xs">
+        <div className="w-16 h-16 rounded-2xl bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800/80 text-teal-600 dark:text-teal-400 flex items-center justify-center mx-auto mb-5 elev-xs">
           <Mail className="w-8 h-8" />
         </div>
 
@@ -148,7 +148,7 @@ export const EmailVerificationScreen: React.FC = () => {
             type="button"
             disabled={isReloading}
             onClick={handleCheckVerification}
-            className="w-full h-12 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.99] text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-teal-700/20 transition-all"
+            className="w-full h-12 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.99] text-white text-xs sm:text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer elev-md shadow-teal-700/20 transition-all"
           >
             <RefreshCw className={`w-4 h-4 ${isReloading ? 'animate-spin' : ''}`} />
             <span>{isReloading ? 'Verificando status...' : 'Já confirmei meu e-mail'}</span>

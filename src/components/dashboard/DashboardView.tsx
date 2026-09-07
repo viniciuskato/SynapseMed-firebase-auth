@@ -179,7 +179,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="w-full max-w-[1680px] mx-auto space-y-7 pb-12">
       {/* ── 1. Gamified Hero Banner (Utiliza toda a largura no desktop) ── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-50 via-white to-cyan-50 dark:from-slate-950 dark:via-slate-900 dark:to-teal-950 border border-slate-200/90 dark:border-slate-800/90 shadow-xl p-6 sm:p-8 2xl:p-10 text-slate-900 dark:text-white">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-50 via-white to-cyan-50 dark:from-slate-950 dark:via-slate-900 dark:to-teal-950 border border-slate-200/90 dark:border-slate-800/90 elev-xl p-6 sm:p-8 2xl:p-10 text-slate-900 dark:text-white">
         {/* Glow ambient background elements */}
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -232,7 +232,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <div className="w-full bg-slate-200 dark:bg-slate-800/90 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-300 dark:border-slate-700/80">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-teal-400 via-cyan-400 to-amber-400 transition-all duration-500 shadow-xs shadow-teal-400/50"
+                  className="h-full rounded-full bg-gradient-to-r from-teal-400 via-cyan-400 to-amber-400 transition-all duration-500 elev-xs shadow-teal-400/50"
                   style={{ width: `${levelInfo.levelProgressPercent}%` }}
                 />
               </div>
@@ -243,7 +243,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex flex-col sm:flex-row lg:flex-col gap-2.5 shrink-0 w-full lg:w-64">
             <button
               onClick={() => onSelectView('questions')}
-              className="px-4 py-3 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 font-black text-xs shadow-lg shadow-teal-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer group"
+              className="px-4 py-3 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 font-black text-xs elev-lg shadow-teal-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer group"
             >
               <HelpCircle className="w-4 h-4 group-hover:rotate-12 transition-transform" />
               <span>Resolver Questões (+50 XP)</span>
@@ -251,7 +251,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <button
               onClick={onStartSRS}
-              className="px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800/90 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-100 border border-slate-300 dark:border-slate-700/90 hover:border-teal-500/50 font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800/90 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-100 border border-slate-300 dark:border-slate-700/90 hover:border-teal-500/50 font-bold text-xs elev-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Brain className="w-4 h-4 text-teal-600 dark:text-teal-400" />
               <span>Revisar Flashcards ({dueCards.length})</span>
@@ -273,7 +273,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* ═══ COLUNA PRINCIPAL (8 Colunas em telas largas) ═══ */}
         <div className="xl:col-span-8 space-y-7">
           {/* ── Desafios Clínicos Diários (Gamified Quests) ── */}
-          <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 shadow-sm">
+          <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 elev-sm">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center">
@@ -360,7 +360,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           {/* ── Continuar de onde parou ── */}
           {continueReading ? (
-            <div className="bg-gradient-to-r from-teal-500/10 via-cyan-500/5 to-white dark:to-[#0F172A] rounded-3xl border border-teal-300/80 dark:border-teal-800/80 p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 card-gamified">
+            <div className="bg-gradient-to-r from-teal-500/10 via-cyan-500/5 to-white dark:to-[#0F172A] rounded-3xl border border-teal-300/80 dark:border-teal-800/80 p-5 sm:p-6 elev-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 card-gamified">
               <div className="space-y-1.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2 text-xs font-bold text-teal-700 dark:text-teal-400">
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -387,7 +387,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     continueReading.lastSectionId
                   )
                 }
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white text-xs font-bold shadow-md shadow-teal-600/20 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-teal-700 hover:from-teal-500 hover:to-teal-600 text-white text-xs font-bold elev-md shadow-teal-600/20 transition-all flex items-center gap-1.5 shrink-0 cursor-pointer"
               >
                 <span>Retomar Leitura</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -444,7 +444,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* ── Materiais Novos e Estudados Recentemente (2 Colunas Amplas) ── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             {/* Materiais Atualizados Recentemente */}
-            <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 shadow-xs space-y-3.5">
+            <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 elev-xs space-y-3.5">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-teal-600 dark:text-teal-400" />
@@ -491,7 +491,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {/* Materiais Estudados Recentemente */}
-            <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 shadow-xs space-y-3.5">
+            <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 elev-xs space-y-3.5">
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-slate-500" />
@@ -555,7 +555,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* ═══ COLUNA LATERAL DE GAMIFICAÇÃO & DESEMPENHO (4 Colunas) ═══ */}
         <div className="xl:col-span-4 space-y-6">
           {/* ── Painel de Conquistas & Medalhas (Gamification Showcase) ── */}
-          <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 elev-sm space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center border border-amber-500/25">
@@ -613,7 +613,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* ── Termômetro de Desempenho & Acurácia Clínica ── */}
-          <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 shadow-sm space-y-4">
+          <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 elev-sm space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/15 text-emerald-500 flex items-center justify-center border border-emerald-500/25">
@@ -666,7 +666,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* ── Circuito Flashcards SRS Hoje ── */}
-          <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white dark:to-[#0F172A] rounded-3xl border border-indigo-200/80 dark:border-indigo-900/60 p-5 sm:p-6 shadow-sm space-y-3.5">
+          <div className="bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-white dark:to-[#0F172A] rounded-3xl border border-indigo-200/80 dark:border-indigo-900/60 p-5 sm:p-6 elev-sm space-y-3.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/25">
@@ -691,7 +691,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               onClick={onStartSRS}
               className={`w-full py-2.5 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 dueCards.length > 0
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md shadow-indigo-600/20'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white elev-md shadow-indigo-600/20'
                   : 'bg-slate-100 dark:bg-[#142038] text-slate-700 dark:text-slate-300 hover:bg-slate-200'
               }`}
             >
@@ -702,7 +702,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           {/* ── Radar de Lacunas Clínicas (Caderno de Erros) ── */}
           {recentMistakes.length > 0 && (
-            <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 shadow-sm space-y-3.5">
+            <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200/90 dark:border-[#243452] p-5 sm:p-6 elev-sm space-y-3.5">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-xl bg-rose-500/15 text-rose-600 flex items-center justify-center border border-rose-500/25">
@@ -759,7 +759,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* ── 3. Modal de Conquistas & Gamificação ── */}
       {showAchievementsModal && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6 sm:p-8 shadow-2xl space-y-6">
+          <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6 sm:p-8 elev-2xl space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center text-xl">
@@ -790,7 +790,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   key={ach.id}
                   className={`p-4 rounded-2xl border transition-all flex items-start gap-3.5 ${
                     ach.unlocked
-                      ? 'bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border-amber-400/40 dark:border-amber-500/40 shadow-xs'
+                      ? 'bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border-amber-400/40 dark:border-amber-500/40 elev-xs'
                       : 'bg-slate-50/80 dark:bg-[#142038]/60 border-slate-200/80 dark:border-[#243452] opacity-75'
                   }`}
                 >
@@ -832,7 +832,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   setShowAchievementsModal(false);
                   handleClaimCelebration();
                 }}
-                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 text-white font-bold text-xs elev-md transition-all cursor-pointer"
               >
                 Celebrar Conquistas ✨
               </button>

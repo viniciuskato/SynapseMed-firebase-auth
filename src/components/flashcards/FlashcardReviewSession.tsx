@@ -102,7 +102,7 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
   if (sessionCompleted || !currentCard) {
     return (
       <div className="max-w-2xl mx-auto py-12 px-4 text-center space-y-6">
-        <div className="w-20 h-20 bg-teal-50 border-2 border-teal-200 text-teal-700 rounded-3xl mx-auto flex items-center justify-center shadow-lg animate-in zoom-in-75">
+        <div className="w-20 h-20 bg-teal-50 border-2 border-teal-200 text-teal-700 rounded-3xl mx-auto flex items-center justify-center elev-lg animate-in zoom-in-75">
           <Award className="w-10 h-10" />
         </div>
 
@@ -118,7 +118,7 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
         <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={onFinishSession}
-            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs shadow-md transition-all"
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs elev-md transition-all"
           >
             Voltar ao Painel de Flashcards
           </button>
@@ -169,9 +169,9 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
         {/* Flashcard Box */}
         <div
           onClick={() => setIsFlipped(!isFlipped)}
-          className={`min-h-[340px] sm:min-h-[380px] bg-white dark:bg-[#0F172A] rounded-3xl border transition-all cursor-pointer p-8 sm:p-10 shadow-sm flex flex-col justify-between relative group select-none ${
+          className={`min-h-[340px] sm:min-h-[380px] bg-white dark:bg-[#0F172A] rounded-3xl border transition-all cursor-pointer p-8 sm:p-10 elev-sm flex flex-col justify-between relative group select-none ${
             isFlipped
-              ? 'border-teal-300 dark:border-teal-600 ring-2 ring-teal-50 dark:ring-teal-950/40 shadow-md'
+              ? 'border-teal-300 dark:border-teal-600 ring-2 ring-teal-50 dark:ring-teal-950/40 elev-md'
               : 'border-slate-200 dark:border-[#243452] hover:border-slate-300 dark:hover:border-slate-600'
           }`}
         >
@@ -249,7 +249,7 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
           {!isFlipped ? (
             <button
               onClick={() => setIsFlipped(true)}
-              className="w-full py-4 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-4 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-sm elev-md transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <span>Revelar Resposta</span>
               <kbd className="px-2 py-0.5 text-xs bg-white/20 rounded font-mono">Espaço</kbd>

@@ -83,14 +83,14 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
     <div className="space-y-6 pb-16">
       {/* Toast */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl text-xs font-semibold flex items-center gap-2 border border-slate-800 animate-in fade-in">
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl elev-xl text-xs font-semibold flex items-center gap-2 border border-slate-800 animate-in fade-in">
           <Sparkles className="w-4 h-4 text-teal-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-slate-950 rounded-3xl p-6 sm:p-8 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-slate-950 rounded-3xl p-6 sm:p-8 text-white elev-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="max-w-2xl space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-semibold border border-rose-400/30">
             <AlertCircle className="w-3.5 h-3.5" />
@@ -108,7 +108,7 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
           {mistakeQuestions.length > 0 && (
             <button
               onClick={handleGenerateAllFlashcards}
-              className="px-5 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-2xl shadow-md transition-colors flex items-center justify-center gap-2"
+              className="px-5 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-2xl elev-md transition-colors flex items-center justify-center gap-2"
             >
               <Layers className="w-4 h-4" />
               <span>Gerar SRS para Todos</span>
@@ -117,7 +117,7 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
 
           <button
             onClick={onOpenCreateSimulado}
-            className="px-5 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-2xl shadow-md transition-colors flex items-center justify-center gap-2"
+            className="px-5 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-2xl elev-md transition-colors flex items-center justify-center gap-2"
           >
             <Timer className="w-4 h-4" />
             <span>Simulado Só de Erros</span>
@@ -140,7 +140,7 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
               onClick={() => setSelectedReasonFilter(item.id)}
               className={`p-3.5 rounded-2xl border text-left transition-all ${
                 isSelected
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                  ? 'bg-slate-900 text-white border-slate-900 elev-sm'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >

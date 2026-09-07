@@ -51,7 +51,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
       id="forgot-password-modal"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in"
     >
-      <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 relative">
+      <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl elev-2xl p-6 relative">
         {/* Close Button */}
         <button
           type="button"
@@ -95,7 +95,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
             <button
               type="button"
               onClick={handleClose}
-              className="w-full h-11 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold cursor-pointer transition-colors shadow-xs"
+              className="w-full h-11 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold cursor-pointer transition-colors elev-xs"
             >
               Concluir e Voltar ao Login
             </button>
@@ -142,7 +142,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex-1 h-11 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.99] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer disabled:opacity-60"
+                className="flex-1 h-11 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.99] text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all elev-xs cursor-pointer disabled:opacity-60"
               >
                 <span>{isSubmitting ? 'Enviando link...' : 'Enviar Link'}</span>
                 <ArrowRight className="w-3.5 h-3.5" />

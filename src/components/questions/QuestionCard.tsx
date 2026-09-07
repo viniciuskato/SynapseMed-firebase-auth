@@ -186,7 +186,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   return (
     <div
       id={`question-${question.id}`}
-      className={`bg-white dark:bg-[#0F172A] rounded-3xl border transition-all p-6 sm:p-8 shadow-xs relative ${
+      className={`bg-white dark:bg-[#0F172A] rounded-3xl border transition-all p-6 sm:p-8 elev-xs relative ${
         isSubmitted
           ? isCorrect
             ? 'border-emerald-300 dark:border-emerald-700/80 ring-1 ring-emerald-100 dark:ring-emerald-950/40'
@@ -196,7 +196,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     >
       {/* Toast */}
       {toastMessage && (
-        <div className="absolute top-4 right-4 z-20 bg-slate-900 dark:bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-lg flex items-center gap-1.5 animate-in fade-in">
+        <div className="absolute top-4 right-4 z-20 bg-slate-900 dark:bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-semibold elev-lg flex items-center gap-1.5 animate-in fade-in">
           <Sparkles className="w-3.5 h-3.5 text-teal-400" />
           <span>{toastMessage}</span>
         </div>
@@ -350,7 +350,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           <button
             onClick={handleConfirmAnswer}
             disabled={!selectedOption}
-            className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs ${
+            className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all elev-xs ${
               selectedOption
                 ? 'bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white cursor-pointer'
                 : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
@@ -410,7 +410,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               onClick={() =>
                 onOpenCompendium(question.compendiumRefId, question.compendiumSectionId)
               }
-              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold flex items-center justify-center gap-2 elev-xs transition-colors cursor-pointer"
             >
               <BookOpen className="w-4 h-4" />
               <span>Revisar Fisiopatologia</span>
@@ -426,7 +426,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   showToast('Questão catalogada no Caderno de Erros!');
                 }
               }}
-              className="p-3 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+              className="p-3 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold flex items-center justify-center gap-2 elev-xs transition-colors cursor-pointer"
             >
               <Tag className="w-4 h-4 text-rose-200" />
               <span>{isIncorrect ? 'Catalogar no Caderno de Erros' : 'Salvar no Caderno'}</span>
@@ -435,7 +435,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             {/* 3. Gerar Flashcard */}
             <button
               onClick={handleAddFlashcard}
-              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 dark:bg-slate-900 dark:hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 dark:bg-slate-900 dark:hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 elev-xs transition-colors cursor-pointer"
             >
               <Layers className="w-4 h-4 text-teal-200 dark:text-teal-400" />
               <span>Gerar Flashcard SRS</span>
@@ -496,7 +496,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   <button
                     type="button"
                     onClick={handleSaveNote}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 dark:bg-teal-600 hover:bg-slate-700 dark:hover:bg-teal-500 text-white text-[11px] font-semibold transition-colors cursor-pointer shadow-xs"
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 dark:bg-teal-600 hover:bg-slate-700 dark:hover:bg-teal-500 text-white text-[11px] font-semibold transition-colors cursor-pointer elev-xs"
                   >
                     Salvar Anotação Pessoal
                   </button>

@@ -145,7 +145,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-900 rounded-3xl p-6 sm:p-8 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-rose-900 rounded-3xl p-6 sm:p-8 text-white elev-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="max-w-2xl space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-semibold border border-rose-400/30">
             <BookMarked className="w-3.5 h-3.5" />
@@ -162,7 +162,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
         <button
           onClick={onStartErrorSimulado}
           disabled={mistakes.length === 0}
-          className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-white font-extrabold text-xs shadow-lg shadow-rose-900/20 transition-all flex items-center justify-center gap-2 shrink-0"
+          className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-rose-500 to-amber-500 hover:from-rose-400 hover:to-amber-400 text-white font-extrabold text-xs elev-lg shadow-rose-900/20 transition-all flex items-center justify-center gap-2 shrink-0"
         >
           <Play className="w-4 h-4 fill-white" />
           <span>Treinar Apenas Questões Erradas</span>
@@ -170,7 +170,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white dark:bg-[#0F172A] rounded-2xl border border-slate-200 dark:border-[#243452] p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#0F172A] rounded-2xl border border-slate-200 dark:border-[#243452] p-4 elev-xs flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="w-full md:w-80 relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -188,7 +188,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
             onClick={() => setSelectedReason('all')}
             className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition-all cursor-pointer ${
               selectedReason === 'all'
-                ? 'bg-slate-900 dark:bg-rose-600 text-white shadow-xs'
+                ? 'bg-slate-900 dark:bg-rose-600 text-white elev-xs'
                 : 'bg-slate-100 dark:bg-[#142038] text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#1A2845]'
             }`}
           >
@@ -200,7 +200,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
               onClick={() => setSelectedReason(key)}
               className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition-all cursor-pointer ${
                 selectedReason === key
-                  ? 'bg-rose-700 dark:bg-rose-600 text-white shadow-xs'
+                  ? 'bg-rose-700 dark:bg-rose-600 text-white elev-xs'
                   : 'bg-slate-100 dark:bg-[#142038] text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#1A2845]'
               }`}
             >
@@ -241,7 +241,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
             return (
               <div
                 key={question.id}
-                className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] p-6 shadow-xs hover:border-rose-300 dark:hover:border-rose-800 transition-all space-y-4"
+                className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] p-6 elev-xs hover:border-rose-300 dark:hover:border-rose-800 transition-all space-y-4"
               >
                 {/* Header */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -378,7 +378,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
                       onClick={() =>
                         onOpenCompendium(question.compendiumRefId, question.compendiumSectionId)
                       }
-                      className="px-3 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                      className="px-3 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold flex items-center gap-1.5 transition-colors elev-xs"
                     >
                       <BookOpen className="w-3.5 h-3.5" />
                       <span>Revisar no Compêndio</span>
@@ -386,7 +386,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
 
                     <button
                       onClick={() => handleCreateFlashcard(question)}
-                      className="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-[#142038] hover:bg-slate-800 dark:hover:bg-[#1A2845] text-white font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer border border-transparent dark:border-[#243452]"
+                      className="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-[#142038] hover:bg-slate-800 dark:hover:bg-[#1A2845] text-white font-bold flex items-center gap-1.5 transition-colors elev-xs cursor-pointer border border-transparent dark:border-[#243452]"
                     >
                       <Layers className="w-3.5 h-3.5 text-teal-400" />
                       <span>Gerar Flashcard SRS</span>
