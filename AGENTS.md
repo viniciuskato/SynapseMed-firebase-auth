@@ -83,10 +83,23 @@ protótipo).
    de revisão linha a linha antes de ir pra produção — já aconteceu de
    um commit assim ir ao ar automaticamente (push em `main` = deploy) e
    precisar de rollback de emergência.
-7. **`error_reason` (por que errou) e a futura captura de "como chegou
-   na resposta" (estratégia/certeza) são conceitos DIFERENTES**, não
-   redundantes — o primeiro só se aplica a resposta errada, o segundo se
-   aplica a toda resposta. Não fundir as duas taxonomias numa só.
+7. **`error_reason` (por que errou) e `answer_strategy` (como chegou na
+   resposta) são conceitos DIFERENTES**, não redundantes — o primeiro só
+   se aplica a resposta errada, o segundo se aplica a toda resposta. Não
+   fundir as duas taxonomias numa só. (Já implementado — ver
+   `question_attempts.answer_mode`/`answer_strategy` e
+   `submit_question_attempt`.)
+8. **Merge em `main` != schema aplicado no remoto.** `main` fazer merge/
+   deploy no Vercel não aplica migrations no Supabase remoto — são dois
+   passos independentes. Já aconteceu de um merge ir ao ar com o
+   frontend chamando uma RPC com assinatura nova enquanto o banco remoto
+   ainda tinha só a versão antiga (quebrou o registro de respostas em
+   produção por alguns minutos). Ao mesclar qualquer branch que inclua
+   migration nova, aplicar no remoto (`supabase db push --linked --yes`,
+   rodado pelo usuário — ver armadilha #3) faz parte do merge, não é um
+   passo opcional posterior. Sempre conferir depois com uma query direta
+   (ex.: `select pronargs from pg_proc where proname = '...'`) — não
+   confiar só na mensagem de sucesso do CLI.
 
 ## Convenções de trabalho
 
@@ -123,14 +136,14 @@ protótipo).
   escuro — ver armadilha #1 antes de mexer nisso.
 - Gamificação usa dados reais (não placeholder) desde a correção da
   armadilha #5.
-- **Em andamento / combinado mas não implementado ainda**: modo de
-  resposta aberta (recall antes de ver alternativas) + captura de
-  estratégia de resposta em toda resposta + XP ponderado por
-  dificuldade/modo/primeira-tentativa; feedback contextual vinculado a
-  questão/compêndio + reação rápida 👍/👎 + aba de Feedback no admin.
-  Prompts prontos foram escritos para duas sessões executivas
-  sequenciais — se você está lendo isto e esse trabalho já foi feito,
-  atualize este parágrafo.
+- **Concluído em 2026-09-07** (mesclado em `main`, migration aplicada no
+  remoto e verificada): modo de resposta aberta (recall antes de ver
+  alternativas) + captura de estratégia de resposta em toda resposta +
+  XP ponderado por dificuldade/modo/primeira-tentativa.
+- **Em andamento / combinado mas não implementado ainda**: feedback
+  contextual vinculado a questão/compêndio + reação rápida 👍/👎 + aba de
+  Feedback no admin (prompt pronto para uma sessão executiva). Se você
+  está lendo isto e esse trabalho já foi feito, atualize este parágrafo.
 
 ## Manter este arquivo atualizado
 
