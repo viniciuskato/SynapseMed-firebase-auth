@@ -28,21 +28,21 @@ export const PlanModal: React.FC<PlanModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
       <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-6 sm:p-8 bg-slate-900 text-white relative">
+        <div className="p-6 sm:p-8 bg-gradient-to-br from-teal-50 via-white to-cyan-50 dark:bg-slate-900 dark:from-slate-900 dark:via-slate-900 dark:to-slate-900 text-slate-900 dark:text-white relative">
           <button
             onClick={onClose}
-            className="absolute top-6 right-6 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer"
+            className="absolute top-6 right-6 p-2 rounded-full bg-slate-900/5 hover:bg-slate-900/10 dark:bg-white/10 dark:hover:bg-white/20 text-slate-700 dark:text-white transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-semibold mb-3 border border-teal-400/30">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 dark:bg-teal-500/20 text-teal-700 dark:text-teal-300 text-xs font-semibold mb-3 border border-teal-400/30">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Acesso Colaborativo NexusMed</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
             Ambiente Acadêmico de Acesso Livre
           </h2>
-          <p className="text-slate-300 text-xs sm:text-sm mt-2 leading-relaxed">
+          <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm mt-2 leading-relaxed">
             O NexusMed é uma plataforma médica de estudos e colaboração privada. Todas as ferramentas e recursos estão integralmente disponíveis para o grupo de estudo.
           </p>
         </div>

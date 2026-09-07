@@ -179,7 +179,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="w-full max-w-[1680px] mx-auto space-y-7 pb-12">
       {/* ── 1. Gamified Hero Banner (Utiliza toda a largura no desktop) ── */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950 border border-slate-800/90 shadow-xl p-6 sm:p-8 2xl:p-10 text-white">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-teal-50 via-white to-cyan-50 dark:from-slate-950 dark:via-slate-900 dark:to-teal-950 border border-slate-200/90 dark:border-slate-800/90 shadow-xl p-6 sm:p-8 2xl:p-10 text-slate-900 dark:text-white">
         {/* Glow ambient background elements */}
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -188,31 +188,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {/* Left: User Title & XP Level Info */}
           <div className="space-y-3.5 max-w-3xl">
             <div className="flex flex-wrap items-center gap-2.5">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/15 border border-teal-500/30 text-teal-300 text-xs font-bold tracking-wide">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-500/10 dark:bg-teal-500/15 border border-teal-500/30 text-teal-700 dark:text-teal-300 text-xs font-bold tracking-wide">
                 <span className="w-2 h-2 rounded-full bg-teal-400 animate-ping" />
                 {levelInfo.currentLevel.badge} Nível {levelInfo.currentLevel.level} · {levelInfo.currentLevel.title}
               </span>
 
               <button
                 onClick={handleClaimCelebration}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-bold hover:bg-amber-500/25 transition-all cursor-pointer group"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold hover:bg-amber-500/20 dark:hover:bg-amber-500/25 transition-all cursor-pointer group"
                 title="Clique para celebrar seu progresso!"
               >
                 <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400 group-hover:scale-110 transition-transform" />
                 <span>{totalXp} XP Acumulado</span>
               </button>
 
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-300 text-xs font-bold">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 dark:bg-orange-500/15 border border-orange-500/30 text-orange-700 dark:text-orange-300 text-xs font-bold">
                 <Flame className="w-3.5 h-3.5 fill-orange-400 text-orange-400 animate-flame" />
                 <span>{stats.streakDays} dias de ofensiva</span>
               </span>
             </div>
 
             <div>
-              <h1 className="text-2xl sm:text-3xl 2xl:text-4xl font-serif-reading font-bold tracking-tight text-white">
-                Bom dia, <span className="bg-gradient-to-r from-teal-300 to-cyan-200 bg-clip-text text-transparent">{userName}</span>!
+              <h1 className="text-2xl sm:text-3xl 2xl:text-4xl font-serif-reading font-bold tracking-tight text-slate-900 dark:text-white">
+                Bom dia, <span className="bg-gradient-to-r from-teal-700 to-cyan-700 dark:from-teal-300 dark:to-cyan-200 bg-clip-text text-transparent">{userName}</span>!
               </h1>
-              <p className="text-slate-300 text-xs sm:text-sm 2xl:text-base leading-relaxed mt-1.5 max-w-2xl">
+              <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm 2xl:text-base leading-relaxed mt-1.5 max-w-2xl">
                 Sua jornada médica está ativa. Resolva casos clínicos, domine a fisiopatologia e suba de nível rumo à residência dos seus sonhos.
               </p>
             </div>
@@ -220,17 +220,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             {/* Level Progress Bar */}
             <div className="pt-1 max-w-xl">
               <div className="flex items-center justify-between text-xs mb-1.5 font-medium">
-                <span className="text-teal-300/90 flex items-center gap-1">
+                <span className="text-teal-700 dark:text-teal-300/90 flex items-center gap-1">
                   <Star className="w-3.5 h-3.5 fill-teal-400 text-teal-400" />
                   Progresso do Nível: {levelInfo.levelProgressPercent}%
                 </span>
-                <span className="text-slate-400">
+                <span className="text-slate-500 dark:text-slate-400">
                   {levelInfo.nextLevel
                     ? `Faltam ${levelInfo.xpNeededForNextLevel} XP para ${levelInfo.nextLevel.title}`
                     : 'Nível Máximo Atingido!'}
                 </span>
               </div>
-              <div className="w-full bg-slate-800/90 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-700/80">
+              <div className="w-full bg-slate-200 dark:bg-slate-800/90 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-300 dark:border-slate-700/80">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-teal-400 via-cyan-400 to-amber-400 transition-all duration-500 shadow-xs shadow-teal-400/50"
                   style={{ width: `${levelInfo.levelProgressPercent}%` }}
@@ -251,15 +251,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <button
               onClick={onStartSRS}
-              className="px-4 py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-750 text-slate-100 border border-slate-700/90 hover:border-teal-500/50 font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800/90 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-100 border border-slate-300 dark:border-slate-700/90 hover:border-teal-500/50 font-bold text-xs shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Brain className="w-4 h-4 text-teal-400" />
+              <Brain className="w-4 h-4 text-teal-600 dark:text-teal-400" />
               <span>Revisar Flashcards ({dueCards.length})</span>
             </button>
 
             <button
               onClick={() => setShowAchievementsModal(true)}
-              className="px-4 py-2.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="px-4 py-2.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Trophy className="w-3.5 h-3.5 text-amber-400" />
               <span>Conquistas ({unlockedAchievementsCount}/{achievements.length})</span>

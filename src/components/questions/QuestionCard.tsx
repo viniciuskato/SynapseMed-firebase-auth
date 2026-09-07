@@ -435,9 +435,9 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             {/* 3. Gerar Flashcard */}
             <button
               onClick={handleAddFlashcard}
-              className="p-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
+              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 dark:bg-slate-900 dark:hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors cursor-pointer"
             >
-              <Layers className="w-4 h-4 text-teal-400" />
+              <Layers className="w-4 h-4 text-teal-200 dark:text-teal-400" />
               <span>Gerar Flashcard SRS</span>
             </button>
           </div>

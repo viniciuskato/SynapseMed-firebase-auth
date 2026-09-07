@@ -254,7 +254,7 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
               <div className="text-center">
                 <button
                   onClick={() => setIsFlipped(true)}
-                  className="px-8 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all"
+                  className="px-8 py-3 rounded-2xl bg-teal-600 hover:bg-teal-700 dark:bg-slate-900 dark:hover:bg-slate-800 text-white font-bold text-xs shadow-md transition-all"
                 >
                   Mostrar Resposta (Espaço)
                 </button>
