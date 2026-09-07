@@ -79,7 +79,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
                 Enviar Feedback
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Ajude a aprimorar o SynapseMed neste ambiente de estudos colaborativo
+                Ajude a aprimorar o NexusMed neste ambiente de estudos colaborativo
               </p>
             </div>
           </div>

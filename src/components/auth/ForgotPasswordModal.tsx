@@ -70,7 +70,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({
               Recuperação de Senha
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Redefina o acesso à sua conta SynapseMed
+              Redefina o acesso à sua conta NexusMed
             </p>
           </div>
         </div>

@@ -198,7 +198,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
   const activeDiscipline = disciplines.find((d) => d.id === selectedDisciplineId);
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 w-full max-w-[1600px] mx-auto">
       {/* ── Page Header: Biblioteca Médica ────────────────────────── */}
       <div className="border-b border-slate-200 dark:border-slate-800 pb-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -436,7 +436,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
                 </div>
 
                 {/* Cards Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4.5">
                   {items.map((comp) => {
                     const compProgress = readingProgress[comp.id] || { readSectionIds: [], percent: 0 };
                     const isBookmarked = bookmarks.compendiums.includes(comp.id);

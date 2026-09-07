@@ -39,9 +39,9 @@ import { MigrateDataModal } from './components/auth/MigrateDataModal';
 import { AwaitingApprovalView } from './components/auth/AwaitingApprovalView';
 import { FeedbackModal } from './components/feedback/FeedbackModal';
 
-// Header & Sidebar
+// Header & Navigation
 import { Header } from './components/Header';
-import { Sidebar } from './components/Sidebar';
+import { MobileBottomNav } from './components/navigation/MobileBottomNav';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { PlanModal } from './components/PlanModal';
 
@@ -64,7 +64,6 @@ function AuthenticatedApp() {
 
   // Navigation State
   const [activeView, setActiveView] = useState<string>('dashboard');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Deep-link / Context State
   const [selectedCompendiumId, setSelectedCompendiumId] = useState<string | null>(null);
@@ -250,106 +249,25 @@ function AuthenticatedApp() {
         onOpenSearch={() => setIsSearchOpen(true)}
         stats={stats}
         dueCardsCount={dueCardsCount}
+        errorLogCount={errorCount}
         activeView={activeView}
         onSelectView={(v) => {
           setActiveView(v);
-          setMobileMenuOpen(false);
         }}
         theme={theme}
         onToggleTheme={handleToggleTheme}
         onOpenFeedback={() => setIsFeedbackOpen(true)}
       />
 
-      {/* Main Body */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto min-w-0 overflow-x-hidden">
-        {/* Desktop Navigation Sidebar */}
-        <Sidebar
-          activeView={activeView}
-          onSelectView={(v) => {
-            setActiveView(v);
-            setMobileMenuOpen(false);
-          }}
-          currentPlan={plan}
-          onOpenPlanModal={() => setIsPlanModalOpen(true)}
-          errorLogCount={errorCount}
-          dueCardsCount={dueCardsCount}
-          unansweredQuestionsCount={unansweredCount}
-        />
-
-        {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
-          <div className="fixed inset-0 z-40 md:hidden bg-slate-900/60 backdrop-blur-xs flex">
-            <div className="w-4/5 max-w-xs bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 h-full p-4 flex flex-col justify-between shadow-2xl animate-in slide-in-from-left">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
-                  <span className="font-bold text-slate-900 dark:text-slate-100 text-sm">Menu SynapseMed</span>
-                  <button
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="p-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                <nav className="space-y-1 text-xs">
-                  {[
-                    { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
-                    { id: 'compendiums', label: 'Biblioteca Médica', icon: BookOpen },
-                    { id: 'questions', label: 'Provas e Questões', icon: HelpCircle },
-                    { id: 'flashcards', label: 'Revisão e Flashcards', icon: Layers },
-                    { id: 'errors', label: 'Caderno de Erros', icon: BookMarked },
-                    ...(isAdmin ? [{ id: 'admin', label: 'Área Editorial', icon: Settings }] : []),
-                  ].map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeView === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        onClick={() => {
-                          setActiveView(item.id);
-                          setMobileMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-left transition-all cursor-pointer ${
-                          isActive
-                            ? 'bg-teal-700 text-white shadow-xs'
-                            : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span>{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </nav>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Main Content Area */}
+      {/* Main Workspace - Full Width with Centered Reading Layout */}
+      <div className="flex-1 flex flex-col w-full min-w-0">
         <main
-          className={`flex-1 min-w-0 max-w-full overflow-x-hidden overflow-y-auto ${
-            activeView === 'compendium-reader' ? 'p-0' : 'p-3 sm:p-6 lg:p-8'
+          className={`flex-1 min-w-0 w-full ${
+            activeView === 'compendium-reader'
+              ? 'p-0'
+              : 'max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 pb-24 md:pb-12'
           }`}
         >
-          {/* Mobile View Switcher Button (hidden in reader view) */}
-          {activeView !== 'compendium-reader' && (
-            <div className="md:hidden mb-4 flex items-center justify-between bg-white dark:bg-[#111827] p-3 rounded-xl border border-[#E2E8F0] dark:border-[#263244]">
-              <button
-                onClick={() => setMobileMenuOpen(true)}
-                className="flex items-center gap-2 text-xs font-semibold text-[#172033] dark:text-[#E5E7EB] cursor-pointer"
-              >
-                <Menu className="w-4 h-4 text-[#0F766E] dark:text-[#14B8A6]" />
-                <span>Navegar no Ambiente</span>
-              </button>
-              <button
-                onClick={() => setIsSearchOpen(true)}
-                className="p-1.5 rounded-lg bg-slate-100 dark:bg-[#182235] text-[#64748B] dark:text-[#94A3B8] cursor-pointer"
-              >
-                <Search className="w-4 h-4" />
-              </button>
-            </div>
-          )}
 
           {/* View Router */}
           {activeView === 'dashboard' && (
@@ -513,6 +431,14 @@ function AuthenticatedApp() {
           )}
         </main>
       </div>
+
+      {/* Mobile Floating Thumb Dock */}
+      <MobileBottomNav
+        activeView={activeView}
+        onSelectView={setActiveView}
+        dueCardsCount={dueCardsCount}
+        errorLogCount={errorCount}
+      />
 
       {/* Global Modals */}
       <GlobalSearchModal

@@ -8,8 +8,13 @@ import {
   User as UserIcon,
   ChevronDown,
   MessageSquarePlus,
-  Shield,
   Settings,
+  LayoutDashboard,
+  BookOpen,
+  HelpCircle,
+  Layers,
+  BookMarked,
+  Database,
 } from 'lucide-react';
 import { UserPlan, UserStats, ThemeMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +26,7 @@ interface HeaderProps {
   onOpenSearch: () => void;
   stats: UserStats;
   dueCardsCount: number;
+  errorLogCount?: number;
   activeView: string;
   onSelectView: (view: string) => void;
   theme: ThemeMode;
@@ -31,6 +37,8 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onOpenSearch,
   stats,
+  dueCardsCount = 0,
+  errorLogCount = 0,
   activeView,
   onSelectView,
   theme,
@@ -64,72 +72,169 @@ export const Header: React.FC<HeaderProps> = ({
     .join('')
     .toUpperCase();
 
+  const navItems = [
+    {
+      id: 'dashboard',
+      label: 'Início',
+      shortLabel: 'Início',
+      icon: LayoutDashboard,
+      badge: null,
+    },
+    {
+      id: 'compendiums',
+      label: 'Biblioteca Médica',
+      shortLabel: 'Biblioteca',
+      icon: BookOpen,
+      badge: null,
+    },
+    {
+      id: 'questions',
+      label: 'Questões',
+      shortLabel: 'Questões',
+      icon: HelpCircle,
+      badge: null,
+    },
+    {
+      id: 'flashcards',
+      label: 'Flashcards',
+      shortLabel: 'Cards',
+      icon: Layers,
+      badge: dueCardsCount > 0 ? dueCardsCount : null,
+      badgeColor: 'bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500/30',
+    },
+    {
+      id: 'errors',
+      label: 'Caderno de Erros',
+      shortLabel: 'Erros',
+      icon: BookMarked,
+      badge: errorLogCount > 0 ? errorLogCount : null,
+      badgeColor: 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30',
+    },
+    ...(isAdmin
+      ? [
+          {
+            id: 'admin',
+            label: 'Editorial',
+            shortLabel: 'CMS',
+            icon: Database,
+            badge: null,
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-xs border-b border-[#E2E8F0] dark:border-[#263244] px-4 sm:px-6 py-2.5 transition-colors max-w-full">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-md border-b border-[#E2E8F0] dark:border-[#243452] px-3 sm:px-5 lg:px-8 py-2.5 transition-colors max-w-full">
+      <div className="max-w-[1720px] mx-auto flex items-center justify-between gap-3">
         {/* Left: Brand Identity */}
         <div className="flex items-center gap-3 shrink-0">
           <button
             onClick={() => onSelectView('dashboard')}
-            className="flex items-center gap-2 text-left group focus:outline-hidden cursor-pointer"
+            className="flex items-center gap-2.5 text-left group focus:outline-hidden cursor-pointer"
           >
-            <div className="w-8 h-8 rounded-lg bg-teal-700 dark:bg-teal-600 text-white flex items-center justify-center font-serif font-bold text-base shadow-xs">
-              Ψ
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-600 to-cyan-500 text-white flex items-center justify-center font-serif font-bold text-base shadow-sm shadow-teal-600/30 group-hover:scale-105 transition-transform">
+              N
             </div>
-            <span className="font-serif font-bold text-lg tracking-tight text-[#172033] dark:text-[#E5E7EB] group-hover:text-teal-700 dark:group-hover:text-teal-400 transition-colors">
-              SynapseMed
-            </span>
+            <div>
+              <span className="font-serif font-bold text-lg tracking-tight bg-gradient-to-r from-slate-900 to-teal-800 dark:from-white dark:to-teal-300 bg-clip-text text-transparent">
+                NexusMed
+              </span>
+            </div>
           </button>
         </div>
 
-        {/* Center: Global Search Bar */}
-        <div className="flex-1 max-w-md hidden md:block">
+        {/* Center: Segmented Command Island (Desktop & Tablet) */}
+        <nav
+          id="header-nav-island"
+          aria-label="Navegação Principal"
+          className="hidden md:flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-[#142038] border border-slate-200/80 dark:border-[#243452] shadow-2xs backdrop-blur-md"
+        >
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive =
+              activeView === item.id ||
+              (item.id === 'questions' &&
+                (activeView === 'simulados' || activeView === 'simulado-session')) ||
+              (item.id === 'compendiums' && activeView === 'compendium-reader') ||
+              (item.id === 'flashcards' && activeView === 'flashcard-session');
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onSelectView(item.id)}
+                className={`relative flex items-center gap-2 px-3 xl:px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-white dark:bg-[#0B1220] text-teal-700 dark:text-teal-300 shadow-xs border border-slate-200/70 dark:border-teal-500/40 font-bold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-[#1A2845]/70 border border-transparent'
+                }`}
+              >
+                <Icon
+                  className={`w-3.5 h-3.5 transition-colors ${
+                    isActive ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400 dark:text-slate-500'
+                  }`}
+                />
+                <span className="hidden xl:inline">{item.label}</span>
+                <span className="xl:hidden inline">{item.shortLabel}</span>
+                {item.badge !== null && item.badge !== undefined && (
+                  <span
+                    className={`px-1.5 py-0.2 text-[10px] font-bold rounded-full border ${item.badgeColor}`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Right: Quick Search, Streak, Theme Toggle, Profile */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Quick Search Button (Desktop) */}
           <button
             onClick={onOpenSearch}
-            className="w-full flex items-center justify-between px-3.5 py-1.5 bg-[#F6F7F9] dark:bg-[#182235] hover:bg-slate-200/60 dark:hover:bg-[#182235]/80 border border-[#E2E8F0] dark:border-[#263244] rounded-lg text-xs text-[#64748B] dark:text-[#94A3B8] transition-colors text-left cursor-pointer"
+            className="hidden sm:flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl bg-slate-100/90 dark:bg-[#142038] hover:bg-slate-200/70 dark:hover:bg-[#1A2845] border border-slate-200/80 dark:border-[#243452] text-xs text-slate-500 dark:text-slate-400 transition-all cursor-pointer shadow-2xs group"
+            title="Buscar compêndios, questões ou temas (Ctrl + K)"
           >
-            <div className="flex items-center gap-2">
-              <Search className="w-3.5 h-3.5 text-[#64748B] dark:text-[#94A3B8]" />
-              <span className="truncate">Buscar compêndios, questões, temas...</span>
-            </div>
-            <kbd className="hidden lg:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-[#64748B] dark:text-[#94A3B8] bg-white dark:bg-[#111827] border border-[#E2E8F0] dark:border-[#263244] rounded">
+            <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors" />
+            <span className="hidden xl:inline text-slate-600 dark:text-slate-300 font-medium">
+              Buscar
+            </span>
+            <kbd className="hidden md:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono text-slate-500 dark:text-slate-400 bg-white dark:bg-[#0F172A] border border-slate-200 dark:border-[#243452] rounded-md">
               Ctrl K
             </kbd>
           </button>
-        </div>
 
-        {/* Right: One Activity Indicator, Theme Toggle, Profile */}
-        <div className="flex items-center gap-2 shrink-0">
-          {/* Mobile search icon */}
+          {/* Mobile search icon button */}
           <button
             onClick={onOpenSearch}
-            className="p-2 md:hidden text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-100 dark:hover:bg-[#182235] rounded-lg cursor-pointer"
+            className="p-2 sm:hidden text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#142038] rounded-xl cursor-pointer"
             title="Buscar"
           >
             <Search className="w-4 h-4" />
           </button>
 
-          {/* Um indicador compacto de atividade (Ofensiva em âmbar exclusivo) */}
+          {/* Gamified Streak Flame Badge */}
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 text-[#F59E0B] text-xs font-semibold"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-bold shadow-2xs"
             title={`${stats.streakDays} dias seguidos de estudo`}
           >
-            <Flame className="w-3.5 h-3.5 fill-[#F59E0B] text-[#F59E0B]" />
-            <span>{stats.streakDays}d</span>
+            <Flame className="w-4 h-4 fill-amber-500 text-amber-500 animate-flame" />
+            <span className="tabular-nums">{stats.streakDays}d</span>
           </div>
 
           {/* Theme Selector (Claro / Escuro) */}
           <button
             onClick={onToggleTheme}
             id="header-theme-toggle"
-            className="p-2 rounded-lg border border-[#E2E8F0] dark:border-[#263244] bg-white dark:bg-[#111827] hover:bg-slate-100 dark:hover:bg-[#182235] text-[#64748B] dark:text-[#94A3B8] transition-colors cursor-pointer flex items-center justify-center"
+            className="p-2 rounded-xl border border-slate-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] hover:bg-slate-100 dark:hover:bg-[#142038] text-slate-600 dark:text-slate-400 transition-colors cursor-pointer flex items-center justify-center shadow-2xs"
             title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
             aria-label={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
           >
             {theme === 'dark' ? (
-              <Sun className="w-4 h-4 text-[#F59E0B]" />
+              <Sun className="w-4 h-4 text-amber-400" />
             ) : (
-              <Moon className="w-4 h-4 text-[#172033]" />
+              <Moon className="w-4 h-4 text-slate-700" />
             )}
           </button>
 

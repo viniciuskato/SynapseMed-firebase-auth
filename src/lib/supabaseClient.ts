@@ -27,4 +27,6 @@ if (!isSupabaseConfigured) {
   );
 }
 
-export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '');
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl!, supabaseAnonKey!)
+  : createClient('https://placeholder.supabase.co', 'placeholder-anon-key');

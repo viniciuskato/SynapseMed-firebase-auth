@@ -78,13 +78,13 @@ export const EmailVerificationScreen: React.FC = () => {
         {/* Accent top banner */}
         <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-teal-500 to-emerald-500" />
 
-        {/* Logo SynapseMed */}
+        {/* Logo NexusMed */}
         <div className="flex items-center justify-center gap-2 mb-6">
           <div className="w-9 h-9 rounded-xl bg-teal-600 text-white flex items-center justify-center shadow-xs">
             <Stethoscope className="w-5 h-5" />
           </div>
           <span className="font-serif-reading font-bold text-xl text-slate-900 dark:text-white">
-            SynapseMed
+            NexusMed
           </span>
         </div>
 
@@ -134,7 +134,7 @@ export const EmailVerificationScreen: React.FC = () => {
           </span>
           <ol className="space-y-2 text-xs text-slate-600 dark:text-slate-300 list-decimal list-inside">
             <li>Abra a caixa de entrada do seu e-mail cadastrado.</li>
-            <li>Localize o e-mail de verificação da SynapseMed.</li>
+            <li>Localize o e-mail de verificação da NexusMed.</li>
             <li>Clique no link seguro de confirmação.</li>
             <li>Retorne a esta tela e clique em <strong>"Já confirmei meu e-mail"</strong>.</li>
           </ol>

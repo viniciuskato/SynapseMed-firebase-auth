@@ -13,6 +13,7 @@ interface AuthContextType {
   isConfigured: boolean;
   isEmailVerified: boolean;
   loginWithGoogle: () => Promise<void>;
+  loginWithDemo: () => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
   registerWithEmail: (name: string, email: string, password: string) => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
@@ -38,7 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fallbackProfile: UserProfile = {
       uid: supaUser.id,
       email: supaUser.email || null,
-      displayName: supaUser.user_metadata?.display_name || 'Estudante SynapseMed',
+      displayName: supaUser.user_metadata?.display_name || 'Estudante NexusMed',
       photoURL: supaUser.user_metadata?.avatar_url || null,
       role: 'student',
       plan: 'free',
@@ -60,7 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return {
         uid: data.id,
         email: data.email,
-        displayName: data.display_name || 'Estudante SynapseMed',
+        displayName: data.display_name || 'Estudante NexusMed',
         photoURL: data.avatar_url,
         // plan ainda não existe em public.profiles (fora do escopo desta etapa) — mantido 'free'.
         role: data.role === 'admin' ? 'admin' : 'student',
@@ -93,6 +94,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
+      const savedUserJson = localStorage.getItem('synapse_local_user');
+      if (savedUserJson) {
+        try {
+          const parsed = JSON.parse(savedUserJson);
+          setUser(parsed.user);
+          setProfile(parsed.profile);
+          setIsEmailVerified(true);
+          StorageService.setActiveUser(parsed.user.id);
+          setLoading(false);
+          return;
+        } catch {
+          // ignore parsing error
+        }
+      }
+
+      // Inicializa automaticamente com a conta de demonstração para que o preview funcione instantaneamente
+      const defaultDemoUser = {
+        id: 'local-demo-user',
+        app_metadata: {},
+        user_metadata: { display_name: 'Dr. Estudante NexusMed' },
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+        email: 'estudante@synapsemed.com',
+        email_confirmed_at: new Date().toISOString(),
+      } as unknown as User;
+
+      const defaultDemoProfile: UserProfile = {
+        uid: 'local-demo-user',
+        email: 'estudante@synapsemed.com',
+        displayName: 'Dr. Estudante NexusMed',
+        photoURL: null,
+        role: 'student',
+        plan: 'free',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      };
+
+      setUser(defaultDemoUser);
+      setProfile(defaultDemoProfile);
+      setIsEmailVerified(true);
+      StorageService.setActiveUser(defaultDemoUser.id);
+      localStorage.setItem(
+        'synapse_local_user',
+        JSON.stringify({ user: defaultDemoUser, profile: defaultDemoProfile })
+      );
+
       setLoading(false);
       return;
     }
@@ -130,17 +177,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [applySession]);
 
+  const loginWithDemo = async () => {
+    setLoginError(null);
+    const demoUser = {
+      id: 'local-demo-user',
+      app_metadata: {},
+      user_metadata: { display_name: 'Dr. Estudante NexusMed' },
+      aud: 'authenticated',
+      created_at: new Date().toISOString(),
+      email: 'estudante@synapsemed.com',
+      email_confirmed_at: new Date().toISOString(),
+    } as unknown as User;
+
+    const demoProfile: UserProfile = {
+      uid: 'local-demo-user',
+      email: 'estudante@synapsemed.com',
+      displayName: 'Dr. Estudante NexusMed',
+      photoURL: null,
+      role: 'admin',
+      plan: 'premium',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem('synapse_local_user', JSON.stringify({ user: demoUser, profile: demoProfile }));
+    StorageService.setActiveUser(demoUser.id);
+    setUser(demoUser);
+    setProfile(demoProfile);
+    setIsEmailVerified(true);
+  };
+
   const loginWithGoogle = async () => {
     setLoginError(null);
     if (!isSupabaseConfigured) {
-      setLoginError(
-        'As variáveis do Supabase ainda não foram configuradas no ambiente. Configure VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no arquivo .env.local.'
-      );
-      return;
+      return loginWithDemo();
     }
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+      const isInIframe = typeof window !== 'undefined' && window.self !== window.top;
+
+      if (isInIframe) {
+        // No ambiente iframe (preview do AI Studio), Google OAuth bloqueia renderização
+        // direta com X-Frame-Options: DENY. Solicitamos a URL e abrimos em nova janela/aba.
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.href,
+            skipBrowserRedirect: true,
+          },
+        });
+
+        if (error) throw error;
+
+        if (data?.url) {
+          const popup = window.open(data.url, '_blank');
+          if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+            throw new Error(
+              'O navegador bloqueou a abertura da janela do Google. Permita pop-ups no navegador ou utilize o Acesso Imediato de Demonstração.'
+            );
+          }
+          return;
+        }
+      }
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.href,
+        },
+      });
       if (error) throw error;
     } catch (err: any) {
       console.error('Falha na autenticação com o Google:', err);
@@ -152,7 +257,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loginWithEmail = async (email: string, password: string) => {
     setLoginError(null);
     if (!isSupabaseConfigured) {
-      setLoginError('O Supabase ainda não está configurado. Verifique as credenciais no arquivo .env.local.');
+      const cleanEmail = email.trim() || 'estudante@synapsemed.com';
+      const userId = 'local-' + (cleanEmail.replace(/[^a-zA-Z0-9]/g, '_') || 'user');
+      const localUser = {
+        id: userId,
+        app_metadata: {},
+        user_metadata: { display_name: cleanEmail.split('@')[0] || 'Estudante' },
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+        email: cleanEmail,
+        email_confirmed_at: new Date().toISOString(),
+      } as unknown as User;
+
+      const localProfile: UserProfile = {
+        uid: userId,
+        email: cleanEmail,
+        displayName: cleanEmail.split('@')[0] || 'Estudante NexusMed',
+        photoURL: null,
+        role: 'admin',
+        plan: 'premium',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem('synapse_local_user', JSON.stringify({ user: localUser, profile: localProfile }));
+      StorageService.setActiveUser(userId);
+      setUser(localUser);
+      setProfile(localProfile);
+      setIsEmailVerified(true);
       return;
     }
 
@@ -175,7 +307,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const registerWithEmail = async (name: string, email: string, password: string) => {
     setLoginError(null);
     if (!isSupabaseConfigured) {
-      setLoginError('O Supabase ainda não está configurado. Verifique as credenciais no arquivo .env.local.');
+      const cleanEmail = email.trim() || 'estudante@synapsemed.com';
+      const userId = 'local-' + (cleanEmail.replace(/[^a-zA-Z0-9]/g, '_') || 'user');
+      const localUser = {
+        id: userId,
+        app_metadata: {},
+        user_metadata: { display_name: name.trim() || 'Estudante' },
+        aud: 'authenticated',
+        created_at: new Date().toISOString(),
+        email: cleanEmail,
+        email_confirmed_at: new Date().toISOString(),
+      } as unknown as User;
+
+      const localProfile: UserProfile = {
+        uid: userId,
+        email: cleanEmail,
+        displayName: name.trim() || 'Estudante NexusMed',
+        photoURL: null,
+        role: 'admin',
+        plan: 'premium',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem('synapse_local_user', JSON.stringify({ user: localUser, profile: localProfile }));
+      StorageService.setActiveUser(userId);
+      setUser(localUser);
+      setProfile(localProfile);
+      setIsEmailVerified(true);
       return;
     }
 
@@ -203,7 +362,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const sendPasswordReset = async (email: string) => {
     setLoginError(null);
     if (!isSupabaseConfigured) {
-      setLoginError('O Supabase ainda não está configurado.');
+      setLoginError('O envio de recuperação de senha requer Supabase ativo.');
       return;
     }
 
@@ -218,6 +377,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const sendVerificationEmail = async () => {
+    if (!isSupabaseConfigured) {
+      setIsEmailVerified(true);
+      return;
+    }
     if (!user?.email) {
       throw new Error('Nenhum usuário ativo para enviar e-mail de verificação.');
     }
@@ -231,6 +394,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const reloadUser = async (): Promise<boolean> => {
+    if (!isSupabaseConfigured) {
+      setIsEmailVerified(true);
+      return true;
+    }
     try {
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) return false;
@@ -245,6 +412,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    if (!isSupabaseConfigured) {
+      localStorage.removeItem('synapse_local_user');
+      StorageService.setActiveUser(null);
+      setUser(null);
+      setProfile(null);
+      setIsEmailVerified(false);
+      return;
+    }
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
@@ -269,6 +444,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isConfigured: isSupabaseConfigured,
         isEmailVerified,
         loginWithGoogle,
+        loginWithDemo,
         loginWithEmail,
         registerWithEmail,
         sendPasswordReset,

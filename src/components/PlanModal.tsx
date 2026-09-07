@@ -37,13 +37,13 @@ export const PlanModal: React.FC<PlanModalProps> = ({
           </button>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-semibold mb-3 border border-teal-400/30">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Acesso Colaborativo SynapseMed</span>
+            <span>Acesso Colaborativo NexusMed</span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
             Ambiente Acadêmico de Acesso Livre
           </h2>
           <p className="text-slate-300 text-xs sm:text-sm mt-2 leading-relaxed">
-            O SynapseMed é uma plataforma médica de estudos e colaboração privada. Todas as ferramentas e recursos estão integralmente disponíveis para o grupo de estudo.
+            O NexusMed é uma plataforma médica de estudos e colaboração privada. Todas as ferramentas e recursos estão integralmente disponíveis para o grupo de estudo.
           </p>
         </div>
 

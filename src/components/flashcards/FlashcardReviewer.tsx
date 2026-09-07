@@ -118,20 +118,20 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
             {/* Flashcard Card Element */}
             <div
               onClick={() => setIsFlipped(!isFlipped)}
-              className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 shadow-sm hover:shadow-md transition-all cursor-pointer min-h-[340px] flex flex-col justify-between relative group"
+              className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] p-8 sm:p-12 shadow-sm hover:shadow-md transition-all cursor-pointer min-h-[340px] flex flex-col justify-between relative group"
             >
               {/* Card Meta Header */}
-              <div className="flex items-center justify-between gap-2 pb-4 border-b border-slate-100 text-xs">
+              <div className="flex items-center justify-between gap-2 pb-4 border-b border-slate-100 dark:border-slate-800 text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-md border border-teal-200/60">
+                  <span className="font-bold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/60 px-2.5 py-0.5 rounded-md border border-teal-200/60 dark:border-teal-800/60">
                     {discipline?.name || 'Medicina'}
                   </span>
-                  <span className="font-semibold text-slate-600">
+                  <span className="font-semibold text-slate-600 dark:text-slate-300">
                     {theme?.name || 'Tema'}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2 text-slate-400">
+                <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500">
                   <RotateCw className="w-3.5 h-3.5 group-hover:rotate-180 transition-transform duration-300" />
                   <span className="text-[11px] font-medium">Clique para virar</span>
                 </div>
@@ -141,28 +141,28 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
               <div className="py-8 my-auto text-center space-y-4">
                 {!isFlipped ? (
                   <div className="space-y-3 animate-in fade-in duration-200">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 block">
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 block">
                       FRENTE (CONCEITO / QUESTÃO)
                     </span>
-                    <p className="text-lg sm:text-2xl font-bold text-slate-900 leading-snug">
+                    <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-slate-100 leading-snug">
                       {currentCard.front}
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-4 animate-in fade-in duration-200">
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-teal-600 block">
+                    <span className="text-[11px] font-bold uppercase tracking-widest text-teal-600 dark:text-teal-400 block">
                       VERSO (RESPOSTA & EXPLICAÇÃO)
                     </span>
-                    <p className="text-base sm:text-xl font-semibold text-slate-900 leading-relaxed font-serif-reading whitespace-pre-line text-left max-w-xl mx-auto">
+                    <p className="text-base sm:text-xl font-semibold text-slate-900 dark:text-slate-100 leading-relaxed font-serif-reading whitespace-pre-line text-left max-w-xl mx-auto">
                       {currentCard.back}
                     </p>
 
                     {/* Mechanism Highlight */}
                     {currentCard.mechanismHighlight && (
-                      <div className="p-3.5 rounded-2xl bg-teal-50 border border-teal-200/80 text-xs text-teal-950 font-medium text-left max-w-xl mx-auto flex items-start gap-2">
-                        <Sparkles className="w-4 h-4 text-teal-700 shrink-0 mt-0.5" />
+                      <div className="p-3.5 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200/80 dark:border-teal-800 text-xs text-teal-950 dark:text-teal-200 font-medium text-left max-w-xl mx-auto flex items-start gap-2">
+                        <Sparkles className="w-4 h-4 text-teal-700 dark:text-teal-400 shrink-0 mt-0.5" />
                         <div>
-                          <strong className="block text-teal-900">Mecanismo-Chave:</strong>
+                          <strong className="block text-teal-900 dark:text-teal-300">Mecanismo-Chave:</strong>
                           <span>{currentCard.mechanismHighlight}</span>
                         </div>
                       </div>
@@ -172,10 +172,10 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
               </div>
 
               {/* Card Footer tags and compendium jump */}
-              <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400 dark:text-slate-500">
                 <div className="flex gap-1">
                   {currentCard.tags.map((t) => (
-                    <span key={t} className="text-[10px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md">
+                    <span key={t} className="text-[10px] px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-md">
                       #{t}
                     </span>
                   ))}

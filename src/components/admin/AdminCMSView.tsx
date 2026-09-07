@@ -166,7 +166,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     setCompDisciplineId(disciplines[0]?.id || 'cardio');
     setCompThemeId(themes[0]?.id || 'cardio-ic');
     setCompMode('mecanismos');
-    setCompAuthor('Equipe Editorial SynapseMed');
+    setCompAuthor('Equipe Editorial NexusMed');
     setCompEstimatedTime(15);
     setCompTagsStr('Fisiopatologia, Alta Relevância');
     setCompDependenciesStr('Bases Fisiológicas');
@@ -454,30 +454,30 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     <div className="space-y-6 max-w-6xl mx-auto pb-20">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#1a1919] text-[#e2ddd6] px-4 py-3 rounded-xl shadow-2xl border border-[#333131] text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3">
-          <Sparkles className="w-4 h-4 text-[#d4924a] shrink-0" />
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 dark:bg-[#142038] text-white dark:text-slate-100 px-4 py-3 rounded-xl shadow-2xl border border-slate-700 dark:border-[#243452] text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-3">
+          <Sparkles className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* ── Page Banner / Header ───────────────────────────────────── */}
-      <div className="bg-white dark:bg-[#1a1919] border border-stone-200 dark:border-stone-800 rounded-2xl p-6 sm:p-8 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#0F172A] border border-stone-200 dark:border-[#243452] rounded-2xl p-6 sm:p-8 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="space-y-1.5">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 dark:bg-[#2a1810] text-amber-900 dark:text-[#d4924a] text-xs font-bold border border-amber-200 dark:border-[#d4924a]/40 font-mono-code">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 text-xs font-bold border border-teal-200 dark:border-teal-800/60 font-mono-code">
             <Database className="w-3.5 h-3.5" />
             <span>Painel Curatorial & CMS Editorial</span>
           </div>
-          <h1 className="font-serif-reading text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-[#e2ddd6]">
+          <h1 className="font-serif-reading text-2xl sm:text-3xl font-bold tracking-tight text-stone-900 dark:text-slate-100">
             Gestão de Conteúdo Médico
           </h1>
-          <p className="text-stone-600 dark:text-stone-400 text-xs sm:text-sm">
+          <p className="text-stone-600 dark:text-slate-400 text-xs sm:text-sm">
             Crie e gerencie compêndios de área, mecanismos fisiopatológicos, questões comentadas e flashcards com repetição espaçada.
           </p>
         </div>
 
         <button
           onClick={handleResetData}
-          className="px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-rose-50 hover:dark:bg-rose-950/40 text-stone-700 dark:text-stone-300 hover:text-rose-700 dark:hover:text-rose-300 border border-stone-200 dark:border-stone-700 text-xs font-semibold transition-colors flex items-center gap-2 shrink-0"
+          className="px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-[#142038] hover:bg-rose-50 hover:dark:bg-rose-950/40 text-stone-700 dark:text-slate-300 hover:text-rose-700 dark:hover:text-rose-300 border border-stone-200 dark:border-[#243452] text-xs font-semibold transition-colors flex items-center gap-2 shrink-0 cursor-pointer"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           <span>Restaurar Base Padrão</span>
@@ -485,13 +485,13 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       </div>
 
       {/* ── Navigation Tabs ────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 border-b border-stone-200 dark:border-stone-800 pb-3 text-xs font-bold overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-2 border-b border-stone-200 dark:border-[#243452] pb-3 text-xs font-bold overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('compendiums')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 ${
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'compendiums'
-              ? 'bg-amber-900 text-white dark:bg-[#d4924a] dark:text-[#111010] shadow-xs font-bold'
-              : 'bg-stone-100 dark:bg-[#1a1919] text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-800'
+              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white shadow-xs font-bold'
+              : 'bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-300 hover:bg-stone-200 dark:hover:bg-[#1A2845]'
           }`}
         >
           <BookOpen className="w-4 h-4" />
@@ -500,10 +500,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
         <button
           onClick={() => setActiveTab('questions')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 ${
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'questions'
-              ? 'bg-amber-900 text-white dark:bg-[#d4924a] dark:text-[#111010] shadow-xs font-bold'
-              : 'bg-stone-100 dark:bg-[#1a1919] text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-800'
+              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white shadow-xs font-bold'
+              : 'bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-300 hover:bg-stone-200 dark:hover:bg-[#1A2845]'
           }`}
         >
           <HelpCircle className="w-4 h-4" />
@@ -512,10 +512,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
         <button
           onClick={() => setActiveTab('flashcards')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 ${
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'flashcards'
-              ? 'bg-amber-900 text-white dark:bg-[#d4924a] dark:text-[#111010] shadow-xs font-bold'
-              : 'bg-stone-100 dark:bg-[#1a1919] text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-800'
+              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white shadow-xs font-bold'
+              : 'bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-300 hover:bg-stone-200 dark:hover:bg-[#1A2845]'
           }`}
         >
           <Layers className="w-4 h-4" />
@@ -524,10 +524,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
         <button
           onClick={() => setActiveTab('users')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 ${
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
             activeTab === 'users'
-              ? 'bg-amber-900 text-white dark:bg-[#d4924a] dark:text-[#111010] shadow-xs font-bold'
-              : 'bg-stone-100 dark:bg-[#1a1919] text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-800'
+              ? 'bg-slate-900 text-white dark:bg-teal-600 dark:text-white shadow-xs font-bold'
+              : 'bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-300 hover:bg-stone-200 dark:hover:bg-[#1A2845]'
           }`}
         >
           <Users className="w-4 h-4" />
@@ -541,7 +541,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       {activeTab === 'compendiums' && (
         <div className="space-y-6">
           {/* Top Control Bar */}
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-[#1a1919] p-4 rounded-xl border border-stone-200 dark:border-stone-800 shadow-xs">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] shadow-xs">
             <div className="relative flex-1 max-w-md">
               <Search className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
               <input
@@ -549,14 +549,14 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 value={compSearch}
                 onChange={(e) => setCompSearch(e.target.value)}
                 placeholder="Buscar por título, subtítulo ou tag..."
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-teal-500"
               />
             </div>
 
             <button
               onClick={handlePublishAllDraftCompendiums}
               disabled={bulkPublishing}
-              className="px-3.5 py-2 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50"
+              className="px-3.5 py-2 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shrink-0 disabled:opacity-50 cursor-pointer"
               title="Publica todos os compêndios que ainda estão em rascunho"
             >
               <ShieldCheck className="w-4 h-4" />
@@ -565,7 +565,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
             <button
               onClick={handleOpenNewCompendium}
-              className="px-4 py-2 rounded-lg bg-amber-900 hover:bg-amber-800 text-white dark:bg-[#d4924a] dark:text-[#111010] dark:hover:bg-[#e5a45f] text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs shrink-0"
+              className="px-4 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:hover:bg-teal-500 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-xs shrink-0 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Novo Compêndio / Mecanismo</span>
@@ -576,13 +576,13 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
           {isCompendiumFormOpen && (
             <form
               onSubmit={handleSaveCompendium}
-              className="bg-white dark:bg-[#1a1919] rounded-2xl border-2 border-amber-500/50 dark:border-[#d4924a]/60 p-6 sm:p-8 shadow-md space-y-6 text-xs animate-in fade-in"
+              className="bg-white dark:bg-[#0F172A] rounded-2xl border-2 border-teal-500/50 dark:border-teal-500/60 p-6 sm:p-8 shadow-md space-y-6 text-xs animate-in fade-in"
             >
               {/* Form Title */}
-              <div className="flex items-center justify-between border-b border-stone-200 dark:border-stone-800 pb-3">
+              <div className="flex items-center justify-between border-b border-stone-200 dark:border-[#243452] pb-3">
                 <div className="flex items-center gap-2">
-                  <BookOpen className="w-4 h-4 text-[#d4924a]" />
-                  <h3 className="font-serif-reading text-lg font-bold text-stone-900 dark:text-[#e2ddd6]">
+                  <BookOpen className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                  <h3 className="font-serif-reading text-lg font-bold text-stone-900 dark:text-slate-100">
                     {editingCompId ? 'Editar Compêndio' : 'Incluir Novo Compêndio ou Mecanismo'}
                   </h3>
                 </div>
@@ -592,7 +592,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     setIsCompendiumFormOpen(false);
                     setEditingCompId(null);
                   }}
-                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-[#222121]"
+                  className="p-1.5 rounded-lg text-stone-400 hover:text-stone-700 dark:hover:text-slate-200 hover:bg-stone-100 dark:hover:bg-[#142038] cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -601,7 +601,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
               {/* General Metadata */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
-                  <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                     Título Principal do Compêndio *
                   </label>
                   <input
@@ -610,18 +610,18 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     value={compTitle}
                     onChange={(e) => setCompTitle(e.target.value)}
                     placeholder="Ex: Fibrilação Atrial: Manejo Agudo, Controle de Ritmo e Anticoagulação"
-                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] font-semibold text-xs"
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 font-semibold text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                     Modalidade / Categoria
                   </label>
                   <select
                     value={compMode}
                     onChange={(e) => setCompMode(e.target.value as 'atlas' | 'mecanismos')}
-                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] font-semibold text-xs"
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 font-semibold text-xs"
                   >
                     <option value="mecanismos">Mecanismo Fisiopatológico (Fisio/Farmaco)</option>
                     <option value="atlas">Compêndio de Área (Atlas / Panorama)</option>
@@ -630,7 +630,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
               </div>
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                   Subtítulo / Descrição Sintética *
                 </label>
                 <input
@@ -639,19 +639,19 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                   value={compSubtitle}
                   onChange={(e) => setCompSubtitle(e.target.value)}
                   placeholder="Ex: Abordagem fisiopatológica do remodelamento atrial, escores CHA2DS2-VASc e condutas baseadas em diretrizes."
-                  className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                  className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                     Disciplina
                   </label>
                   <select
                     value={compDisciplineId}
                     onChange={(e) => setCompDisciplineId(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
                   >
                     {disciplines.map((d) => (
                       <option key={d.id} value={d.id}>
@@ -662,13 +662,13 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                     Tema Vinculado
                   </label>
                   <select
                     value={compThemeId}
                     onChange={(e) => setCompThemeId(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
                   >
                     {themes
                       .filter((t) => !compDisciplineId || t.disciplineId === compDisciplineId)
@@ -682,7 +682,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                     Autor / Curador
                   </label>
                   <input
@@ -690,12 +690,12 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     value={compAuthor}
                     onChange={(e) => setCompAuthor(e.target.value)}
                     placeholder="Ex: Dr. Roberto Albuquerque"
-                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                     Tempo Est. (minutos)
                   </label>
                   <input
@@ -704,14 +704,14 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     max={120}
                     value={compEstimatedTime}
                     onChange={(e) => setCompEstimatedTime(Number(e.target.value))}
-                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                     Tags Clínicas (separadas por vírgula)
                   </label>
                   <input
@@ -719,12 +719,12 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     value={compTagsStr}
                     onChange={(e) => setCompTagsStr(e.target.value)}
                     placeholder="Ex: Cardiologia, Eletrofisiologia, Anticoagulação, Emergência"
-                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                     Nós de Conexão / Pré-requisitos (separados por vírgula)
                   </label>
                   <input
@@ -732,20 +732,20 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     value={compDependenciesStr}
                     onChange={(e) => setCompDependenciesStr(e.target.value)}
                     placeholder="Ex: Potencial de Ação Cardíaco, Anatomia dos Átrios"
-                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
                   />
                 </div>
               </div>
 
               {/* ── SECTIONS BUILDER ───────────────────────────────────── */}
-              <div className="space-y-4 pt-4 border-t border-stone-200 dark:border-stone-800">
+              <div className="space-y-4 pt-4 border-t border-stone-200 dark:border-[#243452]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-bold text-sm text-stone-900 dark:text-[#e2ddd6] flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-[#d4924a]" />
+                    <h4 className="font-bold text-sm text-stone-900 dark:text-slate-100 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-teal-600 dark:text-teal-400" />
                       <span>Seções Teóricas Estruturadas ({compSections.length})</span>
                     </h4>
-                    <p className="text-[11px] text-stone-500 dark:text-stone-400">
+                    <p className="text-[11px] text-stone-500 dark:text-slate-400">
                       Adicione módulos explicativos, tabelas markdown, pontos-chave e alertas clínicos.
                     </p>
                   </div>
@@ -753,9 +753,9 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                   <button
                     type="button"
                     onClick={handleAddSection}
-                    className="px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-800 dark:text-stone-200 font-bold text-xs flex items-center gap-1.5 transition-colors"
+                    className="px-3 py-1.5 rounded-lg bg-stone-100 dark:bg-[#142038] hover:bg-stone-200 dark:hover:bg-[#1A2845] text-stone-800 dark:text-stone-200 font-bold text-xs flex items-center gap-1.5 transition-colors"
                   >
-                    <Plus className="w-3.5 h-3.5 text-[#d4924a]" />
+                    <Plus className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                     <span>Adicionar Seção</span>
                   </button>
                 </div>
@@ -764,10 +764,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                   {compSections.map((sec, secIdx) => (
                     <div
                       key={sec.id || secIdx}
-                      className="p-4 sm:p-5 rounded-xl bg-stone-50 dark:bg-[#222121] border border-stone-200 dark:border-stone-800 space-y-3"
+                      className="p-4 sm:p-5 rounded-xl bg-stone-50 dark:bg-[#142038] border border-stone-200 dark:border-[#243452] space-y-3"
                     >
-                      <div className="flex items-center justify-between gap-2 border-b border-stone-200 dark:border-stone-700/60 pb-2">
-                        <span className="font-mono-code text-[11px] font-bold text-amber-900 dark:text-[#d4924a]">
+                      <div className="flex items-center justify-between gap-2 border-b border-stone-200 dark:border-[#243452]/60 pb-2">
+                        <span className="font-mono-code text-[11px] font-bold text-amber-900 dark:text-teal-400">
                           Seção {secIdx + 1}
                         </span>
 
@@ -785,7 +785,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="sm:col-span-2">
-                          <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                          <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                             Título da Seção
                           </label>
                           <input
@@ -794,12 +794,12 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                             value={sec.title}
                             onChange={(e) => handleUpdateSection(secIdx, 'title', e.target.value)}
                             placeholder="Ex: 1. Fisiopatologia e Remodelamento Eletroanatômico"
-                            className="w-full p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-[#1a1919] text-stone-900 dark:text-[#e2ddd6] text-xs font-semibold"
+                            className="w-full p-2 rounded-lg border border-stone-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] text-stone-900 dark:text-slate-100 text-xs font-semibold"
                           />
                         </div>
 
                         <div>
-                          <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                          <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                             Tag de Mecanismo / Âncora
                           </label>
                           <input
@@ -807,13 +807,13 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                             value={sec.mechanismTag || ''}
                             onChange={(e) => handleUpdateSection(secIdx, 'mechanismTag', e.target.value)}
                             placeholder="Ex: Fisiopatologia, Farmacodinâmica, Conduta"
-                            className="w-full p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-[#1a1919] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                            className="w-full p-2 rounded-lg border border-stone-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] text-stone-900 dark:text-slate-100 text-xs"
                           />
                         </div>
                       </div>
 
                       <div>
-                        <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                        <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                           Conteúdo Teórico (Markdown / Texto / Tabelas)
                         </label>
                         <textarea
@@ -822,33 +822,33 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                           value={sec.content}
                           onChange={(e) => handleUpdateSection(secIdx, 'content', e.target.value)}
                           placeholder="Digite os conceitos. Para tabelas, utilize o formato | Coluna 1 | Coluna 2 |"
-                          className="w-full p-3 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-[#1a1919] text-stone-900 dark:text-[#e2ddd6] font-mono-code text-xs leading-relaxed"
+                          className="w-full p-3 rounded-lg border border-stone-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] text-stone-900 dark:text-slate-100 font-mono-code text-xs leading-relaxed"
                         />
                       </div>
 
                       {/* Key Takeaways Builder */}
                       <div className="space-y-2 pt-2">
                         <div className="flex items-center justify-between">
-                          <label className="font-bold text-stone-700 dark:text-stone-300 block">
+                          <label className="font-bold text-stone-700 dark:text-slate-300 block">
                             Pontos-Chave & Mecanismos Essenciais
                           </label>
                           <button
                             type="button"
                             onClick={() => handleAddTakeaway(secIdx)}
-                            className="text-[11px] text-[#d4924a] hover:underline font-semibold"
+                            className="text-[11px] text-teal-600 dark:text-teal-400 hover:underline font-semibold"
                           >
                             + Ponto-chave
                           </button>
                         </div>
                         {sec.keyTakeaways.map((takeaway, tIdx) => (
                           <div key={tIdx} className="flex items-center gap-2">
-                            <span className="text-[#d4924a] font-bold">•</span>
+                            <span className="text-teal-600 dark:text-teal-400 font-bold">•</span>
                             <input
                               type="text"
                               value={takeaway}
                               onChange={(e) => handleUpdateTakeaway(secIdx, tIdx, e.target.value)}
                               placeholder="Conceito chave para fixação"
-                              className="flex-1 p-1.5 rounded-md border border-stone-200 dark:border-stone-700 bg-white dark:bg-[#1a1919] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                              className="flex-1 p-1.5 rounded-md border border-stone-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] text-stone-900 dark:text-slate-100 text-xs"
                             />
                             {sec.keyTakeaways.length > 1 && (
                               <button
@@ -865,8 +865,8 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                         <div>
-                          <label className="font-bold text-stone-700 dark:text-stone-300 flex items-center gap-1 mb-1">
-                            <Lightbulb className="w-3.5 h-3.5 text-[#d4924a]" />
+                          <label className="font-bold text-stone-700 dark:text-slate-300 flex items-center gap-1 mb-1">
+                            <Lightbulb className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                             <span>Pérola Clínica & Aplicação (Opcional)</span>
                           </label>
                           <input
@@ -874,12 +874,12 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                             value={sec.clinicalPearl || ''}
                             onChange={(e) => handleUpdateSection(secIdx, 'clinicalPearl', e.target.value)}
                             placeholder="Dica rápida de conduta ou diagnóstico"
-                            className="w-full p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-[#1a1919] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                            className="w-full p-2 rounded-lg border border-stone-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] text-stone-900 dark:text-slate-100 text-xs"
                           />
                         </div>
 
                         <div>
-                          <label className="font-bold text-stone-700 dark:text-stone-300 flex items-center gap-1 mb-1">
+                          <label className="font-bold text-stone-700 dark:text-slate-300 flex items-center gap-1 mb-1">
                             <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
                             <span>Alerta de Armadilha / Erro Comum (Opcional)</span>
                           </label>
@@ -888,7 +888,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                             value={sec.warningAlert || ''}
                             onChange={(e) => handleUpdateSection(secIdx, 'warningAlert', e.target.value)}
                             placeholder="Contraindicação ou pegadinha clássica"
-                            className="w-full p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-[#1a1919] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                            className="w-full p-2 rounded-lg border border-stone-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] text-stone-900 dark:text-slate-100 text-xs"
                           />
                         </div>
                       </div>
@@ -899,7 +899,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
               {/* References */}
               <div>
-                <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                   Referências Bibliográficas & Diretrizes Oficiais (uma por linha)
                 </label>
                 <textarea
@@ -907,25 +907,25 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                   value={compReferencesStr}
                   onChange={(e) => setCompReferencesStr(e.target.value)}
                   placeholder="Ex: Diretriz de Fibrilação Atrial da Sociedade Brasileira de Cardiologia (2024)"
-                  className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6] text-xs"
+                  className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
                 />
               </div>
 
               {/* Form Buttons */}
-              <div className="pt-4 border-t border-stone-200 dark:border-stone-800 flex items-center justify-end gap-3">
+              <div className="pt-4 border-t border-stone-200 dark:border-[#243452] flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => {
                     setIsCompendiumFormOpen(false);
                     setEditingCompId(null);
                   }}
-                  className="px-4 py-2 rounded-lg border border-stone-200 dark:border-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 font-semibold"
+                  className="px-4 py-2 rounded-lg border border-stone-200 dark:border-[#243452] text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-[#1A2845] font-semibold"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 rounded-lg bg-amber-900 hover:bg-amber-800 text-white dark:bg-[#d4924a] dark:text-[#111010] dark:hover:bg-[#e5a45f] font-bold shadow-xs flex items-center gap-1.5 transition-all"
+                  className="px-6 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:text-white dark:hover:bg-teal-500 font-bold shadow-xs flex items-center gap-1.5 transition-all"
                 >
                   <Save className="w-4 h-4" />
                   <span>{editingCompId ? 'Atualizar Compêndio' : 'Publicar Compêndio'}</span>
@@ -943,7 +943,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
               return (
                 <div
                   key={c.id}
-                  className={`bg-white dark:bg-[#1a1919] rounded-xl border border-stone-200 dark:border-stone-800 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-amber-400 dark:hover:border-[#d4924a] transition-all ${
+                  className={`bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] p-5 shadow-xs flex flex-col justify-between space-y-4 hover:border-amber-400 dark:hover:border-teal-500 transition-all ${
                     isAtlas ? 'border-l-4 border-l-[#5b8dd9]' : 'border-l-4 border-l-[#c0604a]'
                   }`}
                 >
@@ -957,7 +957,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                         >
                           {isAtlas ? 'Compêndio de Área' : 'Mecanismo Fisiopatológico'}
                         </span>
-                        <span className="text-[10px] font-semibold text-stone-500 dark:text-stone-400">
+                        <span className="text-[10px] font-semibold text-stone-500 dark:text-slate-400">
                           {disc?.name || c.disciplineId}
                         </span>
                         <span
@@ -977,14 +977,14 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                       </div>
                     </div>
 
-                    <h4 className="font-serif-reading text-base font-bold text-stone-900 dark:text-[#e2ddd6] leading-snug">
+                    <h4 className="font-serif-reading text-base font-bold text-stone-900 dark:text-slate-100 leading-snug">
                       {c.title}
                     </h4>
-                    <p className="text-xs text-stone-600 dark:text-stone-400 line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-stone-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
                       {c.subtitle}
                     </p>
 
-                    <div className="flex items-center gap-2 text-[11px] text-stone-500 dark:text-stone-400 pt-1">
+                    <div className="flex items-center gap-2 text-[11px] text-stone-500 dark:text-slate-400 pt-1">
                       <span>{c.sections.length} {c.sections.length === 1 ? 'seção' : 'seções'} estruturadas</span>
                       <span>·</span>
                       <span>Autor: {c.author}</span>
@@ -995,7 +995,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                         {c.tags.map((t, idx) => (
                           <span
                             key={idx}
-                            className="text-[9px] px-2 py-0.5 rounded bg-stone-100 dark:bg-[#222121] text-stone-600 dark:text-stone-400 border border-stone-200 dark:border-stone-800"
+                            className="text-[9px] px-2 py-0.5 rounded bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-400 border border-stone-200 dark:border-[#243452]"
                           >
                             #{t}
                           </span>
@@ -1004,7 +1004,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     )}
                   </div>
 
-                  <div className="pt-3 border-t border-stone-100 dark:border-stone-800 flex items-center justify-between">
+                  <div className="pt-3 border-t border-stone-100 dark:border-[#243452] flex items-center justify-between">
                     <span className="text-[10px] text-stone-400 font-mono-code">ID: {c.id}</span>
 
                     <div className="flex items-center gap-2">
@@ -1012,7 +1012,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                         onClick={() => handleTogglePublishCompendium(c.id, c.title, c.publicationStatus)}
                         className={`px-3 py-1.5 rounded-lg border font-semibold text-xs flex items-center gap-1 transition-colors ${
                           c.publicationStatus === 'published'
-                            ? 'border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300'
+                            ? 'border-stone-200 dark:border-[#243452] hover:bg-stone-100 dark:hover:bg-[#1A2845] text-stone-600 dark:text-stone-300'
                             : 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
                         }`}
                         title={c.publicationStatus === 'published' ? 'Despublicar (volta a rascunho)' : 'Publicar (fica visível para estudantes)'}
@@ -1032,16 +1032,16 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
                       <button
                         onClick={() => handleEditCompendium(c)}
-                        className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 font-semibold text-xs flex items-center gap-1 transition-colors"
+                        className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-[#243452] hover:bg-stone-100 dark:hover:bg-[#1A2845] text-stone-700 dark:text-slate-300 font-semibold text-xs flex items-center gap-1 transition-colors"
                         title="Editar compêndio"
                       >
-                        <Edit3 className="w-3.5 h-3.5 text-[#d4924a]" />
+                        <Edit3 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                         <span>Editar</span>
                       </button>
 
                       <button
                         onClick={() => handleDeleteCompendium(c.id, c.title)}
-                        className="p-1.5 rounded-lg border border-stone-200 dark:border-stone-700 hover:bg-rose-50 hover:dark:bg-rose-950/40 text-stone-400 hover:text-rose-600 transition-colors"
+                        className="p-1.5 rounded-lg border border-stone-200 dark:border-[#243452] hover:bg-rose-50 hover:dark:bg-rose-950/40 text-stone-400 hover:text-rose-600 transition-colors"
                         title="Excluir compêndio"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -1060,12 +1060,12 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       {/* ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'questions' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between bg-white dark:bg-[#1a1919] p-4 rounded-xl border border-stone-200 dark:border-stone-800 shadow-xs">
+          <div className="flex items-center justify-between bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] shadow-xs">
             <div>
-              <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-[#e2ddd6]">
+              <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-slate-100">
                 Banco de Questões Cadastradas
               </h3>
-              <p className="text-[11px] text-stone-500 dark:text-stone-400">
+              <p className="text-[11px] text-stone-500 dark:text-slate-400">
                 {questions.length} questões com explicações por alternativa vinculadas aos compêndios
               </p>
             </div>
@@ -1083,7 +1083,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
               <button
                 onClick={() => setIsCreatingQuestion(!isCreatingQuestion)}
-                className="px-4 py-2 bg-amber-900 hover:bg-amber-800 text-white dark:bg-[#d4924a] dark:text-[#111010] dark:hover:bg-[#e5a45f] font-bold text-xs rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
+                className="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:text-white dark:hover:bg-teal-500 font-bold text-xs rounded-lg shadow-xs transition-colors flex items-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
                 <span>{isCreatingQuestion ? 'Fechar Formulário' : 'Nova Questão'}</span>
@@ -1095,19 +1095,19 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
           {isCreatingQuestion && (
             <form
               onSubmit={handleSaveQuestion}
-              className="bg-white dark:bg-[#1a1919] rounded-2xl border-2 border-amber-500/50 dark:border-[#d4924a]/60 p-6 shadow-sm space-y-4 text-xs animate-in fade-in"
+              className="bg-white dark:bg-[#0F172A] rounded-2xl border-2 border-amber-500/50 dark:border-teal-500/60 p-6 shadow-sm space-y-4 text-xs animate-in fade-in"
             >
-              <h4 className="font-serif-reading font-bold text-sm text-stone-900 dark:text-[#e2ddd6] pb-2 border-b border-stone-200 dark:border-stone-800">
+              <h4 className="font-serif-reading font-bold text-sm text-stone-900 dark:text-slate-100 pb-2 border-b border-stone-200 dark:border-[#243452]">
                 Cadastrar Questão com Explicação por Alternativa
               </h4>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">Disciplina</label>
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Disciplina</label>
                   <select
                     value={newQDiscipline}
                     onChange={(e) => setNewQDiscipline(e.target.value)}
-                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6]"
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100"
                   >
                     {disciplines.map((d) => (
                       <option key={d.id} value={d.id}>
@@ -1118,31 +1118,31 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">Instituição / Banca</label>
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Instituição / Banca</label>
                   <input
                     type="text"
                     required
                     value={newQInstitution}
                     onChange={(e) => setNewQInstitution(e.target.value)}
                     placeholder="Ex: USP, ENARE, UNICAMP"
-                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6]"
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100"
                   />
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">Ano</label>
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Ano</label>
                   <input
                     type="number"
                     required
                     value={newQYear}
                     onChange={(e) => setNewQYear(Number(e.target.value))}
-                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6]"
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                   Enunciado Clínico (Caso / Vinheta)
                 </label>
                 <textarea
@@ -1150,12 +1150,12 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                   value={newQVignette}
                   onChange={(e) => setNewQVignette(e.target.value)}
                   placeholder="Ex: Paciente de 68 anos dá entrada no pronto-socorro com palpitações taquicárdicas..."
-                  className="w-full p-3 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6]"
+                  className="w-full p-3 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                   Comando da Questão (Pergunta)
                 </label>
                 <input
@@ -1164,7 +1164,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                   value={newQStem}
                   onChange={(e) => setNewQStem(e.target.value)}
                   placeholder="Ex: Qual é a conduta farmacológica imediata mais indicada?"
-                  className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6]"
+                  className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100"
                 />
               </div>
 
@@ -1182,10 +1182,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 ].map((item) => (
                   <div
                     key={item.letter}
-                    className="p-3 bg-stone-50 dark:bg-[#222121] rounded-xl border border-stone-200 dark:border-stone-700 space-y-2"
+                    className="p-3 bg-stone-50 dark:bg-[#142038] rounded-xl border border-stone-200 dark:border-[#243452] space-y-2"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="font-bold text-stone-700 dark:text-stone-300 font-mono-code">
+                      <span className="font-bold text-stone-700 dark:text-slate-300 font-mono-code">
                         {item.letter})
                       </span>
                       <input
@@ -1194,7 +1194,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                         placeholder={`Texto da alternativa ${item.letter}`}
                         value={item.state.text}
                         onChange={(e) => item.set({ ...item.state, text: e.target.value })}
-                        className="flex-1 p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-[#1a1919] text-stone-900 dark:text-[#e2ddd6]"
+                        className="flex-1 p-2 rounded-lg border border-stone-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] text-stone-900 dark:text-slate-100"
                       />
                       <label className="flex items-center gap-1.5 font-bold text-emerald-700 dark:text-emerald-400 cursor-pointer">
                         <input
@@ -1216,14 +1216,14 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                       placeholder={`Explicação comentada da alternativa ${item.letter}`}
                       value={item.state.exp}
                       onChange={(e) => item.set({ ...item.state, exp: e.target.value })}
-                      className="w-full p-2 rounded-lg border border-stone-200 dark:border-stone-700 bg-white dark:bg-[#1a1919] text-stone-900 dark:text-[#e2ddd6]"
+                      className="w-full p-2 rounded-lg border border-stone-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] text-stone-900 dark:text-slate-100"
                     />
                   </div>
                 ))}
               </div>
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-stone-300 block mb-1">
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
                   Pérola High-Yield (Resumo para fixação rápida)
                 </label>
                 <input
@@ -1231,21 +1231,21 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                   value={newQHighYield}
                   onChange={(e) => setNewQHighYield(e.target.value)}
                   placeholder="Ex: Em pacientes instáveis, a conduta é cardioversão elétrica imediata sincronizada."
-                  className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-[#222121] text-stone-900 dark:text-[#e2ddd6]"
+                  className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100"
                 />
               </div>
 
-              <div className="pt-3 border-t border-stone-200 dark:border-stone-800 flex justify-end gap-3">
+              <div className="pt-3 border-t border-stone-200 dark:border-[#243452] flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={() => setIsCreatingQuestion(false)}
-                  className="px-4 py-2 rounded-lg text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 font-semibold"
+                  className="px-4 py-2 rounded-lg text-stone-600 dark:text-slate-400 hover:bg-stone-100 dark:hover:bg-[#1A2845] font-semibold"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2 rounded-lg bg-amber-900 hover:bg-amber-800 text-white dark:bg-[#d4924a] dark:text-[#111010] dark:hover:bg-[#e5a45f] font-bold shadow-xs flex items-center gap-1.5"
+                  className="px-6 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white dark:bg-teal-600 dark:text-white dark:hover:bg-teal-500 font-bold shadow-xs flex items-center gap-1.5"
                 >
                   <Save className="w-4 h-4" />
                   <span>Publicar Questão</span>
@@ -1255,15 +1255,15 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
           )}
 
           {/* List of existing questions */}
-          <div className="bg-white dark:bg-[#1a1919] rounded-xl border border-stone-200 dark:border-stone-800 divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden shadow-xs">
+          <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden shadow-xs">
             {questions.map((q) => (
               <div key={q.id} className="p-4 flex items-center justify-between gap-4 text-xs">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-stone-900 dark:text-[#e2ddd6]">
+                    <span className="font-bold text-stone-900 dark:text-slate-100">
                       {q.institution} ({q.year})
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 font-semibold">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-400 font-semibold">
                       {q.difficulty}
                     </span>
                     <span
@@ -1276,7 +1276,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                       {q.publicationStatus === 'published' ? 'publicada' : 'rascunho'}
                     </span>
                   </div>
-                  <p className="text-stone-600 dark:text-stone-400 font-medium line-clamp-1">{q.questionStem}</p>
+                  <p className="text-stone-600 dark:text-slate-400 font-medium line-clamp-1">{q.questionStem}</p>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
@@ -1285,7 +1285,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     onClick={() => handleTogglePublishQuestion(q.id, q.publicationStatus)}
                     className={`px-2.5 py-1 rounded-lg border font-semibold flex items-center gap-1 transition-colors ${
                       q.publicationStatus === 'published'
-                        ? 'border-stone-200 dark:border-stone-700 hover:bg-stone-100 dark:hover:bg-stone-800 text-stone-600 dark:text-stone-300'
+                        ? 'border-stone-200 dark:border-[#243452] hover:bg-stone-100 dark:hover:bg-[#1A2845] text-stone-600 dark:text-stone-300'
                         : 'border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300'
                     }`}
                     title={q.publicationStatus === 'published' ? 'Despublicar (volta a rascunho)' : 'Publicar (fica visível para estudantes)'}
@@ -1316,26 +1316,26 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       {/* ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'flashcards' && (
         <div className="space-y-4">
-          <div className="bg-white dark:bg-[#1a1919] p-4 rounded-xl border border-stone-200 dark:border-stone-800 shadow-xs flex items-center justify-between">
+          <div className="bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] shadow-xs flex items-center justify-between">
             <div>
-              <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-[#e2ddd6]">
+              <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-slate-100">
                 Flashcards SRS no Sistema
               </h3>
-              <p className="text-[11px] text-stone-500 dark:text-stone-400">
+              <p className="text-[11px] text-stone-500 dark:text-slate-400">
                 Cartões indexados para repetição espaçada SM-2 vinculados à base conceitual
               </p>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#1a1919] rounded-xl border border-stone-200 dark:border-stone-800 divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden shadow-xs">
+          <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden shadow-xs">
             {flashcards.map((fc) => (
               <div key={fc.id} className="p-4 flex items-center justify-between gap-4 text-xs">
                 <div className="space-y-1">
-                  <span className="font-bold text-stone-900 dark:text-[#e2ddd6]">{fc.front}</span>
-                  <p className="text-stone-500 dark:text-stone-400 line-clamp-1">{fc.back}</p>
+                  <span className="font-bold text-stone-900 dark:text-slate-100">{fc.front}</span>
+                  <p className="text-stone-500 dark:text-slate-400 line-clamp-1">{fc.back}</p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 dark:bg-[#2a1810] text-amber-900 dark:text-[#d4924a] font-bold border border-amber-200 dark:border-[#d4924a]/40">
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 dark:bg-teal-950/60 text-amber-900 dark:text-teal-400 font-bold border border-amber-200 dark:border-teal-500/40">
                     Repetições: {fc.srs.repetitionCount}
                   </span>
                   <button
@@ -1361,19 +1361,19 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       {/* ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'users' && (
         <div className="space-y-4">
-          <div className="bg-white dark:bg-[#1a1919] p-4 rounded-xl border border-stone-200 dark:border-stone-800 shadow-xs flex items-center justify-between">
+          <div className="bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] shadow-xs flex items-center justify-between">
             <div>
-              <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-[#e2ddd6]">
+              <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-slate-100">
                 Cadastros e Aprovação de Acesso
               </h3>
-              <p className="text-[11px] text-stone-500 dark:text-stone-400">
+              <p className="text-[11px] text-stone-500 dark:text-slate-400">
                 Novas contas nascem como "pendente" e só acessam o conteúdo depois de aprovadas aqui.
               </p>
             </div>
             <button
               onClick={loadProfiles}
               disabled={profilesLoading}
-              className="px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 hover:dark:bg-stone-700 text-stone-700 dark:text-stone-300 border border-stone-200 dark:border-stone-700 text-xs font-semibold transition-colors flex items-center gap-2 shrink-0 disabled:opacity-50"
+              className="px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-[#142038] hover:bg-stone-200 hover:dark:bg-stone-700 text-stone-700 dark:text-slate-300 border border-stone-200 dark:border-[#243452] text-xs font-semibold transition-colors flex items-center gap-2 shrink-0 disabled:opacity-50"
             >
               <RotateCcw className={`w-3.5 h-3.5 ${profilesLoading ? 'animate-spin' : ''}`} />
               <span>Atualizar</span>
@@ -1387,22 +1387,22 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
             </div>
           )}
 
-          <div className="bg-white dark:bg-[#1a1919] rounded-xl border border-stone-200 dark:border-stone-800 divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden shadow-xs">
+          <div className="bg-white dark:bg-[#0F172A] rounded-xl border border-stone-200 dark:border-[#243452] divide-y divide-stone-100 dark:divide-stone-800 overflow-hidden shadow-xs">
             {profilesLoading && profiles.length === 0 && (
-              <div className="p-6 text-center text-xs text-stone-500 dark:text-stone-400">Carregando usuários…</div>
+              <div className="p-6 text-center text-xs text-stone-500 dark:text-slate-400">Carregando usuários…</div>
             )}
             {!profilesLoading && profiles.length === 0 && !profilesError && (
-              <div className="p-6 text-center text-xs text-stone-500 dark:text-stone-400">Nenhum usuário cadastrado ainda.</div>
+              <div className="p-6 text-center text-xs text-stone-500 dark:text-slate-400">Nenhum usuário cadastrado ainda.</div>
             )}
             {profiles.map((p) => (
               <div key={p.id} className="p-4 flex items-center justify-between gap-4 text-xs">
                 <div className="space-y-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-stone-900 dark:text-[#e2ddd6] truncate">
+                    <span className="font-bold text-stone-900 dark:text-slate-100 truncate">
                       {p.display_name || p.email}
                     </span>
                     {p.role === 'admin' && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 dark:bg-[#2a1810] text-amber-900 dark:text-[#d4924a] font-bold border border-amber-200 dark:border-[#d4924a]/40 shrink-0">
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-amber-50 dark:bg-teal-950/60 text-amber-900 dark:text-teal-400 font-bold border border-amber-200 dark:border-teal-500/40 shrink-0">
                         admin
                       </span>
                     )}
@@ -1412,13 +1412,13 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                           ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900'
                           : p.status === 'pending'
                           ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900'
-                          : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 border-stone-200 dark:border-stone-700'
+                          : 'bg-stone-100 dark:bg-[#142038] text-stone-500 dark:text-slate-400 border-stone-200 dark:border-[#243452]'
                       }`}
                     >
                       {p.status === 'active' ? 'ativo' : p.status === 'pending' ? 'pendente' : 'bloqueado'}
                     </span>
                   </div>
-                  <p className="text-stone-500 dark:text-stone-400 truncate">{p.email}</p>
+                  <p className="text-stone-500 dark:text-slate-400 truncate">{p.email}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {p.status !== 'active' && (

@@ -10,7 +10,7 @@ export function getSupabaseAuthErrorMessage(error: any): string {
   switch (code) {
     case 'email_exists':
     case 'user_already_exists':
-      return 'Este endereço de e-mail já está cadastrado no SynapseMed. Faça login com sua senha ou utilize a recuperação de senha.';
+      return 'Este endereço de e-mail já está cadastrado no NexusMed. Faça login com sua senha ou utilize a recuperação de senha.';
     case 'validation_failed':
     case 'bad_json':
     case 'email_address_invalid':
@@ -30,7 +30,7 @@ export function getSupabaseAuthErrorMessage(error: any): string {
     case 'user_banned':
       return 'Esta conta de usuário foi desativada pelo administrador. Entre em contato com o suporte acadêmico.';
     case 'provider_email_needs_verification':
-      return 'Sua conta do Google usa um e-mail que ainda precisa ser verificado antes de ser vinculado ao SynapseMed. Verifique o e-mail associado à sua conta Google e tente novamente.';
+      return 'Sua conta do Google usa um e-mail que ainda precisa ser verificado antes de ser vinculado ao NexusMed. Verifique o e-mail associado à sua conta Google e tente novamente.';
     case 'oauth_provider_not_supported':
       return 'O login com Google não está habilitado no momento. Entre em contato com o suporte acadêmico ou utilize e-mail e senha.';
     case 'bad_oauth_state':

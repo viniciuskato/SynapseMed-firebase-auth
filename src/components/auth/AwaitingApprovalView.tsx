@@ -28,8 +28,8 @@ export const AwaitingApprovalView: React.FC<AwaitingApprovalViewProps> = ({ onRe
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col items-center justify-center p-4 sm:p-6 transition-colors">
       <div className="w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl p-6 sm:p-8 space-y-6 text-center">
         {/* Brand Icon */}
-        <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-900 dark:bg-[#d4924a] text-white dark:text-[#111010] flex items-center justify-center text-2xl font-serif-reading font-bold shadow-md">
-          Ψ
+        <div className="w-16 h-16 mx-auto rounded-3xl bg-gradient-to-tr from-teal-600 to-cyan-500 text-white flex items-center justify-center text-2xl font-serif-reading font-bold shadow-md shadow-teal-600/30">
+          N
         </div>
 
         {/* Title and Status Badge */}
@@ -42,7 +42,7 @@ export const AwaitingApprovalView: React.FC<AwaitingApprovalViewProps> = ({ onRe
             Olá, {userName}! Seu cadastro foi recebido.
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-            O SynapseMed é uma biblioteca médica e ambiente de estudos restrito a um grupo seleto de convidados. Seu e-mail já foi validado e está em fila de autorização pela moderação.
+            O NexusMed é uma biblioteca médica e ambiente de estudos restrito a um grupo seleto de convidados. Seu e-mail já foi validado e está em fila de autorização pela moderação.
           </p>
         </div>
 

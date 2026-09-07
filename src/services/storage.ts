@@ -385,7 +385,7 @@ export const StorageService = {
     const plan = this.getUserPlan();
     return {
       id: currentUserId || 'user-med-1',
-      name: 'Estudante SynapseMed',
+      name: 'Estudante NexusMed',
       email: '',
       cycle: 'clinico',
       plan,

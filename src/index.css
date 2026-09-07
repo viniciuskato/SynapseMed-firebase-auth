@@ -4,38 +4,42 @@
 
 @layer base {
   :root {
-    --bg-canvas: #F6F7F9;
+    --bg-canvas: #F8FAFC;
     --bg-surface: #FFFFFF;
     --bg-surface-secondary: #F1F5F9;
     --bg-surface-elevated: #FFFFFF;
     --border-color: #E2E8F0;
     --border-subtle: #F1F5F9;
-    --text-primary: #172033;
-    --text-secondary: #64748B;
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
     --text-tertiary: #94A3B8;
-    --ac: #0F766E;
-    --ac-hover: #0D9488;
+    --ac: #0D9488;
+    --ac-hover: #0F766E;
     --ac-light: #F0FDFA;
     --ac-amber: #F59E0B;
-    --card-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+    --ac-purple: #8B5CF6;
+    --ac-emerald: #10B981;
+    --card-shadow: 0 4px 20px -2px rgb(15 23 42 / 0.05);
     color-scheme: light;
   }
 
   .dark {
-    --bg-canvas: #0B1220;
-    --bg-surface: #111827;
-    --bg-surface-secondary: #151F32;
-    --bg-surface-elevated: #182235;
-    --border-color: #263244;
-    --border-subtle: #1C2638;
-    --text-primary: #E5E7EB;
+    --bg-canvas: #090E17;
+    --bg-surface: #0F172A;
+    --bg-surface-secondary: #142038;
+    --bg-surface-elevated: #1A2845;
+    --border-color: #243452;
+    --border-subtle: #19263E;
+    --text-primary: #F8FAFC;
     --text-secondary: #94A3B8;
     --text-tertiary: #64748B;
     --ac: #14B8A6;
     --ac-hover: #2DD4BF;
-    --ac-light: #0B2528;
-    --ac-amber: #F59E0B;
-    --card-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+    --ac-light: #0D2D35;
+    --ac-amber: #FBBF24;
+    --ac-purple: #A78BFA;
+    --ac-emerald: #34D399;
+    --card-shadow: 0 4px 24px -2px rgb(0 0 0 / 0.4);
     color-scheme: dark;
   }
 
@@ -151,3 +155,38 @@ html {
     display: none !important;
   }
 }
+
+/* ── Gamificação & Efeitos Convidativos ─────────────────── */
+@keyframes flamePulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 2px rgba(245, 158, 11, 0.4));
+  }
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8));
+  }
+}
+
+.animate-flame {
+  animation: flamePulse 2s ease-in-out infinite;
+}
+
+.card-gamified {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.card-gamified:hover {
+  transform: translateY(-2px);
+}
+
+.glass-pill {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.badge-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.18) 50%, rgba(255,255,255,0) 100%);
+  background-size: 200% 100%;
+}
+

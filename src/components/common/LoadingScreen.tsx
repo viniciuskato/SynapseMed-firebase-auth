@@ -16,7 +16,7 @@ export const LoadingScreen: React.FC<{ message?: string }> = ({
         </div>
 
         <h1 className="text-2xl font-bold font-serif-reading tracking-tight mb-2 text-slate-900 dark:text-white">
-          SynapseMed
+          NexusMed
         </h1>
         <p className="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400 font-semibold mb-6">
           Base de Estudos e Compêndios Médicos

@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   AlertCircle,
   Sparkles,
+  CheckCircle2,
   Mail,
   Lock,
   User,
@@ -22,6 +23,7 @@ import { ForgotPasswordModal } from './ForgotPasswordModal';
 export const LoginView: React.FC = () => {
   const {
     loginWithGoogle,
+    loginWithDemo,
     loginWithEmail,
     registerWithEmail,
     loginError,
@@ -138,7 +140,7 @@ export const LoginView: React.FC = () => {
             </div>
             <div>
               <span className="text-2xl font-bold font-serif-reading tracking-tight text-slate-900 dark:text-white">
-                SynapseMed
+                NexusMed
               </span>
               <span className="block text-xs uppercase font-semibold tracking-wider text-teal-700 dark:text-teal-400">
                 Área Médica & Fisiopatologia
@@ -265,18 +267,18 @@ export const LoginView: React.FC = () => {
             </div>
           )}
 
-          {/* Aviso se a autenticação ainda não estiver configurada */}
+          {/* Aviso quando o Supabase opera em modo local */}
           {!isConfigured && (
             <div
               id="auth-not-configured-notice"
-              className="mb-5 p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs"
+              className="mb-5 p-3.5 rounded-xl bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200 text-xs"
             >
               <div className="flex items-center gap-1.5 font-semibold mb-1">
-                <AlertCircle className="w-4 h-4 text-amber-700 dark:text-amber-400" />
-                <span>Configuração Necessária</span>
+                <CheckCircle2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                <span>Modo Local / Demonstração Ativo</span>
               </div>
-              <p className="leading-relaxed text-amber-800 dark:text-amber-300">
-                Para autenticar, configure as variáveis no arquivo <code className="bg-amber-100 dark:bg-amber-900 px-1 py-0.5 rounded text-[11px] font-mono">.env</code>.
+              <p className="leading-relaxed text-teal-800 dark:text-teal-300">
+                O aplicativo está pronto para uso offline/local com todas as matérias, questões comentadas e flashcards carregados. Você pode clicar no botão rápido abaixo ou entrar com qualquer e-mail.
               </p>
             </div>
           )}
@@ -419,7 +421,7 @@ export const LoginView: React.FC = () => {
             <button
               id="btn-auth-submit"
               type="submit"
-              disabled={isSubmitting || !isConfigured}
+              disabled={isSubmitting}
               className="w-full h-11 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-[0.99] text-white text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-teal-700/20 transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               <span>
@@ -432,6 +434,27 @@ export const LoginView: React.FC = () => {
                   : 'Criar Conta de Estudante'}
               </span>
               <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+
+            {/* Acesso rápido em modo demonstração / avaliação */}
+            <button
+              id="btn-demo-quick-login"
+              type="button"
+              disabled={isSubmitting}
+              onClick={async () => {
+                try {
+                  setIsSubmitting(true);
+                  await loginWithDemo();
+                } catch (e: any) {
+                  // handled by context
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+              className="w-full h-10 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer border border-slate-300 dark:border-slate-700 transition-all mt-2"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>Acesso Rápido de Demonstração (1-Clique)</span>
             </button>
           </form>
 
@@ -452,13 +475,9 @@ export const LoginView: React.FC = () => {
             <button
               id="btn-google-login"
               type="button"
-              disabled={isSubmitting || !isConfigured}
+              disabled={isSubmitting}
               onClick={handleGoogleLogin}
-              className={`w-full h-11 px-5 rounded-xl border flex items-center justify-center gap-3 text-xs font-semibold transition-all shadow-xs ${
-                isConfigured
-                  ? 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-400 active:scale-[0.99] cursor-pointer'
-                  : 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
-              }`}
+              className="w-full h-11 px-5 rounded-xl border flex items-center justify-center gap-3 text-xs font-semibold transition-all shadow-xs bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/80 hover:border-slate-400 active:scale-[0.99] cursor-pointer"
             >
               {/* Ícone Oficial do Google */}
               <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
@@ -481,6 +500,9 @@ export const LoginView: React.FC = () => {
               </svg>
               <span>{isSubmitting ? 'Conectando ao Google...' : 'Entrar com Google'}</span>
             </button>
+            <p className="mt-2 text-[11px] text-center text-slate-400 dark:text-slate-500 leading-tight">
+              Em janelas embutidas (preview), a autenticação do Google abrirá em uma nova janela para conformidade com as regras de segurança.
+            </p>
           </div>
 
           {/* Informações sobre Papel & Privacidade */}

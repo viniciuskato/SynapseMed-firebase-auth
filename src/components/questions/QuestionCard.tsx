@@ -186,35 +186,35 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   return (
     <div
       id={`question-${question.id}`}
-      className={`bg-white rounded-3xl border transition-all p-6 sm:p-8 shadow-xs relative ${
+      className={`bg-white dark:bg-[#0F172A] rounded-3xl border transition-all p-6 sm:p-8 shadow-xs relative ${
         isSubmitted
           ? isCorrect
-            ? 'border-emerald-300 ring-1 ring-emerald-100'
-            : 'border-rose-300 ring-1 ring-rose-100'
-          : 'border-slate-200'
+            ? 'border-emerald-300 dark:border-emerald-700/80 ring-1 ring-emerald-100 dark:ring-emerald-950/40'
+            : 'border-rose-300 dark:border-rose-700/80 ring-1 ring-rose-100 dark:ring-rose-950/40'
+          : 'border-slate-200 dark:border-[#243452]'
       }`}
     >
       {/* Toast */}
       {toastMessage && (
-        <div className="absolute top-4 right-4 z-20 bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-lg flex items-center gap-1.5 animate-in fade-in">
+        <div className="absolute top-4 right-4 z-20 bg-slate-900 dark:bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-semibold shadow-lg flex items-center gap-1.5 animate-in fade-in">
           <Sparkles className="w-3.5 h-3.5 text-teal-400" />
           <span>{toastMessage}</span>
         </div>
       )}
 
       {/* Header Info */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-100">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-4 mb-5 border-b border-slate-100 dark:border-slate-800">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-teal-50 text-teal-800 border border-teal-200/60">
+          <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60">
             {discipline?.name || 'Medicina'}
           </span>
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-[#142038] text-slate-700 dark:text-slate-300">
             {theme?.name || 'Tema'}
           </span>
-          <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-800 border border-blue-200/60">
+          <span className="text-xs font-bold px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
             {question.institution} ({question.year})
           </span>
-          <span className="text-[11px] font-medium text-slate-500 uppercase">
+          <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase">
             {question.difficulty}
           </span>
         </div>
@@ -222,10 +222,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={handleToggleBookmark}
-            className={`p-2 rounded-xl border text-xs transition-colors ${
+            className={`p-2 rounded-xl border text-xs transition-colors cursor-pointer ${
               isBookmarked
-                ? 'bg-rose-50 text-rose-600 border-rose-200'
-                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-100'
+                ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+                : 'bg-white dark:bg-[#142038] text-slate-500 dark:text-slate-400 border-slate-200 dark:border-[#243452] hover:bg-slate-100 dark:hover:bg-slate-800'
             }`}
             title="Favoritar questão"
           >
@@ -237,11 +237,11 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       {/* Clinical Vignette & Stem */}
       <div className="space-y-4 mb-6">
         {question.clinicalVignette && (
-          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 font-serif-reading text-slate-800 text-sm sm:text-base leading-relaxed">
+          <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-[#142038]/80 border border-slate-200/80 dark:border-[#243452] font-serif-reading text-slate-800 dark:text-slate-200 text-sm sm:text-base leading-relaxed">
             {question.clinicalVignette}
           </div>
         )}
-        <p className="font-bold text-slate-900 text-sm sm:text-base leading-snug">
+        <p className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base leading-snug">
           {question.questionStem}
         </p>
       </div>
@@ -253,25 +253,25 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           const isEliminated = eliminatedOptions.includes(opt.letter);
           const reviewOpt = reviewByLetter.get(opt.letter);
 
-          let optBg = 'bg-white border-slate-200 hover:border-slate-300';
-          let letterBg = 'bg-slate-100 text-slate-700';
+          let optBg = 'bg-white dark:bg-[#142038] border-slate-200 dark:border-[#243452] hover:border-slate-300 dark:hover:border-slate-600';
+          let letterBg = 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300';
 
           if (isExamMode) {
             if (isSelected) {
-              optBg = 'bg-teal-50 border-teal-600 ring-2 ring-teal-600/30';
+              optBg = 'bg-teal-50 dark:bg-teal-950/40 border-teal-600 dark:border-teal-500 ring-2 ring-teal-600/30';
               letterBg = 'bg-teal-700 text-white';
             }
           } else if (isSubmitted && reviewOpt) {
             if (reviewOpt.isCorrect) {
-              optBg = 'bg-emerald-50/90 border-emerald-400 ring-1 ring-emerald-300';
+              optBg = 'bg-emerald-50/90 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-600 ring-1 ring-emerald-300 dark:ring-emerald-800';
               letterBg = 'bg-emerald-600 text-white';
             } else if (isSelected && !reviewOpt.isCorrect) {
-              optBg = 'bg-rose-50/90 border-rose-400 ring-1 ring-rose-300';
+              optBg = 'bg-rose-50/90 dark:bg-rose-950/40 border-rose-400 dark:border-rose-600 ring-1 ring-rose-300 dark:ring-rose-800';
               letterBg = 'bg-rose-600 text-white';
             }
           } else {
             if (isSelected) {
-              optBg = 'bg-teal-50 border-teal-600 ring-2 ring-teal-600/30';
+              optBg = 'bg-teal-50 dark:bg-teal-950/40 border-teal-600 dark:border-teal-500 ring-2 ring-teal-600/30';
               letterBg = 'bg-teal-700 text-white';
             }
           }
@@ -291,7 +291,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   >
                     {opt.letter}
                   </span>
-                  <span className="text-xs sm:text-sm text-slate-800 font-medium leading-relaxed pt-0.5">
+                  <span className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 font-medium leading-relaxed pt-0.5">
                     {opt.text}
                   </span>
                 </div>
@@ -301,7 +301,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   <button
                     type="button"
                     onClick={(e) => handleToggleEliminate(e, opt.letter)}
-                    className="p-1 rounded-md text-slate-300 hover:text-slate-600 hover:bg-slate-100 text-[10px] font-semibold transition-colors shrink-0"
+                    className="p-1 rounded-md text-slate-300 dark:text-slate-600 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-semibold transition-colors shrink-0 cursor-pointer"
                     title={isEliminated ? 'Restaurar alternativa' : 'Riscar alternativa'}
                   >
                     <EyeOff className="w-3.5 h-3.5" />
@@ -314,13 +314,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                 <div
                   className={`mt-2 pt-2 border-t text-xs leading-relaxed ${
                     reviewOpt.isCorrect
-                      ? 'border-emerald-200 text-emerald-900 bg-emerald-100/40 p-2.5 rounded-xl'
-                      : 'border-slate-200/80 text-slate-600 bg-slate-50 p-2.5 rounded-xl'
+                      ? 'border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 bg-emerald-100/40 dark:bg-emerald-950/40 p-2.5 rounded-xl'
+                      : 'border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-[#0B1220]/60 p-2.5 rounded-xl'
                   }`}
                 >
                   <div className="flex items-center gap-1.5 font-bold mb-1">
                     {reviewOpt.isCorrect ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     ) : (
                       <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     )}
@@ -328,7 +328,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   </div>
                   <p>{reviewOpt.explanation}</p>
                   {opt.mechanismReference && (
-                    <p className="mt-1 text-[11px] font-mono text-slate-500 italic">
+                    <p className="mt-1 text-[11px] font-mono text-slate-500 dark:text-slate-400 italic">
                       Mecanismo: {opt.mechanismReference}
                     </p>
                   )}
@@ -342,7 +342,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       {/* Action / Submit Area (Study Mode) */}
       {!isExamMode && !isSubmitted && (
         <div className="flex items-center justify-between pt-2">
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             {selectedOption
               ? `Alternativa (${selectedOption}) selecionada.`
               : 'Selecione uma alternativa para responder.'}
@@ -352,8 +352,8 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             disabled={!selectedOption}
             className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all shadow-xs ${
               selectedOption
-                ? 'bg-teal-700 hover:bg-teal-800 text-white cursor-pointer'
-                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                ? 'bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white cursor-pointer'
+                : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed'
             }`}
           >
             Confirmar Resposta
@@ -444,7 +444,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
           {/* Anotação Pessoal Vinculada ao Erro */}
           {isIncorrect && (
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs space-y-2">
+            <div className="p-3.5 bg-slate-50 dark:bg-[#142038] border border-slate-200 dark:border-[#243452] rounded-2xl text-xs space-y-2">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                   <Tag className="w-3.5 h-3.5 text-rose-500" />
@@ -465,7 +465,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                     className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
                       errorReason === item.id
                         ? 'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800'
-                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                        : 'bg-white dark:bg-[#0B1220] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-[#243452] hover:bg-slate-100 dark:hover:bg-[#1A2845]'
                     }`}
                   >
                     {item.label}
@@ -474,13 +474,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               </div>
 
               {/* Personal notes textarea */}
-              <div className="pt-2 border-t border-slate-200 dark:border-slate-700/80 space-y-1.5">
+              <div className="pt-2 border-t border-slate-200 dark:border-[#243452] space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                     Anotação Pessoal Vinculada ao Erro:
                   </label>
                   {isNoteSaved && (
-                    <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" /> Salvo!
                     </span>
                   )}
@@ -490,13 +490,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   onChange={(e) => setUserNote(e.target.value)}
                   placeholder="Registre o que você aprendeu com este erro, a pegadinha da banca ou uma correlação rápida..."
                   rows={2}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-[#243452] bg-white dark:bg-[#0B1220] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
                 />
                 <div className="flex justify-end">
                   <button
                     type="button"
                     onClick={handleSaveNote}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-[11px] font-semibold transition-colors cursor-pointer shadow-xs"
+                    className="px-3 py-1.5 rounded-xl bg-slate-800 dark:bg-teal-600 hover:bg-slate-700 dark:hover:bg-teal-500 text-white text-[11px] font-semibold transition-colors cursor-pointer shadow-xs"
                   >
                     Salvar Anotação Pessoal
                   </button>

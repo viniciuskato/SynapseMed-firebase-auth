@@ -154,21 +154,21 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
             }}
             className={`p-4 rounded-2xl border transition-all cursor-pointer ${
               selectedDiscipline === discipline.id
-                ? 'bg-teal-50 border-teal-600 ring-2 ring-teal-600/20'
-                : 'bg-white border-slate-200 hover:border-slate-300'
+                ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-600 dark:border-teal-500 ring-2 ring-teal-600/20'
+                : 'bg-white dark:bg-[#0F172A] border-slate-200 dark:border-[#243452] hover:border-slate-300 dark:hover:border-slate-600'
             }`}
           >
-            <span className="text-[11px] font-bold text-slate-900 block truncate">
+            <span className="text-[11px] font-bold text-slate-900 dark:text-slate-100 block truncate">
               {discipline.name}
             </span>
             <div className="mt-2 flex items-center justify-between text-xs">
-              <span className="text-slate-500">{total} cards</span>
+              <span className="text-slate-500 dark:text-slate-400">{total} cards</span>
               {due > 0 ? (
-                <span className="px-1.5 py-0.5 rounded-md bg-teal-100 text-teal-800 font-bold text-[10px]">
+                <span className="px-1.5 py-0.5 rounded-md bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 font-bold text-[10px]">
                   {due} hoje
                 </span>
               ) : (
-                <span className="text-emerald-600 text-[10px] font-medium">Em dia</span>
+                <span className="text-emerald-600 dark:text-emerald-400 text-[10px] font-medium">Em dia</span>
               )}
             </div>
           </div>
@@ -176,7 +176,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#0F172A] rounded-2xl border border-slate-200 dark:border-[#243452] p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="w-full md:w-80 relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -184,7 +184,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
             placeholder="Pesquisar por conceito, droga, mecanismo..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 placeholder:text-slate-400"
+            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-[#243452] bg-slate-50 dark:bg-[#142038] focus:bg-white dark:focus:bg-[#1A2845] focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
           />
         </div>
 
@@ -208,10 +208,10 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
             <button
               key={st.id}
               onClick={() => setSelectedStatus(st.id as any)}
-              className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition-all cursor-pointer ${
                 selectedStatus === st.id
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-slate-900 dark:bg-teal-600 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-[#142038] text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#1A2845]'
               }`}
             >
               {st.label}
@@ -222,8 +222,8 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
 
       {/* Flashcards List */}
       {filteredCards.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-slate-500 space-y-2">
-          <Layers className="w-8 h-8 mx-auto text-slate-300" />
+        <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] p-12 text-center text-slate-500 dark:text-slate-400 space-y-2">
+          <Layers className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600" />
           <p className="font-semibold text-sm">Nenhum flashcard encontrado com estes filtros.</p>
         </div>
       ) : (
@@ -238,20 +238,20 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
               <div
                 key={card.id}
                 onClick={() => toggleFlip(card.id)}
-                className={`bg-white rounded-3xl border transition-all p-5 shadow-xs flex flex-col justify-between cursor-pointer group select-none min-h-[220px] ${
+                className={`bg-white dark:bg-[#0F172A] rounded-3xl border transition-all p-5 shadow-xs flex flex-col justify-between cursor-pointer group select-none min-h-[220px] ${
                   isFlipped
-                    ? 'border-teal-300 bg-teal-50/20'
-                    : 'border-slate-200 hover:border-teal-200 hover:shadow-md'
+                    ? 'border-teal-300 dark:border-teal-600 bg-teal-50/20 dark:bg-teal-950/30 ring-1 ring-teal-400/20'
+                    : 'border-slate-200 dark:border-[#243452] hover:border-teal-200 dark:hover:border-teal-600 hover:shadow-md'
                 }`}
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200/60">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60">
                       {disc?.name || 'Medicina'}
                     </span>
                     <div className="flex items-center gap-1">
                       {isDue && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800">
                           Revisar Hoje
                         </span>
                       )}
@@ -262,7 +262,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
                             e.stopPropagation();
                             handleDeleteCard(card.id);
                           }}
-                          className="p-1 text-slate-300 hover:text-rose-500 transition-colors"
+                          className="p-1 text-slate-300 dark:text-slate-600 hover:text-rose-500 dark:hover:text-rose-400 transition-colors"
                           title="Excluir card personalizado"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -274,23 +274,23 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
                   <div className="text-xs font-serif-reading mt-2">
                     {!isFlipped ? (
                       <div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mb-1">
                           Pergunta / Conceito:
                         </span>
-                        <p className="font-bold text-slate-900 leading-snug">
+                        <p className="font-bold text-slate-900 dark:text-slate-100 leading-snug">
                           {card.front}
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block mb-1">
+                        <span className="text-[10px] font-bold text-teal-700 dark:text-teal-400 uppercase tracking-wider block mb-1">
                           Resposta & Mecanismo:
                         </span>
-                        <p className="text-slate-800 leading-relaxed font-medium">
+                        <p className="text-slate-800 dark:text-slate-200 leading-relaxed font-medium">
                           {card.back}
                         </p>
                         {card.mechanismHighlight && (
-                          <div className="p-2 bg-teal-50 rounded-xl text-[11px] text-teal-900 border border-teal-200/60">
+                          <div className="p-2 bg-teal-50 dark:bg-teal-950/60 rounded-xl text-[11px] text-teal-900 dark:text-teal-200 border border-teal-200/60 dark:border-teal-800/60">
                             <strong>Destaque:</strong> {card.mechanismHighlight}
                           </div>
                         )}
@@ -299,12 +299,12 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     <span>Intervalo: {card.srs?.intervalDays ?? 0}d</span>
                   </span>
-                  <span className="text-teal-700 font-semibold group-hover:underline">
+                  <span className="text-teal-700 dark:text-teal-400 font-semibold group-hover:underline">
                     {isFlipped ? 'Voltar à pergunta' : 'Virar para ver resposta'}
                   </span>
                 </div>

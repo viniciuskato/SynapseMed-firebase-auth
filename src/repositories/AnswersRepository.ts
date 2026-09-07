@@ -2,20 +2,19 @@ import { QuestionAnswerRecord, QuestionReviewResult, Question } from '../types';
 import { StorageService } from '../services/storage';
 import { SupabaseAnswersRepository } from './SupabaseAnswersRepository';
 
+import { isSupabaseConfigured } from '../lib/supabaseClient';
+
 export interface AnswersRepository {
   getAnswers(): Promise<Record<string, QuestionAnswerRecord>>;
   recordAnswer(record: QuestionAnswerRecord): Promise<QuestionReviewResult>;
 }
 
-// Não implementa mais `AnswersRepository` (agora assíncrona) — mantida como
-// código morto, documentado, sem uso pelo singleton (ver Etapa Fase 4-5 wiring).
-class LocalStorageAnswersRepository {
-  getAnswers(): Record<string, QuestionAnswerRecord> {
+class LocalStorageAnswersRepository implements AnswersRepository {
+  async getAnswers(): Promise<Record<string, QuestionAnswerRecord>> {
     return StorageService.getAnswers();
   }
-  recordAnswer(record: QuestionAnswerRecord): QuestionReviewResult {
+  async recordAnswer(record: QuestionAnswerRecord): Promise<QuestionReviewResult> {
     StorageService.recordAnswer(record);
-    // Sem RLS no localStorage: as opções da questão já têm isCorrect/explanation.
     const question: Question | undefined = StorageService.getQuestions().find(
       (q) => q.id === record.questionId
     );
@@ -36,4 +35,30 @@ class LocalStorageAnswersRepository {
   }
 }
 
-export const answersRepository: AnswersRepository = new SupabaseAnswersRepository();
+class ResilientAnswersRepository implements AnswersRepository {
+  private supa = new SupabaseAnswersRepository();
+  private local = new LocalStorageAnswersRepository();
+
+  async getAnswers(): Promise<Record<string, QuestionAnswerRecord>> {
+    if (!isSupabaseConfigured) return this.local.getAnswers();
+    try {
+      return await this.supa.getAnswers();
+    } catch {
+      return this.local.getAnswers();
+    }
+  }
+
+  async recordAnswer(record: QuestionAnswerRecord): Promise<QuestionReviewResult> {
+    const localResult = await this.local.recordAnswer(record);
+    if (isSupabaseConfigured) {
+      try {
+        return await this.supa.recordAnswer(record);
+      } catch {
+        return localResult;
+      }
+    }
+    return localResult;
+  }
+}
+
+export const answersRepository: AnswersRepository = new ResilientAnswersRepository();

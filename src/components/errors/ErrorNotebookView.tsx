@@ -109,11 +109,11 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   }, [answers, questions, selectedReason, selectedDiscipline, searchQuery]);
 
   const reasonLabels: Record<string, { label: string; color: string }> = {
-    lacuna_teorica: { label: 'Lacuna Teórica', color: 'bg-amber-100 text-amber-800 border-amber-300' },
-    pegadinha: { label: 'Distrator / Pegadinha', color: 'bg-rose-100 text-rose-800 border-rose-300' },
-    falta_atencao: { label: 'Falta de Atenção', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-    raciocinio_clinico: { label: 'Raciocínio Clínico', color: 'bg-purple-100 text-purple-800 border-purple-300' },
-    tempo_esgotado: { label: 'Tempo Esgotado', color: 'bg-slate-100 text-slate-800 border-slate-300' },
+    lacuna_teorica: { label: 'Lacuna Teórica', color: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800' },
+    pegadinha: { label: 'Distrator / Pegadinha', color: 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800' },
+    falta_atencao: { label: 'Falta de Atenção', color: 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800' },
+    raciocinio_clinico: { label: 'Raciocínio Clínico', color: 'bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800' },
+    tempo_esgotado: { label: 'Tempo Esgotado', color: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' },
   };
 
   const handleResolveError = async (questionId: string) => {
@@ -170,7 +170,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#0F172A] rounded-2xl border border-slate-200 dark:border-[#243452] p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="w-full md:w-80 relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
           <input
@@ -178,7 +178,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
             placeholder="Buscar por caso ou questão errada..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-900 placeholder:text-slate-400"
+            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-[#243452] bg-slate-50 dark:bg-[#142038] focus:bg-white dark:focus:bg-[#1A2845] focus:outline-none focus:ring-2 focus:ring-rose-500 text-slate-900 dark:text-slate-100 placeholder:text-slate-400"
           />
         </div>
 
@@ -186,10 +186,10 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
         <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar w-full md:w-auto pb-1 md:pb-0 text-xs">
           <button
             onClick={() => setSelectedReason('all')}
-            className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition-all ${
+            className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition-all cursor-pointer ${
               selectedReason === 'all'
-                ? 'bg-slate-900 text-white'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                ? 'bg-slate-900 dark:bg-rose-600 text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-[#142038] text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#1A2845]'
             }`}
           >
             Todos os Motivos ({mistakes.length})
@@ -198,10 +198,10 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
             <button
               key={key}
               onClick={() => setSelectedReason(key)}
-              className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition-all ${
+              className={`px-3 py-1.5 rounded-xl font-semibold shrink-0 transition-all cursor-pointer ${
                 selectedReason === key
-                  ? 'bg-rose-700 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  ? 'bg-rose-700 dark:bg-rose-600 text-white shadow-xs'
+                  : 'bg-slate-100 dark:bg-[#142038] text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#1A2845]'
               }`}
             >
               {config.label}
@@ -212,10 +212,10 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
 
       {/* Mistakes List */}
       {mistakes.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-slate-500 space-y-2">
+        <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] p-12 text-center text-slate-500 dark:text-slate-400 space-y-2">
           <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-500" />
-          <p className="font-bold text-base text-slate-900">Nenhum erro registrado com estes filtros!</p>
-          <p className="text-xs text-slate-400">
+          <p className="font-bold text-base text-slate-900 dark:text-slate-100">Nenhum erro registrado com estes filtros!</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             Continue praticando questões. Quando você errar uma questão, ela será automaticamente arquivada aqui para correção.
           </p>
         </div>
@@ -241,18 +241,18 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
             return (
               <div
                 key={question.id}
-                className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs hover:border-rose-300 transition-all space-y-4"
+                className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] p-6 shadow-xs hover:border-rose-300 dark:hover:border-rose-800 transition-all space-y-4"
               >
                 {/* Header */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200/60">
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60">
                       {disc?.name || 'Medicina'}
                     </span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#142038] text-slate-700 dark:text-slate-300">
                       {th?.name || 'Tema'}
                     </span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 text-blue-800">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-50 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300">
                       {question.institution} ({question.year})
                     </span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${reasonConfig.color}`}>
@@ -260,7 +260,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
                     </span>
                   </div>
 
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
                     Respondida em {new Date(answer.timestamp).toLocaleDateString('pt-BR')}
                   </span>
                 </div>
@@ -268,36 +268,36 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
                 {/* Vignette and Stem */}
                 <div className="text-xs sm:text-sm font-serif-reading space-y-2">
                   {question.clinicalVignette && (
-                    <p className="text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-[#142038] p-3 rounded-xl border border-slate-100 dark:border-[#243452]">
                       {question.clinicalVignette}
                     </p>
                   )}
-                  <p className="font-bold text-slate-900 font-sans">
+                  <p className="font-bold text-slate-900 dark:text-slate-100 font-sans">
                     {question.questionStem}
                   </p>
                 </div>
 
                 {/* Alternatives Comparison (Marked vs Correct) */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                  <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl">
-                    <span className="font-bold text-rose-900 block mb-1">
+                  <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl">
+                    <span className="font-bold text-rose-900 dark:text-rose-200 block mb-1">
                       Sua Escolha (Incorreta): Alternativa {answer.selectedOption}
                     </span>
-                    <p className="text-rose-800">{selectedOpt?.text}</p>
+                    <p className="text-rose-800 dark:text-rose-300">{selectedOpt?.text}</p>
                     {selectedOpt?.explanation && (
-                      <p className="text-[11px] text-rose-700 mt-1 pt-1 border-t border-rose-200">
+                      <p className="text-[11px] text-rose-700 dark:text-rose-400 mt-1 pt-1 border-t border-rose-200 dark:border-rose-900/60">
                         {selectedOpt.explanation}
                       </p>
                     )}
                   </div>
 
-                  <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl">
-                    <span className="font-bold text-emerald-900 block mb-1">
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 rounded-xl">
+                    <span className="font-bold text-emerald-900 dark:text-emerald-200 block mb-1">
                       Gabarito Oficial: Alternativa {correctOpt?.letter}
                     </span>
-                    <p className="text-emerald-800">{correctOpt?.text}</p>
+                    <p className="text-emerald-800 dark:text-emerald-300">{correctOpt?.text}</p>
                     {correctOpt?.explanation && (
-                      <p className="text-[11px] text-emerald-700 mt-1 pt-1 border-t border-emerald-200">
+                      <p className="text-[11px] text-emerald-700 dark:text-emerald-400 mt-1 pt-1 border-t border-emerald-200 dark:border-emerald-900/60">
                         {correctOpt.explanation}
                       </p>
                     )}
@@ -305,11 +305,11 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
                 </div>
 
                 {/* High-Yield Summary */}
-                <div className="p-3 bg-teal-50/70 border border-teal-200 rounded-xl text-xs text-teal-950 flex items-start gap-2">
-                  <Sparkles className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
+                <div className="p-3 bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 rounded-xl text-xs text-teal-950 dark:text-teal-200 flex items-start gap-2">
+                  <Sparkles className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0 mt-0.5" />
                   <div>
-                    <span className="font-bold block">Pérola de Aprendizado:</span>
-                    <p className="font-medium mt-0.5">{review?.highYieldSummary}</p>
+                    <span className="font-bold block text-teal-900 dark:text-teal-300">Pérola de Aprendizado:</span>
+                    <p className="font-medium mt-0.5 text-teal-950 dark:text-teal-200">{review?.highYieldSummary}</p>
                   </div>
                 </div>
 
@@ -386,7 +386,7 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
 
                     <button
                       onClick={() => handleCreateFlashcard(question)}
-                      className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                      className="px-3 py-1.5 rounded-xl bg-slate-900 dark:bg-[#142038] hover:bg-slate-800 dark:hover:bg-[#1A2845] text-white font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer border border-transparent dark:border-[#243452]"
                     >
                       <Layers className="w-3.5 h-3.5 text-teal-400" />
                       <span>Gerar Flashcard SRS</span>
@@ -395,9 +395,9 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
 
                   <button
                     onClick={() => handleResolveError(question.id)}
-                    className="px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-bold flex items-center gap-1.5 transition-colors"
+                    className="px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span>Marcar como Dominada</span>
                   </button>
                 </div>
