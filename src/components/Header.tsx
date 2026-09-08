@@ -125,17 +125,17 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-md border-b border-[#E2E8F0] dark:border-[#243452] px-3 sm:px-5 lg:px-8 py-2.5 transition-colors max-w-full">
-      <div className="max-w-[1720px] mx-auto flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-30 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-md border-b border-[#E2E8F0] dark:border-[#243452] px-2 sm:px-5 lg:px-8 py-2.5 transition-colors max-w-full">
+      <div className="max-w-[1720px] mx-auto flex items-center justify-between gap-1.5 sm:gap-3">
         {/* Left: Brand Identity */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
           <button
             onClick={() => onSelectView('dashboard')}
-            className="flex items-center gap-2.5 text-left group focus:outline-hidden cursor-pointer"
+            className="flex items-center gap-1.5 sm:gap-2.5 text-left group focus:outline-hidden cursor-pointer min-w-0"
           >
-            <Logo className="w-8 h-8 rounded-xl elev-sm shadow-teal-600/30 group-hover:scale-105 transition-transform" />
-            <div>
-              <span className="font-serif font-bold text-lg tracking-tight bg-gradient-to-r from-slate-900 to-teal-800 dark:from-white dark:to-teal-300 bg-clip-text text-transparent">
+            <Logo className="w-8 h-8 rounded-xl elev-sm shadow-teal-600/30 group-hover:scale-105 transition-transform shrink-0" />
+            <div className="min-w-0">
+              <span className="font-serif font-bold text-base sm:text-lg tracking-tight bg-gradient-to-r from-slate-900 to-teal-800 dark:from-white dark:to-teal-300 bg-clip-text text-transparent truncate block">
                 NexusMed
               </span>
             </div>
@@ -146,7 +146,7 @@ export const Header: React.FC<HeaderProps> = ({
         <nav
           id="header-nav-island"
           aria-label="Navegação Principal"
-          className="hidden md:flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-[#142038] border border-slate-200/80 dark:border-[#243452] shadow-2xs backdrop-blur-md"
+          className="hidden xl:flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-[#142038] border border-slate-200/80 dark:border-[#243452] shadow-2xs backdrop-blur-md"
         >
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -188,7 +188,7 @@ export const Header: React.FC<HeaderProps> = ({
         </nav>
 
         {/* Right: Quick Search, Streak, Theme Toggle, Profile */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {/* Quick Search Button (Desktop) */}
           <button
             onClick={onOpenSearch}
@@ -215,10 +215,10 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Gamified Streak Flame Badge */}
           <div
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-bold shadow-2xs"
+            className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-bold shadow-2xs shrink-0"
             title={`${stats.streakDays} dias seguidos de estudo`}
           >
-            <Flame className="w-4 h-4 fill-amber-500 text-amber-500 animate-flame" />
+            <Flame className="w-4 h-4 fill-amber-500 text-amber-500 animate-flame shrink-0" />
             <span className="tabular-nums">{stats.streakDays}d</span>
           </div>
 
@@ -226,7 +226,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={onToggleTheme}
             id="header-theme-toggle"
-            className="p-2 rounded-xl border border-slate-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] hover:bg-slate-100 dark:hover:bg-[#142038] text-slate-600 dark:text-slate-400 transition-colors cursor-pointer flex items-center justify-center shadow-2xs"
+            className="p-2 rounded-xl border border-slate-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] hover:bg-slate-100 dark:hover:bg-[#142038] text-slate-600 dark:text-slate-400 transition-colors cursor-pointer flex items-center justify-center shadow-2xs shrink-0"
             title={theme === 'dark' ? 'Mudar para Modo Claro' : 'Mudar para Modo Escuro'}
             aria-label={theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'}
           >
@@ -247,7 +247,7 @@ export const Header: React.FC<HeaderProps> = ({
               aria-expanded={userDropdownOpen}
               aria-controls="user-profile-dropdown"
               aria-label="Menu do perfil de usuário"
-              className="flex items-center gap-2 p-1 sm:px-2 sm:py-1 rounded-lg border border-[#E2E8F0] dark:border-[#263244] hover:bg-slate-50 dark:hover:bg-[#182235] transition-colors cursor-pointer bg-white dark:bg-[#111827] focus:outline-hidden"
+              className="flex items-center gap-1 sm:gap-2 p-1.5 sm:px-2 sm:py-1 rounded-lg border border-[#E2E8F0] dark:border-[#263244] hover:bg-slate-50 dark:hover:bg-[#182235] transition-colors cursor-pointer bg-white dark:bg-[#111827] focus:outline-hidden shrink-0"
               title="Menu do Usuário"
             >
               {photoURL ? (

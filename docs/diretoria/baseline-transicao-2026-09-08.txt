@@ -1,0 +1,69 @@
+# Baseline de integridade pré-transição — DEFINITIVO
+
+Data e hora de geração: 2026-09-08T08:06:38-03:00
+Branch: work/consolidacao-diretoria-2026-09-08
+HEAD: 2d58efd99947cd00458c1716501ad6451c49ec8d
+origin/main: 2d58efd99947cd00458c1716501ad6451c49ec8d
+
+Confirmação de ausência de edições concorrentes: duas leituras de
+`git status -s` desta árvore, feitas em sequência imediata (mesmo
+segundo, 2026-09-08T08:06:38-03:00), produziram saída idêntica —
+nenhuma sessão escrevendo neste working tree no momento da captura.
+Este baseline substitui integralmente
+`docs/diretoria/baseline-transicao-2026-09-07.txt`, que foi capturado
+durante edição concorrente de outra sessão (aviso registrado naquele
+arquivo) e não deve ser usado como referência operacional — preservado
+localmente só como nota histórica, fora deste commit.
+
+Escopo dos checksums: SHA-256 (sha256sum) de (a) todo arquivo rastreado
+pelo Git com diferença em relação a HEAD (`git diff --name-only HEAD`,
+cobre working tree + index) e (b) todo arquivo não rastreado presente
+no working tree e não coberto por `.gitignore`
+(`git status --porcelain=v1` filtrando `??`). Cada linha é
+`<sha256>  *<caminho relativo à raiz do repositório>`.
+
+Exclusões: nada foi excluído do escopo acima — não há, nesta captura,
+segredos (`.env.local` etc.), `node_modules`, `dist`/build, nem
+artefatos de harness temporário no working tree (já removidos pelas
+sessões executivas responsáveis, conforme seus retornos). Os dois
+arquivos brutos de retorno que contêm identificadores ligados a um
+participante (`docs/diretoria/retornos/08-A.txt` e
+`docs/diretoria/retornos/08-B.txt`) permanecem listados aqui — o
+checksum não expõe o conteúdo, só serve para confirmar integridade
+durante a transição — mas não serão incluídos no commit (ver decisão
+da diretoria no gate 06-C); as versões sanitizadas correspondentes
+(`08-A-sanitizado.txt`, `08-B-sanitizado.txt`) estão listadas
+separadamente e são as que serão versionadas.
+
+## Modificados (tracked, relativo a HEAD)
+2981b36f4864b7c29421aba531f7d00199afd9804330634ea33f5eaf5b710d5e *.gitignore
+0a7f6d4f277c3381bbdd2f9b53f35a94858939c5ed12c86db51554642a78e9ce *AGENTS.md
+5290d18fa9feb2cd304c39511d4b2fcfcdb32aaeb6ba692e0a3125a8d40daabb *scripts/load-questoes.ts
+848cc931db2cf49c319f255d3bc608c92493ebb7abd0084a6d2f9cbfb0df5933 *src/App.tsx
+440cf2e2691a529d05aae3ec99209306c60aa61ce88eb26125455ef444689783 *src/components/Header.tsx
+7aa99175d9a8d2ca0c00532611794de66d699225309b254366e49ac3554bb89c *src/components/compendium/CompendiumReader.tsx
+e61845cbdc41240f0b3d7ace528ec7679d79ba346ea6e85af56e61a911d901e0 *src/components/feedback/ContextualFeedbackPopover.tsx
+21a308440b167bdb0860ea9c65a5f355bca67b05044dfd3fe6b29662348bb5a2 *src/components/flashcards/FlashcardReviewer.tsx
+d523bd3bf09311697ad22e35d40b97c32b7fa4a2e882ac253f975056c6881c0f *src/components/navigation/MobileBottomNav.tsx
+55fcbbc2f72c25fc89ab311939731fb77af3889dff946c30c17f59c37248fb31 *src/components/questions/QuestionCard.tsx
+967bf6fd5b50effa1b62c85b77a2a4c6e0777d58034e7995fb090c891abee2ab *src/repositories/AnswersRepository.ts
+58cca0e0330ef9fa1b784e4438e2c872d58b45fb481643e97cc304141e00d0cf *src/repositories/QuestionsRepository.ts
+a32d7388beb2822116d542f189dbae9d6129cd6edacc40efd16ca9969fbd881a *src/repositories/SupabaseFlashcardsRepository.ts
+688077dd68a9ccf15ef8429253977dfeaa53aa9e918d655ace274f42613379b3 *src/repositories/SupabaseMaterialsRepository.ts
+d8f47f4299348e9f4c93e1fa5343bdc84f78cc22c78ab266bd6b1d547783fa2e *src/repositories/questionReviewMapper.ts
+809714b519089ec84d1a14bbfc1267f37e1376c408d3ef2b06b8da3d941a42ea *src/types/index.ts
+27fec2389a9f7240e307b57eb771a6864bbe0c804edc2d559e91199a077752fa *docs/diretoria/baseline-transicao-2026-09-07.txt
+743da60ceb042af4f04ab9d6fffdac910efe4bc4115710ae00fc4dfc957f157c *docs/diretoria/prompts/06-C.txt
+28c399cd4f8c0c796a7454d4f98a58c39b1f1183233ef43fc6fc5407160207c6 *docs/diretoria/prompts/08-A.txt
+ae39ab3d3e4dbe5f70207b037b5ed371dcfa4d9f016465f4f92203d7a21263aa *docs/diretoria/registro.md
+3bd1c3475facf83daec6a4404ac517c84ae578c397241ee896961e5f23182697 *docs/diretoria/retornos/01-B.txt
+42ac02be8c602c631c4a244d3d66fbc847c58b4bc0dac9adc48624ffa0f18deb *docs/diretoria/retornos/01-C.txt
+f3e324cb1143ecad988938ac2ee6ea188cc2c7c83f9d264fdd8fa9696e819f07 *docs/diretoria/retornos/03-A-v2.txt
+3fd8693cdfa4231db55d8895b05ea96bdc6dfca4ad799c61b0efea6fb9e8bcf9 *docs/diretoria/retornos/08-A.txt
+85b4a66c9483953ac48c60e5d052d386e97bf88b1b7af26512af868e231e2c0a *docs/diretoria/retornos/08-B.txt
+deefeaf4610db916baa89c1cef9f377161e3aacab9f3acc26295123f748cae27 *scripts/recover-question-references.ts
+a186f20d5e38ab4c15a3e009b4bb1d41491799fe9877fa703e4b9ff404ee8dd9 *supabase/migrations/20260907140000_question_references_in_review.sql
+
+## Não rastreados (não ignorados)
+9efe0e423b7fc952e3f6dea51e25e2d8538560995c6422c55687343a4fe936d2 *docs/diretoria/retornos/08-A-sanitizado.txt
+f5e901a941676f3dc1b11e11b9522cbc644aa041b0326a5b986cd6564b53bacf *docs/diretoria/retornos/08-B-sanitizado.txt

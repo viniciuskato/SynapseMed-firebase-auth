@@ -31,6 +31,7 @@ class LocalStorageAnswersRepository implements AnswersRepository {
         isCorrect: o.isCorrect,
         explanation: o.explanation,
       })),
+      references: [], // LocalStorage não tem sources/question_references — não inventar.
     };
   }
 }

@@ -95,7 +95,13 @@ interface MaterialReferenceRow {
   material_id: string;
   citation_text: string;
   url: string | null;
+  source_id: string | null;
   sort_order: number;
+}
+
+interface SourceRow {
+  id: string;
+  identificadores: Record<string, string> | null;
 }
 
 function rowToDiscipline(row: DisciplineRow): Discipline {
@@ -157,11 +163,27 @@ function rowToSection(row: MaterialSectionRow): CompendiumSection {
   };
 }
 
+// Só resolve um link quando a fonte curada tem um identificador reconhecido
+// (mesma lógica de urlFromIdentificadores em questionReviewMapper.ts, mas
+// sem importar de lá para não acoplar módulos de compêndio a questão) —
+// nunca inventa DOI/URL para uma fonte que não os tem.
+function urlFromSource(source: SourceRow | undefined, referenceUrl: string | null): string | undefined {
+  if (referenceUrl) return referenceUrl;
+  if (!source?.identificadores) return undefined;
+  const ids = source.identificadores;
+  if (ids.url) return ids.url;
+  if (ids.doi) return `https://doi.org/${ids.doi}`;
+  if (ids.pmid) return `https://pubmed.ncbi.nlm.nih.gov/${ids.pmid}/`;
+  return undefined;
+}
+
 function buildCompendium(
   material: MaterialRow,
   sections: MaterialSectionRow[],
-  references: MaterialReferenceRow[]
+  references: MaterialReferenceRow[],
+  sourcesById: Map<string, SourceRow>
 ): Compendium {
+  const materialRefs = references.filter((r) => r.material_id === material.id).sort((a, b) => a.sort_order - b.sort_order);
   return {
     id: material.id,
     disciplineId: material.discipline_id,
@@ -179,10 +201,11 @@ function buildCompendium(
       .filter((s) => s.material_id === material.id)
       .sort((a, b) => a.sort_order - b.sort_order)
       .map(rowToSection),
-    references: references
-      .filter((r) => r.material_id === material.id)
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((r) => r.citation_text),
+    references: materialRefs.map((r) => r.citation_text),
+    referenceSources: materialRefs.map((r) => {
+      if (!r.source_id) return { linked: false };
+      return { linked: true, sourceId: r.source_id, url: urlFromSource(sourcesById.get(r.source_id), r.url) };
+    }),
   };
 }
 
@@ -221,7 +244,23 @@ export class SupabaseMaterialsRepository implements MaterialsRepository {
     if (mErr) throw mErr;
     if (sErr) throw sErr;
     if (rErr) throw rErr;
-    return (materials ?? []).map((m) => buildCompendium(m, sections ?? [], refs ?? []));
+
+    // sources só é buscado para os ids realmente referenciados (hoje, tipicamente
+    // nenhum — material_references.source_id é null para os 33 compêndios
+    // carregados, ver AGENTS.md — mas a leitura já fica pronta para quando
+    // houver curadoria).
+    const sourceIds = [...new Set((refs ?? []).map((r) => r.source_id).filter((id): id is string => !!id))];
+    let sourcesById = new Map<string, SourceRow>();
+    if (sourceIds.length > 0) {
+      const { data: sources, error: srcErr } = await supabase
+        .from('sources')
+        .select('id, identificadores')
+        .in('id', sourceIds);
+      if (srcErr) throw srcErr;
+      sourcesById = new Map((sources ?? []).map((s) => [s.id as string, s as SourceRow]));
+    }
+
+    return (materials ?? []).map((m) => buildCompendium(m, sections ?? [], refs ?? [], sourcesById));
   }
 
   async saveCompendiums(compendiums: Compendium[]): Promise<void> {

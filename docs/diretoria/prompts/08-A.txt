@@ -1,0 +1,48 @@
+PROMPT 08-A — INVESTIGAR E CORRIGIR QUESTÃO REPORTADA COMO “SEM RESPOSTA CERTA”
+
+Você é uma sessão executiva nova do NexusMed.
+Projeto: C:\Users\vinic\OneDrive\Projetos\SynapseMed\firebase-auth.
+Leia AGENTS.md, docs/diretoria/MODELO-DIRETORIA.md e docs/diretoria/registro.md. Se o projeto já tiver sido transferido, confirme o caminho ativo documentado antes de editar.
+
+CONTEXTO
+O usuário apresentou captura da Área Editorial > Feedback com um relato:
+- Tipo: PROBLEMA; categoria: Outro; status: pendente.
+- Texto: “sem resposta certa”.
+- Data exibida: 07/09/2026, 17:59:47.
+- Há link “Ver questão”; o enunciado não aparece na captura.
+Não presuma que seja a questão de insuficiência cardíaca de capturas anteriores.
+Auditoria anterior confirmou 393 questões remotas com cinco alternativas, mas isso não confirma correção clínica, gabarito nem exibição.
+As entregas 01 (responsividade) e 03 (referências) têm alterações locais não publicadas. Preserve-as. A migration antiga de feedback foi confirmada aplicada; a nova migration de referências permanecia pendente no último retorno.
+A última confirmação do usuário é de que as executivas anteriores encerraram suas tarefas. Confira o estado atual antes de escrever.
+
+OBJETIVO
+Determinar se o relato procede e corrigir a causa, com evidência clínica e técnica, sem inventar uma alternativa ou gabarito.
+
+INVESTIGAÇÃO
+1. Localize o feedback e seu question_id pelo painel ou leitura autorizada do banco. Use texto/data como pistas, não como identificador único. Registre IDs técnicos sem expor dados pessoais.
+2. Recupere a versão atual da questão vinculada: enunciado, todas as alternativas, gabarito, justificativas e fontes. Se houver histórico disponível da versão no momento do relato, compare. Não declare inexistência do problema só porque a versão atual funciona.
+3. Reproduza a questão no fluxo do estudante. Confira se todas as alternativas aparecem, se a correta pode ser selecionada, se a submissão funciona e se o retorno corresponde ao gabarito. Examine IDs versus índices, embaralhamento, ocultação de alternativas, modos de resposta e cache/fallback quando pertinentes.
+4. Avalie se existe exatamente uma melhor resposta, se faltam dados no enunciado, se há múltiplas respostas defensáveis ou se nenhuma alternativa é correta.
+5. Para avaliar conteúdo médico, consulte fontes primárias ou diretrizes oficiais pertinentes e atuais. Confira a fonte original quando acessível. Registre links e trechos/localizações que sustentam a conclusão. Não invente evidências nem trate bibliografia cadastrada como validação.
+6. Classifique o resultado: erro de conteúdo, erro de gabarito, falha de interface/submissão, ambiguidade ou não reproduzido. Separe fatos de hipóteses.
+
+CORREÇÃO
+- Se confirmado, prepare e implemente a correção no código ou na fonte canônica adequada; evite corrigir somente uma cópia que será sobrescrita na próxima importação.
+- Preserve IDs, histórico e vínculos. Se mudar gabarito/conteúdo, documente a versão e o impacto em tentativas, XP, caderno de erros e listas existentes; não recalcule dados pessoais silenciosamente.
+- Prepare eventual atualização remota direcionada ao ID e condicionada aos valores anteriores esperados, com dry-run e reversão. Não execute escrita em produção nesta etapa.
+- Se o problema for sistêmico, examine sua incidência no restante do banco e corrija a causa comum dentro do escopo comprovado.
+- Se não reproduzido ou sem evidência suficiente, não invente correção. Registre o que falta e a menor informação adicional necessária.
+- Não marque o feedback como resolvido antes da correção estar aplicada e verificada no ambiente afetado. Não envie mensagens ao participante.
+
+VALIDAÇÃO E ENTREGA
+Reproduza antes/depois e teste o fluxo do estudante. Execute verificações adequadas ao que mudou. Se a conclusão clínica continuar incerta, deixe a pendência explícita e proponha revisão editorial.
+Não faça commit, push, deploy, exclusões ou alterações no banco remoto. Preserve trabalho de outras sessões.
+
+Termine com um bloco copiável:
+RETORNO: 08-A
+- Questão/feedback identificados.
+- Procedência do relato e causa, com grau de certeza.
+- Evidências técnicas e fontes clínicas.
+- Correção realizada ou motivo para não alterar.
+- Validações, impacto no histórico e pendências.
+- Estado de publicação e liberação dos arquivos.

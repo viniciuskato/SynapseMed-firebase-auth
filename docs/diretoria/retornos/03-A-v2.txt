@@ -1,0 +1,104 @@
+RETORNO DO PROMPT 03 — VERSÃO 2: RECUPERAÇÃO E EXIBIÇÃO DAS REFERÊNCIAS
+Sessão executiva — 2026-09-07
+
+## O QUE FOI FEITO (nada commitado, nada aplicado no remoto — só working tree local + validado contra Supabase LOCAL)
+
+1. INSPEÇÃO PRÉVIA (item 1 da tarefa): modelo `sources`/`question_references`
+   já existia (migration 20260904140000), desenhado corretamente para a
+   distinção geral/vinculada/pontual. O piloto de Cardiologia (descartado)
+   já provava o padrão de carga. Reaproveitei esse padrão em vez de criar
+   estrutura nova.
+
+2. CORREÇÃO NA IMPORTAÇÃO (item 2): `scripts/load-questoes.ts` agora popula
+   `sources` (upsert por id a partir de fontes.json) e `question_references`
+   (preserva ordem de `referencias[]` em sort_order) para toda carga
+   FUTURA. Antes, o campo era lido e descartado.
+
+3. RECUPERAÇÃO IDEMPOTENTE (item 3): script novo
+   `scripts/recover-question-references.ts`, para as 393 questões JÁ
+   carregadas antes desta correção. Casamento só por igualdade EXATA de
+   (discipline_id, theme_id, question_stem) — nunca por título/ILIKE.
+   Não toca id/gabarito/listas/histórico, só sources/question_references.
+   Padrão dry-run / --execute / --allow-remote (mesma trava de
+   segurança dos outros scripts do projeto).
+
+4-6. EXIBIÇÃO CLICÁVEL + PRECISÃO REAL (itens 4-6):
+   - Migration nova `20260907140000_question_references_in_review.sql`:
+     acrescenta campo `references` ao jsonb de `get_question_review` e
+     `submit_question_attempt` (mesma assinatura, sem quebrar nada).
+   - Questões: `QuestionCard.tsx` mostra as fontes junto à EXPLICAÇÃO GERAL
+     (não por alternativa — o dado real é por questão inteira, não haveria
+     honestidade em fingir granularidade por alternativa). Link clicável só
+     quando a fonte tem doi/pmid/url; senão, texto simples.
+   - Biblioteca: `CompendiumReader.tsx` + `SupabaseMaterialsRepository.ts`
+     ganharam a mesma capacidade via `material_references.source_id`. HOJE
+     nenhum dos 33 compêndios carregados tem source_id curado (decisão já
+     documentada anteriormente) — a bibliografia continua aparecendo como
+     texto simples, honestamente, até essa curadoria existir. A plumbing
+     está pronta, não há vínculo real para mostrar ainda.
+   - Flashcards: `SupabaseFlashcardsRepository.ts` anexa a fonte
+     bibliográfica herdada da questão de origem (question_origin_id ->
+     question_references), exibida no verso do card DISTINTA do material de
+     origem (botão "Ver no Compêndio", que já existia e não foi tocado).
+
+7. PENDÊNCIAS EDITORIAIS SEM VALIDAR CONTEÚDO (item 7): nenhuma citação foi
+   verificada/reescrita nesta sessão — só o vínculo estrutural já existente
+   no acervo (fontes.json) foi exposto. `verificacao` de cada fonte (ex.:
+   "vaga_pendente" vs. "verificada_texto_integral") continua vindo direto
+   do acervo, sem alteração — não fabriquei nem promovi nível de rigor.
+
+## VALIDAÇÃO (contra Supabase LOCAL, Docker precisou ser iniciado)
+
+- `tsc --noEmit`: limpo.
+- `npm run build`: limpo.
+- `supabase db reset` (aplica as 11 migrations, incluindo a nova): OK.
+- pgTAP (`supabase test db`): 83/83 PASS — get_question_review e
+  submit_question_attempt já são exercitadas pela suíte existente com
+  usuários reais; nada quebrou com o campo novo.
+- Carga real das 393 questões (`load-questoes.ts --execute`, local):
+  393/393 carregadas, 675 question_references, 84 sources criadas, 0 gaps
+  contra fontes.json.
+- Reexecução do load-questoes.ts: 393/393 puladas (já existentes), 0
+  question_references duplicadas — idempotente confirmado.
+- Simulação da recuperação: zerei question_references (delete direto no
+  Postgres local, simulando o estado "carregado antes da correção") e
+  rodei recover-question-references.ts — dry-run e depois --execute:
+  393/393 recuperadas, 675 question_references reinseridas, 0 "não
+  encontrada", 0 casamento ambíguo, cobertura 100.0%. Sources reaproveitadas
+  (não duplicadas).
+- Verifiquei o shape exato do jsonb que a RPC devolve (query idêntica à da
+  migration) e a query embutida do Supabase-js usada por
+  SupabaseFlashcardsRepository (`question_references.select(...
+  sources(citation_text, identificadores))`) — ambas retornam exatamente o
+  formato que o mapper/frontend espera, com dado real de uma questão de
+  Endocardite (doi -> link https://doi.org/10.1093/eurheartj/ehad193).
+- NÃO testado nesta sessão: navegação real em navegador (mobile/desktop) —
+  só validação de schema/build/tipos. É uma pendência técnica explícita,
+  não uma alegação de "testado e funcionando visualmente".
+
+## COBERTURA EFETIVAMENTE RECUPERÁVEL
+
+393/393 questões do acervo com referencias[] têm hoje casamento exato
+disponível no Supabase (local, confirmado; remoto, não confirmado nesta
+sessão — script pronto para rodar lá). 675 vínculos question_references,
+84 sources distintas (de 87 no catálogo — 3 não são referenciadas por
+nenhuma questão). 0 gaps entre banco-questoes.json e fontes.json.
+
+## PENDÊNCIAS
+
+1. Aplicar a migration nova + rodar
+   `recover-question-references.ts --execute --allow-remote` contra o
+   Supabase REMOTO (as 393 questões reais já estão lá desde 2026-09-06,
+   sem essas referências) — precisa ser feito pelo usuário (armadilhas #3
+   e #8 do AGENTS.md). Comando exato, depois da migration aplicada:
+   `VITE_SUPABASE_URL=<url remota> SUPABASE_SERVICE_ROLE_KEY=<chave remota> npx tsx scripts/recover-question-references.ts --execute --allow-remote`
+2. Teste visual em navegador (mobile/desktop) não foi feito.
+3. Biblioteca: hoje não há nenhum source_id curado nos 33 compêndios — a
+   funcionalidade de link clicável está pronta mas não tem o que mostrar
+   ainda. Curar isso é trabalho editorial, fora do escopo desta correção
+   técnica.
+4. Nada foi commitado (working tree local só). AGENTS.md atualizado
+   refletindo o estado real, inclusive a pendência do remoto.
+5. Formulário de criação manual de questões no admin (4 alternativas vs. 5)
+   e o bug do srsAlgorithm.ts seguem como pendências separadas do plano de
+   correção (Etapas 2 e 4), não tocadas nesta tarefa.
