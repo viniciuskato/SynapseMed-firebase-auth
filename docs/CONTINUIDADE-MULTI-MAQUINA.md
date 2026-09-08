@@ -595,3 +595,49 @@ Transporte recomendado para a segunda máquina:
   arquivo esquecido fora do commit): copiar esse arquivo pontualmente
   (não a pasta inteira, não o `.git`) para o clone novo antes de
   descontinuar a pasta antiga.
+
+### 11.6 Estado da transição — caminho ativo (2026-09-08)
+
+Autorizada pela diretoria (gate 06-C) e executada nesta data:
+
+- **Caminho ativo a partir de agora:**
+  `C:\Users\vinic\dev\NexusMed\firebase-auth` (este clone).
+- **Origem** (`C:\Users\vinic\OneDrive\Projetos\SynapseMed\firebase-auth`)
+  **permanece intacta como cópia de segurança**, sem apagar, mover ou
+  renomear, até decisão posterior do usuário.
+- Branch consolidada: `work/consolidacao-diretoria-2026-09-08`,
+  commit `1e89a2f18f0d16d1b2aec40386ec44d5dc47f331`. `main` e
+  `origin/main` permanecem em `2d58efd99947cd00458c1716501ad6451c49ec8d`
+  — não foram alteradas nesta transição, sem merge/push em `main`, sem
+  deploy, sem escrita no Supabase remoto.
+- Clone feito via `git clone --branch work/consolidacao-diretoria-2026-09-08
+  --single-branch` do remoto GitHub (não via cópia local do `.git` pelo
+  OneDrive).
+- Verificações realizadas neste clone, todas com sucesso, antes desta
+  declaração: `npm install`, `npx tsc --noEmit` (sem erros), `npm run
+  build` (build de produção concluído, mesmo aviso pré-existente de
+  chunk >500kB), `.env.local` transferido por cópia local pontual (não
+  versionado, confirmado ignorado pelo Git aqui), checksums de conteúdo
+  de todos os 120 arquivos rastreados confirmados idênticos entre origem
+  e destino a partir do blob do Git (`git cat-file -p HEAD:<arquivo> |
+  sha256sum`), que é a fonte de verdade — não a partir de sha256 direto
+  do working tree, que difere por normalização CRLF/LF (`core.autocrlf`
+  aplicado no checkout de cada máquina; ver nota abaixo).
+- **Diferença esperada e não é divergência de conteúdo**: o sha256 direto
+  dos arquivos de texto no *working tree* difere entre origem (LF) e este
+  clone (CRLF), porque `core.autocrlf=true` normaliza terminadores de
+  linha no checkout. Confirmado com `git hash-object` (idêntico nos dois
+  lados) e com o blob do commit (`git cat-file -p HEAD:<arquivo>`,
+  idêntico nos dois lados) — o conteúdo versionado é byte-a-byte o
+  mesmo; só a materialização em disco muda os terminadores de linha.
+- Checklist para o notebook: repetir o mesmo procedimento — clonar
+  `work/consolidacao-diretoria-2026-09-08` (ou a branch vigente na época)
+  do GitHub para um diretório fora de qualquer pasta sincronizada
+  (OneDrive/Google Drive/etc.), copiar `.env.local` manualmente (nunca
+  pelo Git), rodar `npm install`, `npx tsc --noEmit` e `npm run build`
+  antes de considerar o notebook pronto para uso.
+- Pendências: `main` segue sem receber este trabalho — publicação em
+  produção depende de decisão futura da diretoria (merge/PR explícito,
+  fora do escopo desta transição). A pasta de origem no OneDrive não foi
+  descontinuada e não deve ser apagada só por esta transição ter sido
+  bem-sucedida.
