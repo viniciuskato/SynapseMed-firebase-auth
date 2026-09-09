@@ -1,0 +1,74 @@
+PROMPT 06-C — CONSOLIDAR E TRANSFERIR O REPOSITÓRIO PARA FORA DO ONEDRIVE
+
+Você é uma sessão executiva nova do NexusMed.
+
+ORIGEM ATUAL
+C:\Users\vinic\OneDrive\Projetos\SynapseMed\firebase-auth
+
+DESTINO PROPOSTO
+C:\Users\vinic\dev\NexusMed\firebase-auth
+
+Leia na origem:
+- AGENTS.md
+- docs/CONTINUIDADE-MULTI-MAQUINA.md, especialmente a seção 11
+- docs/diretoria/MODELO-DIRETORIA.md
+- docs/diretoria/registro.md
+
+CONTEXTO
+O repositório Git está dentro do OneDrive com Files On-Demand. A diretoria decidiu usar um clone independente fora do OneDrive em cada máquina e GitHub para transportar trabalho.
+
+Há mudanças locais ainda não publicadas de, pelo menos, responsividade (01-C), referências (03 v2), documentação e auditorias. A pasta antiga deve permanecer intacta até a conferência completa. Baselines anteriores foram capturados durante edição concorrente e não servem como baseline definitivo.
+
+Segundo a confirmação mais recente do usuário, nenhuma outra sessão executiva está rodando agora. Confirme isso operacionalmente antes de qualquer mutação: faça duas leituras do estado dos arquivos separadas por um intervalo curto e pare se houver mudança inesperada.
+
+OBJETIVO
+Consolidar com segurança todo o trabalho atual e criar um clone funcional fora do OneDrive, sem perder alterações, segredos ou histórico e sem publicar em produção.
+
+REGRAS DE SEGURANÇA
+1. Não apague, mova ou renomeie a pasta de origem.
+2. Não copie o diretório `.git` pelo OneDrive.
+3. Não faça push em `main`; isso causa deploy.
+4. Não faça deploy nem altere o Supabase remoto.
+5. Não exponha valores de `.env.local` em logs, commits ou relatórios.
+6. Não use reset, clean ou checkout destrutivo.
+7. Se o destino já existir, não o sobrescreva. Inspecione e pare, apresentando a situação.
+
+EXECUÇÃO
+1. Confirme branch, HEAD, origin, arquivos modificados/não rastreados e ausência de commits locais não enviados.
+2. Regere imediatamente o inventário e checksums SHA-256 de todos os arquivos relevantes fora de HEAD. Exclua artefatos regeneráveis e segredos da comparação de conteúdo, mas registre sua existência e tratamento.
+3. Classifique arquivos não rastreados, incluindo previews, relatórios, prompts e retornos. Preserve arquivos cuja descartabilidade não esteja comprovada.
+4. Crie uma branch de consolidação `work/consolidacao-diretoria-2026-09-08` a partir do HEAD atual, mantendo todas as mudanças do working tree.
+5. Revise o diff para detectar segredos, arquivos temporários dispensáveis e conflitos entre entregas. Não descarte nada automaticamente; mova somente artefatos comprovadamente temporários para uma área de preservação documentada dentro da origem ou mantenha-os fora do commit.
+6. Execute TypeScript, build e os testes já pertinentes às mudanças acumuladas. Não resete o banco local se isso puder interferir em dados ou sessões.
+7. Faça commit na branch de consolidação com descrição clara das entregas incluídas. Não inclua `.env.local`, segredos, `node_modules`, `dist` ou caches.
+8. Envie apenas essa branch ao origin. Confirme que `main` e `origin/main` não mudaram e que nenhum deploy foi provocado por merge.
+9. Crie o diretório pai do destino e faça um clone limpo da branch de consolidação no destino proposto. Se escrever fora do espaço permitido exigir autorização, solicite-a no mecanismo da ferramenta explicando o destino exato.
+10. Configure o ambiente no novo clone sem copiar segredos para o Git. A transferência local de `.env.local` pode ser feita somente preservando permissões e sem exibir seu conteúdo. Se a política impedir, entregue instrução direta ao usuário em vez de contornar a restrição.
+11. Instale ou regenere dependências conforme necessário e repita TypeScript, build e verificações funcionais no novo clone.
+12. Compare HEAD, branch, lista de arquivos relevantes e checksums entre origem e destino. Explique diferenças esperadas, como caches e dependências.
+13. Atualize no novo clone a documentação para declarar o caminho ativo somente depois de todas as verificações passarem. A origem permanece como cópia de segurança até decisão posterior do usuário.
+
+CRITÉRIOS DE CONCLUSÃO
+- Todo trabalho relevante está versionado na branch remota de consolidação.
+- `main` não foi alterada.
+- O clone novo abre, compila e contém os mesmos arquivos relevantes.
+- Nenhum segredo foi versionado ou exibido.
+- A origem continua intacta e recuperável.
+- Há instruções curtas para repetir o processo no notebook.
+
+Se qualquer critério falhar, pare antes de declarar o novo clone como ativo e entregue um plano de recuperação. Não improvise sobrescritas.
+
+RETORNO
+Termine com um único bloco copiável:
+
+RETORNO: 06-C
+- Estado da origem e ausência/presença de edição concorrente.
+- Branch e commit de consolidação.
+- Arquivos incluídos e itens preservados fora do commit.
+- Resultado do push sem alteração de main.
+- Caminho e validações do clone novo.
+- Tratamento dos segredos.
+- Comparação por checksums e diferenças esperadas.
+- Situação da pasta antiga.
+- Checklist para o notebook.
+- Pendências e caminho oficialmente ativo.

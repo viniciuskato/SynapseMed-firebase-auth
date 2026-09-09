@@ -1,3 +1,4 @@
+import { sourceUrl } from '../utils/bibliographicSources';
 import { Flashcard, FlashcardSRS, Question } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { calculateNextSRS, createInitialSRS } from '../services/srsAlgorithm';
@@ -107,7 +108,19 @@ function rowToSRS(srsRow: SRSStateRow | undefined, reviews: ReviewRow[]): Flashc
   };
 }
 
-function rowToFlashcard(row: FlashcardRow, srsRow: SRSStateRow | undefined, reviews: ReviewRow[]): Flashcard {
+interface BibliographicSource {
+  verificacao?: string;
+  sourceId: string;
+  citationText: string;
+  url?: string;
+}
+
+function rowToFlashcard(
+  row: FlashcardRow,
+  srsRow: SRSStateRow | undefined,
+  reviews: ReviewRow[],
+  bibliographicSourcesByQuestionId?: Map<string, BibliographicSource[]>
+): Flashcard {
   return {
     id: row.id,
     disciplineId: row.discipline_id,
@@ -121,6 +134,9 @@ function rowToFlashcard(row: FlashcardRow, srsRow: SRSStateRow | undefined, revi
     difficulty: row.difficulty,
     isCustom: row.is_custom,
     srs: rowToSRS(srsRow, reviews),
+    bibliographicSources: row.question_origin_id
+      ? bibliographicSourcesByQuestionId?.get(row.question_origin_id)
+      : undefined,
   };
 }
 
@@ -149,8 +165,37 @@ export class SupabaseFlashcardsRepository implements FlashcardsRepository {
     if (rErr) throw rErr;
 
     const srsById = new Map(((srsStates ?? []) as SRSStateRow[]).map((s) => [s.flashcard_id, s]));
+
+    // Fonte bibliográfica herdada da questão de origem (distinta do material
+    // de origem, que já vem em material_id/compendiumRefId) — só busca para
+    // as question_origin_id realmente presentes nesta leva de flashcards.
+    const questionIds = [
+      ...new Set(((cards ?? []) as FlashcardRow[]).map((c) => c.question_origin_id).filter((id): id is string => !!id)),
+    ];
+    let bibliographicSourcesByQuestionId: Map<string, BibliographicSource[]> | undefined;
+    if (questionIds.length > 0) {
+      const { data: refs, error: refErr } = await supabase
+        .from('question_references')
+        .select('question_id, source_id, sort_order, sources(citation_text, identificadores, verificacao)')
+        .in('question_id', questionIds)
+        .order('sort_order');
+      if (refErr) throw refErr;
+      bibliographicSourcesByQuestionId = new Map();
+      for (const r of (refs ?? []) as unknown as {
+        question_id: string;
+        source_id: string;
+        sources: { verificacao: string; citation_text: string; identificadores: Record<string, string> | null } | null;
+      }[]) {
+        const ids = r.sources?.identificadores;
+        const url = sourceUrl(ids);
+        const list = bibliographicSourcesByQuestionId.get(r.question_id) ?? [];
+        list.push({ sourceId: r.source_id, citationText: r.sources?.citation_text ?? r.source_id, url, verificacao: r.sources?.verificacao });
+        bibliographicSourcesByQuestionId.set(r.question_id, list);
+      }
+    }
+
     return ((cards ?? []) as FlashcardRow[]).map((c) =>
-      rowToFlashcard(c, srsById.get(c.id), (reviews ?? []) as ReviewRow[])
+      rowToFlashcard(c, srsById.get(c.id), (reviews ?? []) as ReviewRow[], bibliographicSourcesByQuestionId)
     );
   }
 

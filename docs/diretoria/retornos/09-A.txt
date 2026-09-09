@@ -1,0 +1,281 @@
+RETORNO: 09-A
+
+GIT
+- Caminho oficial: C:\Users\vinic\dev\NexusMed\firebase-auth. Branch
+  work/consolidacao-diretoria-2026-09-08. HEAD local e remoto (origin)
+  idênticos: f4f3767. origin/main permanece em 2d58efd (confirmado por
+  fetch direto, não por cache). Working tree limpo no início; nenhuma
+  exceção de safe.directory foi necessária (nenhum erro de sandbox
+  encontrado, o repositório já era reconhecido normalmente).
+- Inconsistência do registro (8db90b4 vs. f4f3767) reconciliada em
+  docs/diretoria/registro.md: histórico linear confirmado com `git log`
+  (2d58efd → 1e89a2f → 8db90b4 → f4f3767), sem divergência nem reescrita.
+  8db90b4 é um commit intermediário; f4f3767 é o HEAD real, provavelmente
+  a própria declaração da seção 11.6 feita pela executiva do 06-C depois
+  de já ter escrito o resumo anterior. Nenhum trabalho perdido.
+
+INCIDENTE DE CONCORRÊNCIA (relevante para o processo, não para o código)
+- No meio desta validação, outra janela do Claude Code estava ativa na
+  mesma pasta/branch, fazendo correções reais de código (ver seção
+  CORREÇÕES abaixo) e escrevendo simultaneamente no mesmo Supabase LOCAL
+  compartilhado. Isso foi detectado por esta sessão (não relatado por
+  ela mesma) ao observar sources/question_references sendo criadas com
+  timestamp posterior à minha própria limpeza, durante minha verificação.
+  O usuário confirmou e encerrou a outra sessão; esta sessão então
+  confirmou ausência de escritores concorrentes com duas checagens de
+  `git status -s` e de timestamps do banco antes de prosseguir.
+- Efeito prático: as alterações de código já estavam no working tree
+  quando retomei (não foram descartadas) e são tratadas como parte desta
+  entrega, mas toda validação reportada abaixo como "verificado nesta
+  sessão" foi refeita/checada por mim depois da resolução do incidente,
+  não aceita apenas pelo relato da outra sessão.
+
+CORREÇÕES (aplicadas por trabalho concorrente já revisado + verificado por mim; nenhuma commitada até este retorno)
+1. Diálogo de feedback ("Algo errado aqui?") clipado/cortado no mobile e
+   saindo da viewport em ~640px: causa real era o `backdrop-blur`/`filter`
+   de ancestrais criando um containing block para `position: fixed`.
+   Corrigido renderizando o diálogo via `createPortal` direto em
+   `document.body`, com `inert` no `#root` e `overflow: hidden` no body
+   enquanto aberto (evita interação/scroll por trás). Verifiquei com
+   Playwright real (não apenas leitura de código): bounding box do
+   diálogo 100% dentro da viewport em 390px e 640px, screenshots
+   conferidos visualmente.
+2. Alvos de toque do cabeçalho abaixo de 44px: corrigido com
+   `minWidth/minHeight: 44` nos botões de busca, tema e perfil, e
+   `min-h-11` no botão de marca. Medi diretamente via
+   `getBoundingClientRect()` em 390px: marca 111×44, busca 44×44, tema
+   44×44, perfil 56×44 — todos ≥44px.
+3. Barra sticky do `CompendiumReader` descolava do cabeçalho real
+   (usava `top-[53px]` fixo). Corrigido com `--app-header-height`
+   (`ResizeObserver` no `Header.tsx` atualiza a CSS var) e
+   `top-[var(--app-header-height)]`. Efeito indireto confirmado nas
+   mesmas capturas do item 1 (sem sobreposição entre cabeçalho e barra
+   sticky em 390/640px).
+4. Estado de verificação editorial da fonte (`sources.verificacao`)
+   estava gravado mas invisível ao estudante — pendência já registrada
+   em retornos anteriores (03-A v2, 08-B). Corrigido: rótulo legível
+   (`sourceVerificationLabel`, ex. "Fonte verificada" / "Verificação
+   pendente") agora aparece em QuestionCard, CompendiumReader (quando
+   linked) e nos dois componentes de flashcard. Confirmei visualmente via
+   screenshots reais (ver seção REFERÊNCIAS).
+5. Texto explicitando granularidade honesta: "bibliografia da questão
+   não sustenta alternativas individualmente" (QuestionCard), bibliografia
+   do compêndio é geral (CompendiumReader), fonte herdada do flashcard
+   "sem verificação específica deste flashcard" — evita a interface
+   sugerir precisão que o dado não tem.
+6. `sourceUrl` (novo util `src/utils/bibliographicSources.ts`,
+   substituindo 3 cópias quase-idênticas da mesma lógica) agora restringe
+   o link a protocolos http/https via `new URL(...).protocol` — antes um
+   `identificadores.url` malformado ou com esquema diferente (ex.
+   `javascript:`) teria sido aceito sem checagem.
+7. `bibliografia` de flashcard estava implementada em
+   `FlashcardReviewer.tsx`, componente que não é o fluxo ativo do
+   produto (o fluxo real é `FlashcardReviewSession.tsx`) — achado real de
+   outra sessão, confirmei eu mesma comparando os dois componentes e
+   testando visualmente (screenshot em anexo mostra a bibliografia
+   aparecendo corretamente dentro de `FlashcardReviewSession`).
+8. `scripts/recover-question-references.ts` deixou de ser "tudo ou nada"
+   por questão: antes, se a questão já tivesse QUALQUER linha em
+   `question_references`, era pulada inteira (uma interrupção no meio de
+   uma execução --execute podia deixar uma questão com 1 de 3 referências
+   pra sempre). Agora compara por `source_id` individual e insere só os
+   ausentes (upsert com `onConflict: 'question_id,source_id',
+   ignoreDuplicates: true`), permitindo retomar uma execução parcial sem
+   duplicar. Também: validação de host mais robusta (`new URL(...).hostname`
+   em vez de `.includes()`), `NEXUSMED_BANCO_DIR` configurável por env, e
+   `process.exitCode = 1` quando há gaps/não-encontradas (útil para CI/
+   script de publicação detectar falha sem parsear texto).
+   TESTE PRÓPRIO DESTA SESSÃO (não apenas aceito do relato): deletei
+   manualmente 1 de 3 question_references de uma questão real no Supabase
+   LOCAL, rodei `--execute`: resultado "Recuperadas: 1, inseridas: 1,
+   sources já existentes: 1" (não recriou a fonte), a linha voltou com o
+   source_id e sort_order corretos (sort_order=1, preservando a posição
+   original), e as outras 392 questões já completas foram puladas sem
+   duplicar nada.
+
+REVISÃO DO DIFF
+- Revisei integralmente o diff entre origin/main (2d58efd) e a branch
+  (29 arquivos do commit de consolidação + os arquivos corrigidos nesta
+  etapa). Escopo consistente com as duas entregas anunciadas
+  (responsividade + referências) e com os registros de diretoria; nenhuma
+  alteração fora de escopo encontrada.
+- Segredos: único achado em todo o diff é o JWT `service_role` padrão de
+  demonstração do Supabase CLI local (issuer "supabase-demo", usado como
+  fallback em `recover-question-references.ts`, mesmo padrão já presente
+  em outros scripts do repositório) — não é uma credencial real, é o
+  valor público documentado do CLI para ambiente local.
+- Dados pessoais: os dois retornos brutos de 08-A/08-B (com IDs ligáveis
+  a um participante) permanecem fora do commit, só localmente, conforme
+  decisão já registrada no gate do 06-C; as versões sanitizadas
+  versionadas foram lidas por mim na íntegra — sem identificadores, sem
+  e-mail, sem dados de tentativa individualizáveis.
+- Arquivos temporários: nenhum no diff (verificado por `git status`).
+  `.gitignore` só acrescenta o padrão de relatório do novo script
+  (`recover-question-references.*.report.txt`), consistente com o mesmo
+  padrão já usado para `load-questoes.*.report.txt`.
+- Migration (`20260907140000_question_references_in_review.sql`): só
+  redefine `get_question_review`/`submit_question_attempt` acrescentando
+  o campo `references` — mesma assinatura, sem alterar colunas/tabelas
+  existentes. `payload.references ?? []` no mapper do frontend torna a
+  mudança retrocompatível mesmo se, por algum motivo, a migration não
+  estivesse aplicada (não é o plano, mas reduz o risco de ordem).
+
+RESPONSIVIDADE — validação visual (Playwright/Chromium, feita por mim)
+- Reaproveitei um usuário de teste local isolado (criado e removido só
+  para esta sessão) e naveguei de verdade no app rodando contra o
+  Supabase LOCAL (nunca o remoto).
+- 390px e 640px: diálogo de feedback 100% dentro da viewport (bounding
+  box conferido por código, não estimativa), sem cortes acima/à esquerda
+  — os dois bugs relatados pela sessão concorrente e que eu reproduzi e
+  vi corrigidos nas capturas de tela.
+- 390px: botões do cabeçalho (marca, busca, tema, perfil) todos ≥44px de
+  altura, medidos diretamente.
+- Sem erros de console durante a navegação/teste.
+- NÃO refiz pessoalmente a bateria completa nas 8 larguras (320-1280) nem
+  os testes de foco/Tab/Escape com 12 repetições, nem as alturas baixas
+  (480/400/320) — esses foram feitos pela sessão concorrente com um script
+  real (`qa.mjs`, com asserções de bounding box, scroll, foco), que
+  revisei linha a linha e cujo método considero correto, mas cujo
+  resultado eu não presenciei rodar até o fim (o arquivo de saída não
+  ficou salvo). Tratar como validado com confiança média-alta (metodologia
+  correta, resultado não testemunhado por mim), não como confirmado com
+  a mesma força dos itens acima que eu rodei e vi pessoalmente.
+
+REFERÊNCIAS — validação visual (evidência real, screenshots revisados por mim)
+1. Questão com referência: bloco "Bibliografia da questão" aparece com
+   texto "Referências gerais da questão; não há vínculo individual com
+   cada alternativa", citação com link e rótulo "Fonte verificada" —
+   confirmado por screenshot.
+2. Questão sem referência: bloco não aparece (sem placeholder vazio) —
+   confirmado por leitura do código condicional (`references.length > 0`)
+   e por não aparecer nas telas capturadas de questões sem vínculo.
+3. Fonte com identificador (doi/pmid/url) vira link; fonte só textual não
+   — confirmado por código (`sourceUrl` só retorna algo com identificador
+   presente e protocolo http/https) e pela captura com link.
+4. Estado de verificação (`verificacao`) agora VISÍVEL ao estudante —
+   este era o achado pendente de 03-A v2/08-B ("armazenado mas invisível
+   ao leitor"); confirmado corrigido e confirmado visualmente nas
+   capturas de questão, compêndio estruturado e flashcard.
+5. Flashcard com bibliografia herdada: confirmado por screenshot dentro
+   do componente correto (`FlashcardReviewSession`), com o aviso "sem
+   verificação específica deste flashcard".
+6. Compêndio com `material_references.source_id` estruturado: confirmado
+   por screenshot — vira link, mostra "Fonte verificada", com o aviso
+   "Bibliografia geral do compêndio, sem vínculo com afirmações
+   específicas."
+7. Compêndio sem source_id (caso real hoje — nenhum dos 33 compêndios
+   carregados tem curadoria): mantém texto simples, sem link inventado —
+   confirmado por código (fallback `{ linked: false }`) e é o
+   comportamento já documentado no AGENTS.md.
+- Todas as capturas usaram dados de teste isolados no Supabase LOCAL,
+  removidos ao final desta sessão (ver seção DADOS).
+
+DADOS — TypeScript, build, pgTAP, recuperação (tudo verificado por mim nesta sessão, depois do incidente de concorrência)
+- Ambiente: Docker/Supabase LOCAL caiu no meio da sessão concorrente
+  (containers pararam) — reiniciei o Docker Desktop, todos os containers
+  voltaram saudáveis, dados preservados (volume persistente, não houve
+  `supabase db reset`).
+- `npx tsc --noEmit`: limpo. `npm run build`: limpo (mesmo aviso
+  pré-existente de chunk >500kB).
+- `supabase test db` (pgTAP): 83/83 PASS, rodado duas vezes (antes e
+  depois da limpeza de dados abaixo).
+- Limpeza de higiene: encontrei e removi resíduo de teste de PELO MENOS
+  3 sessões anteriores (2026-09-07 a 2026-09-09) nunca limpo apesar de
+  retornos anteriores declararem limpeza feita — "Disciplina Teste"/
+  "Enunciado A-H" (40 questões, cascata em simulation_questions/
+  materials/themes/disciplines) e sources `fonte-teste-*`. Contagem
+  restaurada ao baseline real: 394 questões (393 do acervo + 1 questão de
+  Gastroenterologia/Endoscopia Digestiva pré-existente em draft, não
+  relacionada), 675 question_references, 84 sources — bate exatamente
+  com os números já validados em 03-A v2.
+- Dry-run local do script de recuperação: 393/393 já tinham referências
+  (idempotência), 0 gaps, 0 não encontradas, cobertura 100%, exit code 0.
+- Teste de retomada parcial (ver item 8 da seção CORREÇÕES): recuperou
+  exatamente o que faltava, sem duplicar, sort_order preservado.
+- Nota de higiene registrada em AGENTS.md: `supabase test db` deixa suas
+  próprias fixtures (`*@test.local`, uma `Disciplina Teste`) — não é bug
+  desta branch, é do próprio runner; próximas sessões não devem confundir
+  isso com corrupção de dado.
+
+LIMITAÇÕES
+- Validação visual em Chromium headless local; sem dispositivo físico,
+  sem Safari/iOS, sem teclado virtual real.
+- Não refiz pessoalmente toda a bateria de 8 larguras nem os testes de
+  foco com 12 repetições (ver nota na seção RESPONSIVIDADE) — herdados
+  com confiança média-alta da sessão concorrente, cujo método revisei.
+- Os 33 compêndios reais carregados não têm `source_id` curado — o
+  cenário 6 (compêndio estruturado) foi validado com dado de teste local,
+  não com conteúdo real, porque não existe ainda conteúdo real que
+  exercite esse caminho.
+- Migration e recuperação REMOTA não foram aplicadas nem testadas em
+  dry-run remoto nesta etapa (proibido pelo escopo desta tarefa).
+
+PLANO DE PUBLICAÇÃO (ordem segura — migration/recuperação ANTES do merge, pra nunca ter frontend chamando schema ausente)
+1. Revisar/aprovar o commit adicional desta etapa (correções de código +
+   limpeza de docs) e confirmar branch limpa.
+2. `supabase link --project-ref jfvhwwvixwvgjfqzlkkb` (este clone NÃO
+   está linkado — confirmado com `supabase projects list`) — rodado pelo
+   usuário, interativo.
+3. Ler (só leitura) contagens remotas atuais de `sources`/
+   `question_references` para ter um "antes" registrado.
+4. Aplicar a migration nova no remoto: `supabase db push --linked --yes`
+   (rodado pelo usuário — armadilha #3 do AGENTS.md). Só esta migration
+   pendente; as demais já confirmadas aplicadas (retorno 02-B).
+5. Verificar objeto por objeto no banco (não confiar só na mensagem de
+   sucesso do CLI — armadilha #8): `select proname, pronargs from
+   pg_proc where proname in ('get_question_review',
+   'submit_question_attempt')`, e confirmar que o jsonb devolvido por uma
+   chamada real inclui `references`.
+6. Dry-run remoto do script de recuperação (SEM --execute):
+   `VITE_SUPABASE_URL=<remota> SUPABASE_SERVICE_ROLE_KEY=<remota> npx tsx
+   scripts/recover-question-references.ts --allow-remote` — rodado pelo
+   usuário. Esperado: 393/393 correspondências, ~675 vínculos previstos,
+   0 gaps, 0 não encontradas (mesmo perfil do local). Se divergir, PARAR
+   e investigar antes de prosseguir.
+7. Só então rodar de verdade: mesmo comando + `--execute`.
+8. Validar direto no banco: contagens finais, unicidade
+   (question_id, source_id), sort_order preservado, e confirmar que
+   `questions`, `question_options`, `question_option_keys`,
+   `question_answer_keys`, `question_attempts`, `error_notebook`,
+   `bookmarks`, `notes`, `flashcards`, SRS não mudaram (a recuperação só
+   escreve em `sources`/`question_references`, por desenho do script).
+9. Só depois de 4-8 confirmados: integrar a branch em `main` e dar push
+   (dispara o deploy automático do Vercel).
+10. Acompanhar o deploy e fazer smoke test em produção: login, responder
+    uma questão com referência real e conferir que a fonte aparece com o
+    rótulo de verificação, abrir um compêndio e a barra de ações no
+    mobile, abrir e fechar o diálogo de feedback, abrir um flashcard com
+    questão de origem.
+
+REVERSÃO
+- Se o dry-run remoto (passo 6) divergir do esperado: não executar, não
+  mesclar. Investigar a causa (provavelmente `question_stem` divergente
+  entre acervo e banco) antes de tentar de novo.
+- Se a execução remota (passo 7) produzir contagem inesperada: não
+  mesclar. Como o script só insere (nunca faz update/delete em linhas
+  existentes) e grava com timestamp, é possível remover cirurgicamente só
+  as linhas inseridas nesta execução por `created_at >= <timestamp
+  imediatamente antes do --execute>`, preservando tudo que já existia.
+- Se o frontend falhar depois do merge/deploy: reverter o commit/merge em
+  `main` (`git revert` + novo push, dispara novo deploy) ou `vercel
+  rollback` (instantâneo, não mexe em código) — o schema é aditivo e
+  retrocompatível, então não há necessidade de reverter a migration junto;
+  só reverter as funções da migration se, por algum motivo confirmado,
+  elas mesmas estiverem causando erro (o que os testes locais não
+  sugerem).
+- Nunca resetar o banco remoto.
+
+DECISÃO RECOMENDADA
+Pronta para publicação pela sequência acima (migration + recuperação
+remota ANTES do merge em `main`). Responsividade e referências foram
+validadas com evidência visual real, não só schema/build; a pendência
+"verificação invisível ao estudante", levantada em retornos anteriores
+(03-A v2, 08-B), está corrigida e confirmada. Nenhum merge/push em
+`main`, deploy ou escrita no Supabase remoto foi feito nesta etapa.
+
+ARQUIVOS LIBERADOS
+Todos os arquivos alterados nesta etapa (código + docs) estão estáveis,
+sem harness/fixture temporário pendente no repositório (script auxiliar
+usado só em C:\Users\vinic\AppData\Local\Temp, fora do repo). Ambiente
+Supabase LOCAL restaurado ao baseline (394/675/84), dev server e usuário
+de teste desta sessão removidos. Sessão 09-A encerrada.

@@ -1,0 +1,114 @@
+RETORNO: 08-A — Investigação do feedback "sem resposta certa" (versão sanitizada para versionamento)
+
+Versão sanitizada do retorno integral (arquivo bruto preservado fora do
+commit, só localmente — contém identificadores ligados a um participante
+e não deve ser versionado). Removidos desta versão: ID do registro de
+feedback, ID da questão, ID de alternativas, timestamps absolutos de
+atividade do participante e qualquer dado que permita religar este
+relato a uma pessoa ou tentativa específica no banco. Preservado:
+problema investigado, conclusão técnica, validações e pendências.
+
+PROBLEMA INVESTIGADO
+Um feedback de categoria "problema" (tag "Outro", texto livre "sem
+resposta certa") foi registrado por um participante numa questão de
+Cardiologia (tema Endocardite Infecciosa, status publicado/aprovada).
+
+ESTADO DO CONTEÚDO (banco remoto, leitura direta, sem RLS)
+- 5 alternativas (A–E), todas com texto presente.
+- Exatamente 1 alternativa marcada como correta; as 4 restantes têm
+  explicação individual coerente com o distrator específico.
+- Comentário geral e resumo high-yield preenchidos e consistentes com a
+  alternativa correta.
+- A questão não foi alterada entre o momento do relato e o momento desta
+  investigação (confirmado por comparação de timestamps de atualização,
+  sem expor os valores absolutos aqui).
+- A questão não tem, até o momento, referências bibliográficas
+  estruturadas vinculadas (lacuna editorial já conhecida, não é a causa
+  relatada).
+
+REPRODUÇÃO DO FLUXO DO PARTICIPANTE (a partir dos dados registrados)
+- Há um único registro de tentativa para este relato, do próprio autor
+  do feedback: alternativa incorreta selecionada, marcada corretamente
+  como errada pelo sistema.
+- Confirmado no código publicado em produção (sem as alterações locais
+  não commitadas, que não tocam a lista de alternativas nem o cálculo de
+  correção):
+  - As opções são renderizadas na ordem do banco, sem embaralhamento —
+    as 5 alternativas aparecem sempre.
+  - A resolução do ID enviado ao servidor a partir da opção clicada
+    acontece antes da chamada de submissão — sem risco de dessincronia
+    entre o que o participante clicou e o que foi registrado.
+  - A função que determina acerto/erro e a alternativa correta usa a
+    tabela de gabarito corretamente, sem inversão de lógica ou uso de
+    identificador errado.
+  - Confirmada qual versão da função de submissão está ativa em
+    produção (a revisão publicada foi a efetivamente conferida, não uma
+    hipotética).
+- Não há embaralhamento, modo de exibição alternativo ou cache que
+  altere esse comportamento nesta questão.
+
+AVALIAÇÃO CLÍNICA
+- A alternativa correta reúne os quatro mecanismos centrais de
+  complicação da endocardite infecciosa (destruição valvar/insuficiência
+  cardíaca; extensão perivalvar; embolização séptica; fenômenos
+  imunológicos por imunocomplexos). As demais alternativas inserem itens
+  estranhos à fisiopatologia da doença — distratores classicamente
+  inválidos, não defensáveis.
+- Framework alinhado ao AHA Scientific Statement sobre endocardite
+  infecciosa em adultos (Baddour LM et al., Circulation 2015, DOI
+  10.1161/CIR.0000000000000296, PMID 26373316). Aviso de integridade:
+  esta fonte foi verificada só por título/resumo via PubMed nesta etapa
+  (sem texto integral disponível em PMC) — não é checagem verbatim do
+  artigo, é confirmação de que o framework é consenso corrente da área.
+- Existe exatamente uma melhor resposta; o enunciado não omite
+  informação necessária para decidir; não há alternativas concorrentes
+  clinicamente defensáveis.
+
+CLASSIFICAÇÃO DA CAUSA
+- Banco íntegro (gabarito único, explicações presentes, IDs consistentes
+  ponta a ponta), fluxo de submissão correto, interface exibe as 5
+  alternativas sem alteração, função de submissão ativa em produção
+  calcula corretamente.
+- O único registro de tentativa mostra o próprio autor do feedback
+  escolhendo uma alternativa incorreta e sendo corretamente marcado como
+  errado.
+- Causa classificada como "problema não reproduzido" — nenhuma evidência
+  técnica de erro de gabarito, conteúdo, interface/submissão ou
+  ambiguidade clínica real. Hipótese (não fato): discordância do
+  participante após responder errado, possivelmente por não perceber
+  que apenas uma alternativa reúne corretamente os quatro itens (várias
+  alternativas compartilham um dos itens, o que pode gerar impressão de
+  que "nenhuma bate 100%"). Isso é característica de distrator válido,
+  não um defeito.
+
+DECISÃO E CORREÇÃO
+- Nenhuma alteração de código, schema ou dado foi feita — não há causa
+  confirmada a corrigir. Alterar o gabarito ou o conteúdo sem evidência
+  seria uma correção inventada, expressamente vedada.
+- Nenhuma escrita no Supabase remoto, nenhum commit, push, deploy. O
+  registro de feedback não foi marcado como resolvido/em análise nesta
+  etapa — seguia "pendente" no momento desta investigação.
+
+VALIDAÇÕES REALIZADAS
+- Estado do banco no momento desta investigação idêntico ao estado no
+  momento do feedback (confirmado por comparação de timestamps, sem
+  expor valores).
+- Fluxo do participante reproduzido por leitura de dados reais (não
+  simulação): as 5 alternativas existem e ficariam visíveis; a
+  submissão registrada tem o identificador de opção correto e o cálculo
+  de correção bate com o gabarito.
+- Incerteza declarada: não há acesso à sessão do navegador do
+  participante (não é possível confirmar renderização visual exata no
+  dispositivo dele nem descartar 100% um problema de UI específico de
+  tela pequena não coberto por este teste) — mas o código publicado em
+  produção para a lista de alternativas não foi alterado pelas mudanças
+  locais pendentes, então esse vetor é considerado improvável.
+
+PENDÊNCIAS
+- Menor informação adicional que mudaria a conclusão: o participante
+  confirmar (a) se viu as 5 alternativas completas na tela, (b) qual
+  alternativa considerava correta, ou (c) se o problema foi visual
+  (corte/sobreposição) em vez de conceitual — não havia, até esta etapa,
+  evidência técnica de nenhum dos três.
+- Nenhuma mudança de publicação nesta etapa; trilhas de responsividade
+  (01-C) e referências (03-A v2) seguem como estavam (não commitadas).

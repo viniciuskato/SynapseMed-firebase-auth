@@ -1,3 +1,4 @@
+import { sourceVerificationLabel } from '../../utils/bibliographicSources';
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
@@ -10,6 +11,7 @@ import {
   Layers,
   ChevronRight,
   Flame,
+  Link2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Flashcard, Discipline, Theme } from '../../types';
@@ -165,6 +167,39 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
                           <strong className="block text-teal-900 dark:text-teal-300">Mecanismo-Chave:</strong>
                           <span>{currentCard.mechanismHighlight}</span>
                         </div>
+                      </div>
+                    )}
+                    {/* Fonte bibliográfica (distinta do material de origem — ver
+                        botão "Ver no Compêndio" no rodapé). Herdada da questão
+                        que originou o flashcard, via question_references. Só
+                        aparece quando existe vínculo estruturado real. */}
+                    {currentCard.bibliographicSources && currentCard.bibliographicSources.length > 0 && (
+                      <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-xs text-left max-w-xl mx-auto">
+                        <strong className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 mb-1">
+                          <Link2 className="w-3.5 h-3.5" />
+                          Bibliografia herdada da questão:
+                        </strong>
+                        <p className="mb-2">Referências da questão de origem; sem verificação específica deste flashcard.</p>
+                        <ul className="space-y-1">
+                          {currentCard.bibliographicSources.map((src) => (
+                            <li key={src.sourceId} className="text-slate-500 dark:text-slate-400">
+                              {src.url ? (
+                                <a
+                                  href={src.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="text-teal-700 dark:text-teal-400 hover:underline"
+                                >
+                                  {src.citationText}
+                                </a>
+                              ) : (
+                                <span>{src.citationText}</span>
+                              )}
+                              <span className="block text-[11px]">{sourceVerificationLabel(src.verificacao)}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
                     )}
                   </div>

@@ -46,6 +46,7 @@ class LocalStorageQuestionsRepository implements QuestionsRepository {
         isCorrect: o.isCorrect,
         explanation: o.explanation,
       })),
+      references: [], // LocalStorage não tem sources/question_references — não inventar.
     };
   }
   async publishQuestion(_id: string): Promise<void> {}

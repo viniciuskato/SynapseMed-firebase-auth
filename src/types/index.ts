@@ -88,6 +88,17 @@ export interface Compendium {
   dependencies?: { title: string; linkId?: string }[];
   sections: CompendiumSection[];
   references: string[];
+  /**
+   * Vínculo estruturado de cada item de `references` a uma fonte curada
+   * (material_references.source_id -> sources), quando existir. Mesmo
+   * índice de `references` (`referenceSources[i]` descreve `references[i]`);
+   * ausente ou `linked: false` quando o item é só bibliografia geral em
+   * texto livre (hoje o caso dos 33 compêndios carregados — nenhum tem
+   * source_id curado, ver AGENTS.md/relatório de auditoria 2026-09-07).
+   * `url` só aparece quando a fonte tem identificador verificável
+   * (doi/pmid/url) — nunca inventada.
+   */
+  referenceSources?: { linked: boolean; sourceId?: string; url?: string; verificacao?: string }[];
   isPremiumOnly?: boolean;
 }
 
@@ -152,6 +163,14 @@ export interface Flashcard {
   difficulty: DifficultyLevel;
   srs: FlashcardSRS;
   isCustom?: boolean;
+  /**
+   * Fontes bibliográficas herdadas da questão de origem (via
+   * questionOriginId -> question_references -> sources), distintas de
+   * `compendiumRefId` (material de origem dentro do próprio produto).
+   * Ausente quando o flashcard não tem questão de origem, ou a questão de
+   * origem não tem referência estruturada (não inventada).
+   */
+  bibliographicSources?: { sourceId: string; citationText: string; url?: string; verificacao?: string }[];
 }
 
 export type AppView =
@@ -188,12 +207,27 @@ export interface QuestionReviewOption {
   explanation: string;
 }
 
+// Fonte bibliográfica vinculada de forma estruturada a uma questão
+// (question_references -> sources). Vínculo por QUESTÃO inteira, não por
+// alternativa — o acervo (banco-questoes.json) só tem `referencias[]` no
+// nível da questão, não uma fonte por alternativa. `url` é derivada de
+// identificadores conhecidos (doi/pmid/url) só quando presentes — nunca
+// inventada quando a fonte não tem identificador verificável.
+export interface QuestionReviewReference {
+  sourceId: string;
+  citationText: string;
+  tipo: string;
+  verificacao: string;
+  url?: string;
+}
+
 export interface QuestionReviewResult {
   isCorrect: boolean;
   correctOptionId: string;
   generalCommentary: string;
   highYieldSummary: string;
   options: QuestionReviewOption[];
+  references: QuestionReviewReference[];
 }
 
 export interface SimuladoConfig {

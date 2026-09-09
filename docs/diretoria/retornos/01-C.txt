@@ -1,0 +1,138 @@
+RETORNO: 01-C
+
+RESULTADO E PROBLEMAS CORRIGIDOS
+
+1. Cabeçalho em larguras intermediárias (corte real confirmado em 768px,
+   contradizendo o relato anterior de "sem cortes"): o menu central
+   (Início/Biblioteca/Questões/Flashcards/Erros) só cabe junto com
+   busca+sequência+tema+perfil a partir de ~1100px — entre 768 e ~1099px
+   ele empurrava busca, tema e perfil para fora da tela. Corrigido
+   reaproveitando o menu mobile já existente (`MobileBottomNav`, dock
+   flutuante) para toda a faixa abaixo de 1280px, e adiando o menu
+   central completo (`hidden xl:flex`, era `hidden md:flex`) para só
+   aparecer a partir de 1280px — largura onde medi e confirmei que tudo
+   cabe sem corte. Ajustei também o padding inferior do conteúdo
+   (`pb-24 xl:pb-12`, era `md:pb-12`) para o dock flutuante não tampar o
+   fim da página nessa faixa estendida.
+
+2. Áreas de toque no mobile: refiz a barra de ações do leitor de
+   compêndio. "Voltar" e "Resolver questões" agora têm exatamente
+   44×44px/44px de altura no mobile (revertido para o tamanho original
+   a partir de `sm:`). Índice/Anotações/Favoritar — que não cabiam a
+   44px cada lado a lado — foram agrupados num menu único "Mais ações"
+   (gatilho 44×44, cada item da lista com 44px de altura), só no mobile;
+   no desktop os três botões continuam separados, exatamente como
+   antes (bytes/posições idênticos, confirmado por medição). O link
+   discreto "Algo errado aqui?" manteve a aparência pequena/discreta,
+   mas ganhou área de toque real de ~123×45px via padding invisível
+   (com margem negativa compensando, sem mudar o desenho).
+   "Resolver questões" continua com o mesmo destaque visual (cor,
+   posição, tamanho de fonte) em todas as larguras.
+
+3. Modal de feedback contextual ("Algo errado aqui?"), usado tanto no
+   leitor de compêndio quanto no cartão de questão: agora tem
+   `role="dialog"` + `aria-modal="true"` + nome acessível
+   (`aria-label` dinâmico conforme o estado enviado/não enviado), foco
+   movido para dentro do diálogo ao abrir, Tab/Shift+Tab presos dentro
+   dele (testei 12 tabs seguidos — nunca escapou), Escape fecha e
+   devolve o foco ao botão que abriu — verificado nos dois locais de
+   uso. Todos os alvos internos (tags, X, textarea, enviar, fechar)
+   também passaram a ter no mínimo 44px de altura.
+
+ARQUIVOS ALTERADOS
+- src/components/Header.tsx — menu central: `hidden md:flex` → `hidden
+  xl:flex`.
+- src/components/navigation/MobileBottomNav.tsx — visibilidade:
+  `md:hidden` → `xl:hidden`.
+- src/App.tsx — padding inferior do conteúdo: `pb-24 md:pb-12` →
+  `pb-24 xl:pb-12` (1 linha, efeito colateral necessário da mudança
+  acima).
+- src/components/compendium/CompendiumReader.tsx — barra de ações
+  reestruturada: Voltar e Resolver questões a 44px no mobile; novo menu
+  "Mais ações" (44×44, com Escape e devolução de foco) substituindo os
+  3 ícones no mobile; desktop inalterado (bloco `hidden sm:flex`
+  separado, classes idênticas às originais).
+- src/components/feedback/ContextualFeedbackPopover.tsx — diálogo
+  acessível (dialog/aria-modal/aria-label, foco inicial, focus trap,
+  Escape, devolução de foco), alvos internos ≥44px, gatilho com área de
+  toque maior via padding+margem negativa (aparência inalterada).
+
+Não toquei em QuestionCard.tsx, nos repositórios, em types/index.ts, nas
+migrations, nem no AGENTS.md — são trabalho de outra sessão em
+andamento (feature de referências bibliográficas), confirmado intacto
+antes e depois desta etapa (`git diff --stat` só mostra os 5 arquivos
+acima como meus).
+
+VALIDAÇÕES REALIZADAS
+- Harness isolado (Playwright + Chromium + mock de auth, o mesmo padrão
+  das etapas anteriores), removido integralmente ao final — `git
+  status` confirma que só os 5 arquivos de código ficaram modificados
+  (mais `.gitignore` e outros arquivos de outra sessão, não meus).
+- Larguras testadas com medição real de bounding box (não estimativa):
+  320, 360, 390, 430, 639, 640, 768, 820, 900, 960, 1023, 1024, 1100,
+  1280px.
+  - 320–639: barra do leitor em duas linhas, Voltar 44×44, Resolver
+    questões 146×44, "Algo errado aqui?" 123×45, "Mais ações" 44×44 —
+    sem sobreposição, sem corte.
+  - 640–1279: barra do leitor volta a uma linha, com os tamanhos
+    ORIGINAIS de antes de qualquer correção (30×30, 142×28, 103×17 etc.)
+    — ou seja, desktop bit-a-bit igual ao ponto de partida.
+  - 768–1100: sem o menu central; dock mobile flutuante presente e
+    funcional; sem corte em busca/tema/perfil (antes cortava a partir
+    de 768).
+  - 1280: menu central completo aparece, sem corte, idêntico à captura
+    de antes desta etapa.
+- Menu "Mais ações": itens medem 238×44px cada; clicar um item executa
+  a ação (testei "Índice de seções" → abre o índice) e fecha o menu;
+  Escape fecha e devolve foco ao gatilho.
+- Diálogo de feedback: testado nos dois usos (CompendiumReader e
+  QuestionCard) — nome acessível presente, foco entra no diálogo ao
+  abrir, 12 Tabs seguidos nunca saíram do diálogo, Escape fecha e
+  devolve foco ao link "Algo errado aqui?" nos dois casos.
+- Alturas de viewport reduzidas (480/400/320px, simulando teclado
+  virtual cobrindo parte da tela): o diálogo se autolimita
+  (`max-h-[calc(100vh-2rem)]` + rolagem interna) e o campo de texto
+  permanece visível e digitável nas três alturas — testado com
+  preenchimento real via teclado simulado do Playwright, não apenas
+  inspeção visual.
+- `npx tsc --noEmit`: sem erros. `npm run build`: build de produção
+  passou (mesmo aviso pré-existente de chunk >500kB, alheio a esta
+  mudança).
+- Antes de editar, chequei duas vezes o `git status` com alguns segundos
+  de intervalo para confirmar que nenhuma outra sessão estava
+  escrevendo nos arquivos que eu ia tocar.
+
+PENDÊNCIAS E LIMITAÇÕES
+- Não testei em dispositivo físico real nem em Safari/iOS — só
+  Chromium headless via Playwright. Especificamente, o comportamento
+  real do teclado virtual do iOS/Android (que usa a `visualViewport`
+  API de forma inconsistente entre navegadores) não foi verificado num
+  aparelho de verdade; o que testei foi o efeito de uma viewport mais
+  baixa, que é uma aproximação razoável mas não idêntica.
+- O foco inicial do diálogo de feedback vai para o botão "Fechar" (X),
+  por ser o primeiro elemento focável no DOM — funciona e é válido,
+  mas se a diretoria preferir o foco inicial no primeiro item de tag,
+  seria um ajuste pequeno adicional (reordenar o DOM ou usar um alvo de
+  foco explícito).
+- O painel do índice lateral (drawer) e o menu de perfil no cabeçalho
+  não passaram pelo mesmo tratamento de focus-trap desta etapa — o
+  perfil já tinha fechamento por Escape (pré-existente); o índice não
+  tem Escape nem focus-trap. Ficam fora do escopo do Prompt 01-C (que
+  pediu especificamente o feedback centralizado), mas registro como
+  possível próximo passo de acessibilidade.
+- Não fiz commit, push ou deploy, conforme instrução.
+
+ESTADO DE PUBLICAÇÃO
+- Nada commitado. Todo o trabalho está no working tree local (dentro do
+  OneDrive), igual às etapas anteriores. `docs/CONTINUIDADE-MULTI-
+  MAQUINA.md` (de outra sessão) já documenta que este working tree
+  precisa ser consolidado numa branch antes de qualquer transição de
+  máquina — nada nesta etapa contradiz esse plano.
+
+LIBERAÇÃO DOS ARQUIVOS
+- Sim: encerrei as edições planejadas para este prompt. Os 5 arquivos
+  que toquei (App.tsx, Header.tsx, CompendiumReader.tsx,
+  ContextualFeedbackPopover.tsx, MobileBottomNav.tsx) estão estáveis,
+  sem trabalho pendente meu neles, e livres para serem incluídos numa
+  consolidação/transição de máquina junto com o restante do trabalho em
+  andamento de outras sessões.

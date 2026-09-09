@@ -60,6 +60,16 @@
  *     (discipline_id, theme_id, question_stem) — se já houver uma linha com
  *     essa combinação, a questão inteira é pulada e reportada como "já
  *     existente" (mesmo padrão de load-compendios.ts com materials.title).
+ * 10. CORREÇÃO 2026-09-07 (achado de auditoria): `q.referencias[]` agora é
+ *     gravado em `sources`/`question_references`, reaproveitando o mesmo
+ *     padrão de `load-pilot-cardiologia.ts` (fontes.json -> sources upsert
+ *     por id; question_references preserva a ordem de `referencias[]` em
+ *     `sort_order`). Antes desta correção o campo era lido e descartado
+ *     silenciosamente. Idempotente: uma fonte já existente (mesmo `id`) não
+ *     é reinserida; uma questão que já tem QUALQUER linha em
+ *     question_references não recebe inserção nova (evita duplicar em
+ *     re-execução — ver também scripts/recover-question-references.ts, que
+ *     faz a mesma coisa para questões já carregadas antes desta correção).
  */
 
 import { config as loadEnv } from 'dotenv';
@@ -138,6 +148,22 @@ interface BancoQuestao {
   explicacaoPorAlternativa?: ExplicacaoPorAlternativa[];
 }
 
+interface FontesJson {
+  fontes: Record<string, string>;
+  fontesMeta: Record<
+    string,
+    {
+      tipo: string;
+      verificacao: string;
+      identificadores?: Record<string, string>;
+      jurisdicao?: string | null;
+      vigente?: boolean | null;
+      substituidaPor?: string | null;
+      observacoes?: string | null;
+    }
+  >;
+}
+
 // ----------------------------------------------------------------------------
 // cycle por disciplina — reaproveitado de load-compendios.ts. Disciplinas de
 // banco-questoes.json ausentes deste mapa são reportadas como gap, não
@@ -207,6 +233,45 @@ async function ensureDiscipline(name: string, cycle: 'basico' | 'clinico' | 'int
   return created.id as string;
 }
 
+// ----------------------------------------------------------------------------
+// sources — bibliografia compartilhada (id text = mesmo id de fontes.json).
+// Upsert por id: fonte já existente não é regravada (idempotente). Mesma
+// lógica de load-pilot-cardiologia.ts.
+// ----------------------------------------------------------------------------
+
+async function ensureSource(sourceId: string, fontes: FontesJson): Promise<'criada' | 'ja-existia' | 'gap-fontes-json'> {
+  const citation = fontes.fontes[sourceId];
+  const meta = fontes.fontesMeta[sourceId];
+  if (!citation || !meta) return 'gap-fontes-json';
+
+  if (!EXECUTE) return 'criada'; // dry-run: não consulta nem grava, só reporta como se fosse criar
+
+  const { data: existing, error: selErr } = await admin.from('sources').select('id').eq('id', sourceId).maybeSingle();
+  if (selErr) throw selErr;
+  if (existing) return 'ja-existia';
+
+  let substituidaPor: string | null = meta.substituidaPor ?? null;
+  let observacoes = meta.observacoes ?? null;
+  if (substituidaPor && !fontes.fontes[substituidaPor]) {
+    observacoes = `${observacoes ?? ''}\n\nsubstituidaPor original (texto livre, não é um id válido de fontes.json): "${substituidaPor}".`.trim();
+    substituidaPor = null;
+  }
+
+  const { error } = await admin.from('sources').insert({
+    id: sourceId,
+    citation_text: citation.replace(/<\/?em>/g, ''),
+    tipo: meta.tipo,
+    verificacao: meta.verificacao,
+    jurisdicao: meta.jurisdicao ?? null,
+    vigente: meta.vigente ?? null,
+    substituida_por: substituidaPor,
+    identificadores: meta.identificadores ?? {},
+    observacoes,
+  });
+  if (error) throw error;
+  return 'criada';
+}
+
 async function ensureTheme(disciplineId: string, name: string): Promise<string> {
   if (!EXECUTE && disciplineId.startsWith('[dry-run-fake-id')) return `[dry-run-fake-id:theme:${disciplineId}:${name}]`;
   const { data: existing, error: selErr } = await admin
@@ -241,6 +306,10 @@ const counts = {
   questoesCarregadas: 0,
   questionOptionsCarregadas: 0,
   alternativasSemExplicacaoEspecifica: 0,
+  sourcesCriadas: 0,
+  sourcesJaExistiam: 0,
+  sourcesGapFontesJson: new Set<string>(),
+  questionReferencesCarregadas: 0,
 };
 
 const disciplinasSemCycle: Set<string> = new Set();
@@ -261,6 +330,7 @@ async function main() {
   const banco: { questoes: BancoQuestao[] } = JSON.parse(
     fs.readFileSync(path.join(BANCO_DIR, 'banco-questoes.json'), 'utf8')
   );
+  const fontes: FontesJson = JSON.parse(fs.readFileSync(path.join(BANCO_DIR, 'fontes.json'), 'utf8'));
   counts.questoesEncontradas = banco.questoes.length;
   log.push(`Questões encontradas em banco-questoes.json: ${banco.questoes.length}`);
 
@@ -383,6 +453,30 @@ async function main() {
       });
       if (ansErr) throw ansErr;
     }
+
+    // sources/question_references — ver decisão #10 no cabeçalho. Só roda
+    // para questão recém-inserida (o "already" acima já pulou duplicatas).
+    for (let i = 0; i < (q.referencias ?? []).length; i++) {
+      const sourceId = q.referencias[i];
+      const sourceResult = await ensureSource(sourceId, fontes);
+      if (sourceResult === 'criada') counts.sourcesCriadas++;
+      else if (sourceResult === 'ja-existia') counts.sourcesJaExistiam++;
+      else {
+        counts.sourcesGapFontesJson.add(sourceId);
+        log.push(`  [GAP] fonte "${sourceId}" referenciada por "${q.id}" não encontrada em fontes.json — question_references não recebe esta linha.`);
+        continue;
+      }
+
+      if (EXECUTE) {
+        const { error: qrErr } = await admin.from('question_references').insert({
+          question_id: questionId,
+          source_id: sourceId,
+          sort_order: i,
+        });
+        if (qrErr) throw qrErr;
+      }
+      counts.questionReferencesCarregadas++;
+    }
   }
 
   log.push('\n=== Disciplinas/temas ===');
@@ -399,6 +493,13 @@ async function main() {
   );
   log.push(`\nDisciplinas sem entrada em CYCLE_BY_DISCIPLINE (gap — revisar antes de --execute): ${disciplinasSemCycle.size}`);
   [...disciplinasSemCycle].forEach((d) => log.push(`  - ${d}`));
+
+  log.push('\n=== Referências (sources / question_references) ===');
+  log.push(`Sources criadas${EXECUTE ? '' : ' (simulado)'}: ${counts.sourcesCriadas}`);
+  log.push(`Sources já existentes (reaproveitadas): ${counts.sourcesJaExistiam}`);
+  log.push(`question_references carregadas${EXECUTE ? '' : ' (simulado)'}: ${counts.questionReferencesCarregadas}`);
+  log.push(`Gaps — id de fonte referenciado por uma questão mas ausente em fontes.json: ${counts.sourcesGapFontesJson.size}`);
+  [...counts.sourcesGapFontesJson].forEach((s) => log.push(`  - ${s}`));
 
   const reportPath = path.join(__dirname, '..', `load-questoes.${EXECUTE ? 'execute' : 'dry-run'}.report.txt`);
   fs.writeFileSync(reportPath, log.lines.join('\n'));

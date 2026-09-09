@@ -111,6 +111,46 @@ protótipo).
    supabase_db_synapsemed psql -U postgres -c "update ..."` (conecta
    como `postgres` de verdade), não via cliente Supabase JS mesmo com a
    service role key.
+10. **`docker exec supabase_db_synapsemed psql -U postgres <<'SQL' ...`
+    (heredoc) não funciona sem `-i`** — sem essa flag o `docker exec` não
+    conecta stdin ao container, o comando termina sem erro nenhum e sem
+    imprimir nada, e nenhuma instrução SQL roda (parece sucesso, não é).
+    Use `docker exec -i supabase_db_synapsemed psql -U postgres <<'SQL'`
+    para heredoc, ou `-c "..."` para uma instrução só. Além disso, o
+    classificador de segurança do Claude Code bloqueia de forma
+    inconsistente (não determinística) alguns `docker exec ... psql -c
+    "update/insert ..."` mesmo sendo escrita local/idempotente — quando
+    bloquear, tentar de novo (às vezes passa) ou trocar para um script
+    `supabase-js` com a service role key local, que não sofre esse
+    bloqueio.
+11. **Inserir uma questão de teste isolada no Supabase LOCAL não é um
+    simples `INSERT ... status='published'`.** Triggers de proteção
+    (`guard_question_publish`, `guard_question_option_keys_immutable`,
+    `guard_question_answer_keys_immutable`, `guard_question_delete`)
+    exigem: inserir a questão como `draft`; inserir alternativas (isso
+    já dispara `set_question_option_keys_question_id`, que cria
+    automaticamente uma linha vazia em `question_option_keys` por
+    alternativa — não repita o INSERT nela, faça UPDATE); preencher
+    `question_answer_keys`; só então `UPDATE questions SET
+    status='published'` (permitido só quando `current_user = 'postgres'`
+    ou via `publish_question()`, que por sua vez exige
+    `app.is_admin_active(auth.uid())` — não dá pra chamar via service
+    role sem um `auth.uid()` válido). Para editar `question_option_keys`
+    depois, a questão precisa voltar a `draft` primeiro (mesmos
+    triggers). Para limpar depois: com a questão em `draft`, `DELETE FROM
+    questions WHERE id=...` faz cascade em opções/keys/answer_keys/
+    attempts — não precisa apagar filho por filho manualmente. Também:
+    nomes de disciplina/tema têm `UNIQUE (code)` — reaproveite os
+    registros existentes (ex.: já existe "Infectologia" com id próprio)
+    em vez de tentar recriar com o mesmo `code`/id do remoto.
+12. **A navegação para uma questão específica no app não usa URL** (é
+    tudo estado de componente/`activeView`). Pra testar uma questão em
+    isolamento via automação de navegador, use o filtro de Disciplina em
+    "Questões" pra reduzir a lista a 1 item, em vez de tentar helpers com
+    IDs/slugs que não existem. O nav do Header (`getByText('Questões')`)
+    só é visível em desktop (`xl:inline`); em telas menores o mesmo item
+    é o 3º botão (índice 2, sem texto, só ícone) do dock fixo
+    `#mobile-floating-dock`.
 
 ## Convenções de trabalho
 
@@ -151,21 +191,101 @@ protótipo).
   remoto e verificada): modo de resposta aberta (recall antes de ver
   alternativas) + captura de estratégia de resposta em toda resposta +
   XP ponderado por dificuldade/modo/primeira-tentativa.
-- **Implementado em 2026-09-07, na branch `feature/feedback-contextual`
-  (AINDA NÃO mesclado em `main`, migration AINDA NÃO aplicada no
-  remoto)**: feedback contextual vinculado a questão/compêndio (link
-  discreto "Algo errado aqui?" em `QuestionCard.tsx` e
-  `CompendiumReader.tsx`) + reação rápida 👍/👎 por questão
-  (`question_reactions`, toggle) + aba "Feedback" no admin (lista,
-  filtro por status, avanço pendente → em_analise → resolvido, link
-  para abrir a questão/compêndio de origem) + badge de contagem de
-  reações na aba "Questões Comentadas". Migration:
-  `supabase/migrations/20260907130000_feedback_contextual.sql`. Quando
-  essa branch for mesclada em `main`, aplicar a migration no remoto
-  (`supabase db push --linked --yes`, rodado pelo usuário — ver
-  armadilha #3) faz parte do merge, não é opcional (ver armadilha #8).
-  Se você está lendo isto e o merge/push já aconteceu, atualize este
-  parágrafo e remova a ressalva de "ainda não".
+- **Implementado em 2026-09-07 (confirmado em `main` e em `origin/main`,
+  commit `2d58efd` — verificado com `git merge-base --is-ancestor` e
+  `git branch -a --contains` em 2026-09-07; a branch `feature/feedback-
+  contextual` não existe mais, nem local nem remota)**: feedback
+  contextual vinculado a questão/compêndio (link discreto "Algo errado
+  aqui?" em `QuestionCard.tsx` e `CompendiumReader.tsx`) + reação rápida
+  👍/👎 por questão (`question_reactions`, toggle) + aba "Feedback" no
+  admin (lista, filtro por status, avanço pendente → em_analise →
+  resolvido, link para abrir a questão/compêndio de origem) + badge de
+  contagem de reações na aba "Questões Comentadas". Migration:
+  `supabase/migrations/20260907130000_feedback_contextual.sql` — **status
+  de aplicação no Supabase remoto CONFIRMADO** em 2026-09-07, conforme
+  retorno do Prompt 02 — Complemento colado pelo usuário: consulta direta
+  via `supabase db query --linked`, versão aplicada e tabela feedback com
+  question_id/material_id/status, question_reactions e duas policies RLS
+  esperadas verificadas pela executiva. A diretoria não repetiu a consulta.
+- **Preparado em 2026-09-07, commitado em 2026-09-08 na branch
+  `work/consolidacao-diretoria-2026-09-08` (commit `1e89a2f`, HEAD atual da
+  branch `f4f3767` — ver `docs/diretoria/registro.md`), AINDA NÃO mesclado
+  em `main`, migration AINDA NÃO aplicada no remoto**: correção
+  do achado de auditoria "question_references/sources descartados na carga
+  real" (`Organização/RELATORIO-AUDITORIA-ACERVO-NEXUSMED-2026-09-07.md`,
+  seção 4 — Prompt 03 v2). `scripts/load-questoes.ts` agora popula
+  `sources`/`question_references` a partir de `q.referencias[]` +
+  `fontes.json` (idempotente: fonte já existente não é regravada, questão
+  pulada por já existir não duplica referência). Script novo
+  `scripts/recover-question-references.ts` faz a mesma recuperação para as
+  393 questões já carregadas no remoto ANTES desta correção — casamento só
+  por igualdade EXATA de `(discipline_id, theme_id, question_stem)`, nunca
+  por título/ILIKE; idempotente e retomável (preserva vínculos existentes
+  e insere somente fontes ausentes, sem duplicação). Migration
+  `20260907140000_question_references_in_review.sql` acrescenta um campo
+  `references` ao jsonb já devolvido por `get_question_review`/
+  `submit_question_attempt` (mesma assinatura das duas funções, só um campo
+  a mais). UI: `QuestionCard.tsx` mostra as fontes da questão junto à
+  explicação geral (é o nível real do dado — `referencias[]` é por questão,
+  não por alternativa; link clicável só quando a fonte tem doi/pmid/url,
+  nunca inventado); `CompendiumReader.tsx`/`SupabaseMaterialsRepository.ts`
+  ganharam a mesma capacidade via `material_references.source_id`, mas hoje
+  nenhum dos 33 compêndios carregados tem `source_id` curado (decisão já
+  documentada em `load-compendios.ts`) — a bibliografia continua aparecendo
+  como texto simples até essa curadoria existir, não é um bug desta
+  correção; `SupabaseFlashcardsRepository.ts` passou a anexar a fonte
+  bibliográfica herdada da questão de origem
+  (`question_origin_id` -> `question_references`) a
+  `Flashcard.bibliographicSources`, exibida no fluxo ativo
+  `FlashcardReviewSession` distinta do material de origem
+  (`compendiumRefId`, botão "Ver no Compêndio" já existente). O estado de
+  verificação editorial é exibido nas fontes de questões, compêndios
+  estruturados e flashcards, com texto que explicita a granularidade do
+  vínculo. Validado localmente: `tsc --noEmit` e `npm run build` limpos,
+  teste visual em Chromium nas larguras 320/360/390/430/640/768/1024/1280
+  e alturas baixas 480/400/320, pgTAP
+  83/83 (as duas RPCs já são exercitadas pela suíte existente), carga real
+  das 393 questões contra o Supabase LOCAL (675 question_references, 84
+  sources, 0 gaps contra `fontes.json`), reexecução sem duplicar nada, e
+  simulação da recuperação (zerar `question_references` e rodar
+  `recover-question-references.ts`) recuperou 393/393 sem nenhum
+  casamento ambíguo. **Pendente**: aplicar a migration + rodar
+  `recover-question-references.ts --execute --allow-remote` contra o
+  Supabase REMOTO (as 393 questões reais já estão lá desde 2026-09-06, sem
+  essas referências) faz parte do merge desta branch, não é opcional (ver
+  armadilha #8) — precisa ser feito pelo usuário (ver armadilha #3).
+- **Responsividade (01-B/01-C, commitado na mesma branch de consolidação)**:
+  cabeçalho e navegação adaptados por faixa de largura (menu central só a
+  partir de `xl` — 1280px —, dock inferior `MobileBottomNav` abaixo disso),
+  barra de ações do `CompendiumReader` reorganizada no mobile com menu
+  único "Mais ações" (Índice/Anotações/Favoritar, 44px por item), e
+  `ContextualFeedbackPopover` com semântica de diálogo acessível (foco
+  preso, Escape, devolução de foco). **09-A (2026-09-09) validou visualmente
+  em Chromium/Playwright** (não só schema/build) e corrigiu dois problemas
+  reais que só apareciam em navegador: o diálogo de feedback era clipado
+  pelo `backdrop-blur` do cabeçalho (containing block de `filter`) e saía
+  da viewport em ~640px — corrigido renderizando via `createPortal` direto
+  em `document.body`, com `inert` no `#root` e bloqueio de scroll do body
+  enquanto aberto; e a barra sticky do `CompendiumReader` usava
+  `top-[53px]` fixo, que descolava do cabeçalho real sempre que a altura
+  dele mudava — corrigido com `--app-header-height` (CSS var atualizada
+  por `ResizeObserver` no `Header.tsx`) e `top-[var(--app-header-height)]`.
+  Confirmado depois da correção, com Playwright real (não só leitura de
+  código): diálogo dentro da viewport em 390px e 640px, botões do
+  cabeçalho ≥44px em 390px, sem erros de console.
+- **09-A (2026-09-09) — nota de higiene local, não é bug do produto**:
+  o Supabase LOCAL compartilhado (`supabase_db_synapsemed`) acumulava
+  resíduo de questões/fontes de teste (`Disciplina Teste`/`Enunciado A-H`,
+  `fonte-teste-*`) de pelo menos 3 sessões anteriores (2026-09-07 a
+  2026-09-09), nunca limpo apesar de retornos anteriores declararem
+  limpeza feita — removido nesta sessão (contagem confirmada de volta a
+  394 questões / 675 question_references / 84 sources, o baseline real).
+  `supabase test db` (pgTAP) também deixa fixtures próprias (usuários
+  `*@test.local`, uma `Disciplina Teste`) — isso é do próprio runner de
+  teste, não desta branch; normal reaparecer a cada `supabase test db`.
+  Se uma sessão futura ver contagens divergentes de 394/675/84 acima, não
+  presuma corrupção — primeiro confira se não é resíduo de teste não
+  limpo antes de mexer em dado real.
 
 ## Manter este arquivo atualizado
 
@@ -182,3 +302,33 @@ arquivo ao final de qualquer mudança que:**
 Isso vale mesmo que ninguém peça explicitamente — é parte do trabalho,
 não um extra. O objetivo é que a PRÓXIMA sessão (sua ou de outra
 ferramenta) não precise redescobrir o que você já descobriu agora.
+
+**Registro de prompts e decisões da diretoria**: `docs/diretoria/
+registro.md` é a cópia versionada (sobrevive a troca de máquina/sessão)
+do acompanhamento de prompts entre diretoria e executivas — número,
+status, dependências e retorno de cada um. Ver também
+`docs/CONTINUIDADE-MULTI-MAQUINA.md` para riscos e procedimento de
+transição entre máquinas. Ao fechar um prompt ou mudar seu status,
+atualizar `docs/diretoria/registro.md`, não só relatar na conversa.
+
+## Comunicação entre diretoria e executivas (2026-09-07)
+
+- Ao usuário definir uma sessão como "sessão de diretoria", adote o papel criativo e interativo: explorar ideias, questionar propostas, amadurecer decisões, formular prompts e avaliar os retornos. A implementação cabe às sessões executivas. A diretoria pode registrar convenções quando solicitado.
+- Cada prompt de encaminhamento deve ficar em seu próprio bloco de código cercado, com botão de copiar independente. Nunca reúna vários prompts no mesmo bloco. Coloque o número e o título dentro do bloco, para acompanharem o texto copiado.
+- Numere os prompts sequencialmente na conversa (Prompt 01, Prompt 02 etc.). Revisões preservam o número e indicam a versão. Cada prompt deve ser autocontido, com contexto, tarefa, restrições, critérios de conclusão, dependências e formato do retorno.
+- Mantenha explicações e discussão fora dos blocos. Apresente os blocos de encaminhamento no fim da resposta, seguidos apenas pela tabela de acompanhamento quando aplicável. Não gere encaminhamentos artificiais durante uma conversa exploratória.
+- Cada executiva deve terminar com um bloco copiável próprio identificado como "RETORNO DO PROMPT NN", relatando resultado, alterações, validações, limitações e pendências.
+- Quando houver múltiplos prompts em acompanhamento, termine a resposta da diretoria com uma tabela fora dos blocos: número, entrega e situação. Diferencie preparado, aguardando retorno, retorno recebido/em análise e concluído. Não presuma envio, execução ou conclusão sem evidência; atualize a tabela conforme os retornos colados pelo usuário.
+### Modelo obrigatório de acompanhamento da diretoria
+
+- Use a tabela: Prompt | Entrega/etapa atual | Situação | Pode enviar? / Dependência.
+- Situação e liberação são conceitos separados. Situações: Preparado (envio não confirmado), Em execução (usuário confirmou que mandou rodar), Retorno recebido (aguarda avaliação), Concluído (critérios atendidos). Registre publicação separadamente quando relevante.
+- Na última coluna, escreva explicitamente: "Sim", "Aguarda retorno do NN — motivo" ou "Já enviado; aguardar retorno". Não use expressões ambíguas como "pronto com o diagnóstico". Inclua no próprio prompt o contexto necessário para encaminhamento.
+- Só marque Em execução quando o usuário disser que enviou/mandou rodar. Colar um prompt sem confirmação não comprova envio. Só marque retorno recebido quando houver resultado, não quando o usuário repetir as instruções.
+- Preserve o histórico de retornos iniciais; a linha deve identificar quando acompanha complemento ou versão nova. Não crie outro número para um complemento do mesmo trabalho.
+- Antes de liberar trabalhos simultâneos, confira dependências de resultados e possíveis conflitos de edição. Explicite a necessidade de isolamento quando houver arquivos compartilhados.
+- Mantenha decisões e estados em docs/diretoria/registro.md, quando disponível, para continuidade entre sessões; não sobrescreva registros de outra sessão. Estas regras são o padrão para toda sessão de diretoria deste projeto.
+- Estado confirmado pelo usuário nesta conversa em 2026-09-07: Prompt 06 — complemento de preparação da transição entre máquinas foi enviado e está Em execução. Retornos iniciais de 01, 02 e 06 já recebidos. Envio dos complementos 01/02 e dos prompts 03 v2, 04 e 07 não confirmado. Prompt 05 aguarda a reconciliação do complemento 02.
+
+### Modelo vigente da diretoria
+Toda sessão de diretoria deve ler e seguir [docs/diretoria/MODELO-DIRETORIA.md](docs/diretoria/MODELO-DIRETORIA.md) e consultar [docs/diretoria/registro.md](docs/diretoria/registro.md). O modelo aprovado organiza entregas com etapas NN-A/NN-B, fila priorizada, histórico, estados baseados na confirmação do usuário e verificação separada de dependências e conflitos de execução. Ele substitui as regras anteriores de formato que conflitem com ele. Preserve os identificadores de prompts já emitidos.

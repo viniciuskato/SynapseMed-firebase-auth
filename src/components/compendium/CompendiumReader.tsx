@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { sourceVerificationLabel } from '../../utils/bibliographicSources';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   Bookmark,
@@ -14,6 +15,8 @@ import {
   Sparkles,
   ChevronRight,
   BookOpen,
+  Link2,
+  MoreHorizontal,
 } from 'lucide-react';
 import { Compendium, CompendiumSection, Discipline, Theme } from '../../types';
 import { StorageService } from '../../services/storage';
@@ -56,6 +59,21 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
   const [notification, setNotification] = useState<string | null>(null);
   const [isIndexOpen, setIsIndexOpen] = useState(false);
   const [scrollPercent, setScrollPercent] = useState(0);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const moreMenuTriggerRef = useRef<HTMLButtonElement>(null);
+
+  // Fechar o menu "Mais ações" (mobile) com Escape e devolver o foco ao gatilho
+  useEffect(() => {
+    if (!isMoreMenuOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsMoreMenuOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      moreMenuTriggerRef.current?.focus();
+    };
+  }, [isMoreMenuOpen]);
 
   // Track scroll percentage
   useEffect(() => {
@@ -190,14 +208,15 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
       )}
 
       {/* ── Sticky Subheader / Top Action Bar ─────────────────────── */}
-      <div className="sticky top-[53px] z-20 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-xs border-b border-[#E2E8F0] dark:border-[#263244] px-4 sm:px-6 py-2 transition-colors">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
-          {/* Back & Breadcrumb */}
-          <div className="flex items-center gap-2.5 min-w-0">
+      <div className="sticky top-[var(--app-header-height)] z-20 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-xs border-b border-[#E2E8F0] dark:border-[#263244] px-4 sm:px-6 py-2 transition-colors">
+        <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-x-2 gap-y-1.5 sm:flex-nowrap sm:gap-x-3 sm:gap-y-0">
+          {/* Back & Breadcrumb — always the first line, shrinks to make room */}
+          <div className="order-1 flex items-center gap-2.5 min-w-0 flex-1 sm:flex-initial">
             <button
               onClick={onBack}
-              className="p-1.5 rounded-lg border border-[#E2E8F0] dark:border-[#263244] hover:bg-slate-50 dark:hover:bg-[#182235] text-[#64748B] dark:text-[#94A3B8] transition-colors shrink-0 cursor-pointer"
+              className="w-11 h-11 sm:w-auto sm:h-auto sm:p-1.5 flex items-center justify-center rounded-lg border border-[#E2E8F0] dark:border-[#263244] hover:bg-slate-50 dark:hover:bg-[#182235] text-[#64748B] dark:text-[#94A3B8] transition-colors shrink-0 cursor-pointer"
               title="Voltar"
+              aria-label="Voltar"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -211,63 +230,159 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
             </div>
           </div>
 
-          {/* Simple Action Bar */}
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Resolver questões — shares the first line with back/breadcrumb on mobile; on desktop it rejoins the action group at the far right */}
+          <button
+            onClick={() => onOpenQuestionsForTheme(compendium.themeId)}
+            className="order-2 sm:order-3 shrink-0 min-h-11 sm:min-h-0 px-3.5 py-2 sm:px-3 sm:py-1.5 rounded-lg bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>Resolver questões</span>
+          </button>
+
+          {/* Secondary actions — wrap onto their own line on mobile; inline (pushed right) on desktop */}
+          <div className="order-3 sm:order-2 basis-full sm:basis-auto sm:shrink-0 sm:ml-auto flex items-center justify-between sm:justify-normal gap-2 pt-1.5 mt-0.5 border-t border-[#E2E8F0] dark:border-[#263244] sm:pt-0 sm:mt-0 sm:border-t-0">
             <ContextualFeedbackPopover materialId={compendium.id} />
 
-            {/* Índice lateral toggle */}
-            <button
-              onClick={() => setIsIndexOpen((prev) => !prev)}
-              className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
-                isIndexOpen
-                  ? 'bg-teal-50 dark:bg-teal-950/40 text-[#0F766E] dark:text-[#14B8A6] border-teal-200 dark:border-teal-800'
-                  : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#263244] text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-50 dark:hover:bg-[#182235]'
-              }`}
-              title="Índice de seções"
-            >
-              <List className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Índice</span>
-            </button>
-
-            {/* Anotações */}
-            <button
-              onClick={() => setShowNoteDrawer((prev) => !prev)}
-              className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
-                showNoteDrawer
-                  ? 'bg-teal-50 dark:bg-teal-950/40 text-[#0F766E] dark:text-[#14B8A6] border-teal-200 dark:border-teal-800'
-                  : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#263244] text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-50 dark:hover:bg-[#182235]'
-              }`}
-              title="Anotações pessoais"
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Anotações</span>
-            </button>
-
-            {/* Favoritar */}
-            <button
-              onClick={handleToggleBookmark}
-              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                isBookmarked
-                  ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700 text-[#0F766E] dark:text-[#14B8A6]'
-                  : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#263244] text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-50 dark:hover:bg-[#182235]'
-              }`}
-              title={isBookmarked ? 'Favoritado' : 'Favoritar'}
-            >
-              <Bookmark
-                className={`w-3.5 h-3.5 ${
-                  isBookmarked ? 'fill-[#0F766E] dark:fill-[#14B8A6]' : ''
+            {/* Desktop (sm+): três botões separados, lado a lado — layout original preservado */}
+            <div className="hidden sm:flex items-center gap-2">
+              {/* Índice lateral toggle */}
+              <button
+                onClick={() => setIsIndexOpen((prev) => !prev)}
+                className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  isIndexOpen
+                    ? 'bg-teal-50 dark:bg-teal-950/40 text-[#0F766E] dark:text-[#14B8A6] border-teal-200 dark:border-teal-800'
+                    : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#263244] text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-50 dark:hover:bg-[#182235]'
                 }`}
-              />
-            </button>
+                title="Índice de seções"
+                aria-label="Índice de seções"
+              >
+                <List className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Índice</span>
+              </button>
 
-            {/* Resolver questões */}
-            <button
-              onClick={() => onOpenQuestionsForTheme(compendium.themeId)}
-              className="px-3 py-1.5 rounded-lg bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span>Resolver questões</span>
-            </button>
+              {/* Anotações */}
+              <button
+                onClick={() => setShowNoteDrawer((prev) => !prev)}
+                className={`px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer ${
+                  showNoteDrawer
+                    ? 'bg-teal-50 dark:bg-teal-950/40 text-[#0F766E] dark:text-[#14B8A6] border-teal-200 dark:border-teal-800'
+                    : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#263244] text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-50 dark:hover:bg-[#182235]'
+                }`}
+                title="Anotações pessoais"
+                aria-label="Anotações pessoais"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Anotações</span>
+              </button>
+
+              {/* Favoritar */}
+              <button
+                onClick={handleToggleBookmark}
+                className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                  isBookmarked
+                    ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700 text-[#0F766E] dark:text-[#14B8A6]'
+                    : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#263244] text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-50 dark:hover:bg-[#182235]'
+                }`}
+                title={isBookmarked ? 'Favoritado' : 'Favoritar'}
+                aria-label={isBookmarked ? 'Favoritado' : 'Favoritar'}
+              >
+                <Bookmark
+                  className={`w-3.5 h-3.5 ${
+                    isBookmarked ? 'fill-[#0F766E] dark:fill-[#14B8A6]' : ''
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Mobile (abaixo de sm): Índice, Anotações e Favoritar agrupados num menu
+                único "Mais ações", com alvo de toque de 44×44 no gatilho e em cada item —
+                evita 3 botões espremidos lado a lado numa faixa muito estreita. */}
+            <div className="relative sm:hidden">
+              <button
+                ref={moreMenuTriggerRef}
+                type="button"
+                onClick={() => setIsMoreMenuOpen((prev) => !prev)}
+                aria-haspopup="menu"
+                aria-expanded={isMoreMenuOpen}
+                aria-controls="compendium-more-actions-menu"
+                aria-label="Mais ações"
+                title="Mais ações"
+                className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-colors cursor-pointer ${
+                  isMoreMenuOpen
+                    ? 'bg-teal-50 dark:bg-teal-950/40 text-[#0F766E] dark:text-[#14B8A6] border-teal-200 dark:border-teal-800'
+                    : 'bg-white dark:bg-[#111827] border-[#E2E8F0] dark:border-[#263244] text-[#64748B] dark:text-[#94A3B8] hover:bg-slate-50 dark:hover:bg-[#182235]'
+                }`}
+              >
+                <MoreHorizontal className="w-5 h-5" />
+              </button>
+
+              {isMoreMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setIsMoreMenuOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div
+                    id="compendium-more-actions-menu"
+                    role="menu"
+                    aria-label="Mais ações"
+                    className="absolute right-0 mt-2 z-50 w-60 rounded-xl border border-[#E2E8F0] dark:border-[#263244] bg-white dark:bg-[#111827] elev-lg py-1.5 animate-in fade-in"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsIndexOpen((prev) => !prev);
+                        setIsMoreMenuOpen(false);
+                      }}
+                      className="w-full min-h-11 px-4 flex items-center gap-2.5 text-sm text-[#172033] dark:text-[#E5E7EB] hover:bg-slate-50 dark:hover:bg-[#182235] cursor-pointer"
+                    >
+                      <List
+                        className={`w-4 h-4 shrink-0 ${
+                          isIndexOpen ? 'text-[#0F766E] dark:text-[#14B8A6]' : 'text-[#64748B] dark:text-[#94A3B8]'
+                        }`}
+                      />
+                      <span>Índice de seções</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setShowNoteDrawer((prev) => !prev);
+                        setIsMoreMenuOpen(false);
+                      }}
+                      className="w-full min-h-11 px-4 flex items-center gap-2.5 text-sm text-[#172033] dark:text-[#E5E7EB] hover:bg-slate-50 dark:hover:bg-[#182235] cursor-pointer"
+                    >
+                      <MessageSquare
+                        className={`w-4 h-4 shrink-0 ${
+                          showNoteDrawer ? 'text-[#0F766E] dark:text-[#14B8A6]' : 'text-[#64748B] dark:text-[#94A3B8]'
+                        }`}
+                      />
+                      <span>Anotações pessoais</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        handleToggleBookmark();
+                        setIsMoreMenuOpen(false);
+                      }}
+                      className="w-full min-h-11 px-4 flex items-center gap-2.5 text-sm text-[#172033] dark:text-[#E5E7EB] hover:bg-slate-50 dark:hover:bg-[#182235] cursor-pointer"
+                    >
+                      <Bookmark
+                        className={`w-4 h-4 shrink-0 ${
+                          isBookmarked
+                            ? 'fill-[#0F766E] dark:fill-[#14B8A6] text-[#0F766E] dark:text-[#14B8A6]'
+                            : 'text-[#64748B] dark:text-[#94A3B8]'
+                        }`}
+                      />
+                      <span>{isBookmarked ? 'Favoritado' : 'Favoritar'}</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -564,13 +679,36 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8] mb-3">
               Referências Bibliográficas & Diretrizes
             </h4>
+            <p className="mb-2 text-xs">Bibliografia geral do compêndio, sem vínculo com afirmações específicas.</p>
             <ul className="space-y-1.5 text-xs text-[#64748B] dark:text-[#94A3B8]">
-              {compendium.references.map((ref, rIdx) => (
-                <li key={rIdx} className="flex items-start gap-2">
-                  <span className="font-mono text-[10px] text-[#94A3B8]">[{rIdx + 1}]</span>
-                  <span>{ref}</span>
-                </li>
-              ))}
+              {compendium.references.map((ref, rIdx) => {
+                // Bibliografia geral por padrão (lista do compêndio como um
+                // todo). Só vira "vínculo verificável" — link clicável — quando
+                // a fonte tem source_id curado E um identificador real
+                // (doi/pmid/url); hoje isso é raro (nenhum dos 33 compêndios
+                // carregados tem source_id curado, ver AGENTS.md) — a maioria
+                // continua honestamente como texto simples.
+                const linkInfo = compendium.referenceSources?.[rIdx];
+                return (
+                  <li key={rIdx} className="flex flex-wrap items-start gap-2 break-words">
+                    <span className="font-mono text-[10px] text-[#94A3B8]">[{rIdx + 1}]</span>
+                    {linkInfo?.linked && linkInfo.url ? (
+                      <a
+                        href={linkInfo.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#0F766E] dark:text-[#14B8A6] hover:underline flex items-start gap-1"
+                      >
+                        <Link2 className="w-3 h-3 shrink-0 mt-0.5" />
+                        <span>{ref}</span>
+                      </a>
+                    ) : (
+                      <span>{ref}</span>
+                    )}
+                    <span className="block basis-full text-[11px]">{linkInfo?.linked ? sourceVerificationLabel(linkInfo.verificacao) : 'Bibliografia textual; sem fonte estruturada vinculada'}</span>
+                  </li>
+                );
+              })}
             </ul>
           </footer>
         )}

@@ -1,0 +1,148 @@
+RETORNO: 08-B — Conclusão da verificação do feedback "sem resposta certa" (versão sanitizada para versionamento)
+
+Versão sanitizada do retorno integral (arquivo bruto preservado fora do
+commit, só localmente — contém identificadores ligados a um participante
+e não deve ser versionado). Removidos desta versão: IDs de banco,
+credenciais/e-mail de conta de teste e qualquer dado que permita
+religar este relato a uma pessoa ou tentativa específica. Preservado:
+problema investigado, conclusão técnica, validações e pendências.
+
+AVISO REGISTRADO PARA A DIRETORIA (achado não solicitado)
+O registro de feedback investigado em 08-A, que estava "pendente" na
+etapa anterior, apareceu nesta etapa com status "resolvido" no banco
+remoto. Esta sessão não alterou esse status em nenhum momento (nenhuma
+escrita na tabela de feedback foi feita aqui) — a mudança ocorreu por
+ação de outra sessão/pessoa entre 08-A e esta etapa. Fica registrado
+para a diretoria decidir se precisa reconciliar com quem marcou como
+resolvido, já que a investigação não encontrou uma causa técnica
+confirmada que justifique esse encerramento.
+
+REPRODUÇÃO VISUAL E FUNCIONAL
+- Método: como a interface não usa URLs por questão, foi recriado um
+  ambiente de teste isolado — Supabase LOCAL (não o remoto
+  compartilhado), com o conteúdo EXATO da questão (enunciado, 5
+  alternativas, gabarito, explicações por alternativa, comentário geral
+  e resumo high-yield) copiado por leitura direta do remoto e replicado
+  no local com os mesmos textos e a mesma alternativa correta. Usuário
+  de teste dedicado, criado só para esta verificação — não a conta do
+  participante. Servidor de desenvolvimento isolado, apontando só para
+  o Supabase local, nunca para o remoto.
+- Ferramenta de automação de navegador instalada à parte, fora do
+  projeto (não altera dependências do repositório).
+- Resultado em desktop (1440×900) e mobile (375×812), estado
+  "respondida" (após submissão real via função local, reproduzindo a
+  mesma escolha do participante — alternativa incorreta marcada como
+  errada):
+  - As 5 alternativas estão presentes e visíveis nos dois tamanhos de
+    tela, sem exceção.
+  - Sem overflow horizontal da página em nenhum dos dois tamanhos.
+  - Sem sobreposição visual: cada alternativa tem sua própria explicação
+    individual logo abaixo, a alternativa correta aparece destacada
+    como tal, a selecionada aparece destacada como errada.
+  - Comentário geral e resumo high-yield exibidos corretamente, assim
+    como os painéis de análise de erro já existentes no produto.
+  - O gatilho de feedback contextual está presente e funcional nos dois
+    tamanhos: abre um diálogo acessível, sem cortes, com as opções de
+    categoria e campo de detalhes — reproduzindo fielmente o caminho que
+    o participante usou para reportar o problema.
+  - Nenhum erro de console/JS em nenhuma das duas rodadas.
+- Diferença entre código publicado e alterações locais pendentes: o
+  único diff local no componente de questão (bloco de fontes/referências
+  bibliográficas) é condicional à existência de referências estruturadas
+  para a questão; como esta questão nunca teve esse vínculo, o bloco não
+  renderiza em nenhum dos dois estados — ou seja, para esta questão
+  específica, o comportamento testado localmente é idêntico ao publicado
+  em produção.
+- Conclusão: não foi reproduzido nenhum problema de corte, sobreposição,
+  rolagem ou submissão nas condições testadas (mobile e desktop,
+  ambiente isolado, dados exatos).
+
+AVALIAÇÃO CLÍNICA COM FONTE PRIMÁRIA DE TEXTO INTEGRAL
+- A fonte citada em 08-A (Circulation/AHA, DOI 10.1161/CIR.0000000000000296,
+  PMID 26373316) não tem PMCID — não está disponível em texto integral
+  gratuito no PubMed Central. Limitação declarada: não foi possível
+  confirmar o texto integral desta fonte específica nesta etapa também.
+- Em vez de tratar título/resumo como prova, foi lido o texto integral
+  de uma fonte primária revisada por pares e de acesso aberto: Cahill TJ
+  & Prendergast BD, "Infective endocarditis", Nature Reviews Disease
+  Primers 2016;2:16059, DOI 10.1038/nrdp.2016.59, PMID 27582414, PMC5240923.
+- Passagens verbatim desta fonte corroboram, uma a uma, os quatro
+  mecanismos citados na alternativa considerada correta (destruição
+  valvar/insuficiência cardíaca com extensão perivalvar/abscesso/
+  fístula; embolização séptica; fenômenos imunológicos por
+  imunocomplexos). Nenhuma parte do texto integral sustenta os itens dos
+  quatro distratores (vasoespasmo coronariano, depósito amiloide,
+  dissecção aórtica, pericardite constritiva, miocardite autoimune,
+  fibrose endomiocárdica, hipertrofia compensatória isolada) como
+  mecanismos de endocardite infecciosa.
+- Uma segunda fonte independente de acesso aberto (StatPearls,
+  "Infective Endocarditis") foi consultada e confirma as mesmas quatro
+  categorias de complicação, sem rotulá-las literalmente como "os quatro
+  mecanismos centrais" — nomenclatura didática, não citação literal de
+  nenhuma das fontes, embora o conteúdo de cada categoria seja
+  verificável nelas.
+
+LIMITES DA RECONSTRUÇÃO HISTÓRICA
+- Não existe, no schema, tabela de auditoria/histórico de versões de
+  conteúdo. Existem apenas guardas que impedem edição/exclusão
+  pós-publicação, mas nenhuma delas grava um log de versões anteriores.
+- O único rastro temporal por linha é o timestamp de última atualização
+  de cada tabela. Cada linha relevante ao gabarito desta questão (cada
+  alternativa e cada linha da tabela de chave de resposta) tem seu
+  próprio carimbo, e nenhuma mudou desde a carga inicial do conteúdo nem
+  entre a carga e o momento do relato do participante.
+- Limite declarado: não é possível reconstruir com certeza absoluta o
+  estado exato da tela no momento do relato do participante (não existe
+  log de sessão/DOM do navegador dele, nem versionamento de conteúdo) —
+  a conclusão sobre "o que ele viu" depende de inferência a partir de
+  dados que não mudaram desde a carga inicial, não de uma cópia
+  armazenada do estado exibido a ele.
+
+DECISÃO E CORREÇÃO
+- Nenhuma correção foi aplicada — a investigação (código, dados,
+  reprodução visual, fonte clínica de texto integral) não encontrou
+  evidência de erro técnico, de conteúdo ou de gabarito. Alterar
+  qualquer coisa sem essa evidência seria uma correção inventada, que a
+  tarefa expressamente veda.
+- Nenhuma escrita no Supabase remoto foi feita nesta etapa (só
+  leituras). Nenhum commit, push, deploy.
+
+VALIDAÇÕES REALIZADAS
+- Ambiente local isolado: criado, testado (login, filtro por disciplina,
+  resposta, submissão real, diálogo de feedback) e integralmente
+  desfeito ao final — conteúdo de teste removido, usuário de teste
+  removido, servidor de teste encerrado, arquivos temporários apagados.
+  Estado do repositório idêntico ao anterior à sessão.
+- Conteúdo local usado no teste conferido campo a campo contra o remoto
+  antes do teste (enunciado, textos de alternativa, gabarito,
+  explicações, comentário geral, resumo high-yield) — cópia exata, não
+  aproximada.
+- Fonte clínica: texto integral efetivamente lido (não só título/
+  resumo) de uma fonte de acesso aberto, com passagens citadas verbatim
+  e DOI verificável. A fonte citada em 08-A permanece com limitação
+  declarada de acesso a texto integral — não tratada como prova.
+
+CONCLUSÃO
+- Grau de certeza alto para "não reproduzido nas condições testadas" —
+  banco íntegro, interface funcional e sem cortes/sobreposições em
+  mobile e desktop, submissão e exibição do gabarito corretas,
+  framework clínico da alternativa correta corroborado por texto
+  integral de fonte revisada por pares independente, distratores sem
+  sustentação na mesma fonte.
+- Não se atribui ao participante erro conceitual ou má-fé — apenas se
+  registra que, nas duas reproduções técnicas feitas até agora, nenhuma
+  causa de sistema ou de conteúdo foi confirmada.
+- Informação adicional que mudaria a conclusão: um relato do próprio
+  participante sobre em qual alternativa esperava ver algo diferente,
+  ou uma captura de tela do momento do erro — nenhuma das duas existe
+  até agora.
+- Sobre o status "resolvido" encontrado no feedback: como não foi esta
+  sessão que alterou, e a investigação técnica não confirma uma causa
+  corrigida, fica sinalizado à diretoria para confirmar com quem fez
+  essa alteração se foi baseada em alguma informação que esta
+  investigação não teve acesso, ou se precisa ser reavaliada.
+
+ESTADO DE PUBLICAÇÃO
+- Nenhuma mudança de publicação nesta etapa (nem local nem remota).
+  Trilhas de responsividade (01-C) e referências (03-A v2) seguem
+  exatamente como estavam, não tocadas.

@@ -10,11 +10,13 @@ import {
   Clock,
   Layers,
   Award,
+  Link2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Flashcard, Discipline, Theme } from '../../types';
 import { calculateNextSRS } from '../../services/srsAlgorithm';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
+import { sourceVerificationLabel } from '../../utils/bibliographicSources';
 
 interface FlashcardReviewSessionProps {
   cards: Flashcard[];
@@ -216,6 +218,40 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
                     <p className="leading-relaxed font-medium">
                       {currentCard.mechanismHighlight}
                     </p>
+                  </div>
+                )}
+
+                {currentCard.bibliographicSources && currentCard.bibliographicSources.length > 0 && (
+                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-xs text-left">
+                    <strong className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 mb-1">
+                      <Link2 className="w-3.5 h-3.5" />
+                      Bibliografia herdada da questão:
+                    </strong>
+                    <p className="mb-2 text-slate-500 dark:text-slate-400">
+                      Referências da questão de origem; sem verificação específica deste flashcard.
+                    </p>
+                    <ul className="space-y-1">
+                      {currentCard.bibliographicSources.map((source) => (
+                        <li key={source.sourceId} className="text-slate-500 dark:text-slate-400 break-words">
+                          {source.url ? (
+                            <a
+                              href={source.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(event) => event.stopPropagation()}
+                              className="text-teal-700 dark:text-teal-400 hover:underline"
+                            >
+                              {source.citationText}
+                            </a>
+                          ) : (
+                            <span>{source.citationText}</span>
+                          )}
+                          <span className="block text-[11px]">
+                            {sourceVerificationLabel(source.verificacao)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </div>

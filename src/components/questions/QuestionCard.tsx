@@ -1,3 +1,4 @@
+import { sourceVerificationLabel } from '../../utils/bibliographicSources';
 import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
@@ -16,6 +17,7 @@ import {
   Stethoscope,
   ThumbsUp,
   ThumbsDown,
+  Link2,
 } from 'lucide-react';
 import { Question, QuestionAnswerRecord, QuestionReviewResult, Discipline, Theme, QuestionReactionValue } from '../../types';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
@@ -534,6 +536,39 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             </span>
             <p className="leading-relaxed font-medium text-teal-950/90 dark:text-teal-200/90">{reviewResult?.highYieldSummary}</p>
           </div>
+
+          {/* Fontes vinculadas a esta questão (question_references -> sources).
+              Só aparece quando existe vínculo estruturado real — questões sem
+              essa recuperação/carga não mostram nada aqui (não é bibliografia
+              geral do compêndio, é citação específica desta questão). */}
+          {reviewResult?.references && reviewResult.references.length > 0 && (
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#111827] border border-slate-200 dark:border-[#243452] text-xs">
+              <span className="font-bold flex items-center gap-1.5 text-slate-600 dark:text-slate-300 mb-1.5">
+                <Link2 className="w-3.5 h-3.5" />
+                Bibliografia da questão:
+              </span>
+              <p className="mb-2">Referências gerais da questão; não há vínculo individual com cada alternativa.</p>
+              <ul className="space-y-1">
+                {reviewResult.references.map((ref) => (
+                  <li key={ref.sourceId} className="text-slate-500 dark:text-slate-400 leading-relaxed break-words">
+                    {ref.url ? (
+                      <a
+                        href={ref.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-teal-700 dark:text-teal-400 hover:underline"
+                      >
+                        {ref.citationText}
+                      </a>
+                    ) : (
+                      <span>{ref.citationText}</span>
+                    )}
+                    <span className="block text-[11px]">{sourceVerificationLabel(ref.verificacao)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {/* Reação rápida à explicação */}
           <div className="flex items-center justify-end gap-2">

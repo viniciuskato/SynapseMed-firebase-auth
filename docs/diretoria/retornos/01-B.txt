@@ -1,0 +1,124 @@
+RETORNO DO PROMPT 01 — COMPLEMENTO
+
+RESULTADOS DAS VERIFICAÇÕES
+
+1. Área de toque (alvo de conforto 44×44px)
+   Medi via getBoundingClientRect() no Chromium real (não estimativa) em
+   320/360/390/430px, antes e depois deste ajuste:
+   - Antes deste complemento: Voltar 28x28, Índice/Anotações 36x26,
+     Favoritar 28x26, Resolver questões 146x26, "Algo errado aqui?" ~111x14,
+     busca mobile 28x28, tema 28x28, perfil ~52x32.
+   - Depois: Voltar 34x34, Índice/Anotações 40x32, Favoritar 32x32,
+     Resolver questões 146x32, "Algo errado aqui?" 111x33 (área clicável
+     real ampliada para ~33px de altura via padding+margem negativa,
+     mesma aparência visual — ele continua um link discreto, como o
+     comentário original do código pede), busca mobile 32x32, tema 34x34,
+     perfil 56x38.
+   Ampliei o quanto coube sem encostar no controle vizinho (confirmado por
+   ausência de sobreposição em todas as larguras testadas, ver item
+   seguinte). A maioria chegou a 32-38px; nenhum chegou aos 44px cheios,
+   porque a barra é intencionalmente compacta e密 há pouco espaço sobrando
+   sem redesenhar a barra (ex.: dividir em mais linhas). Considero o
+   resultado um ganho real e seguro, não o ideal teórico — sinalizando
+   isso explicitamente em vez de forçar 44px à custa de sobreposição.
+   Todos os botões de ícone mantêm `title`+`aria-label`.
+
+2. Outros usos do ContextualFeedbackPopover
+   Encontrei um segundo uso em src/components/questions/QuestionCard.tsx
+   (linha 297), num cartão de questão onde o gatilho fica perto da borda
+   ESQUERDA/centro do cartão — não da borda direita como no leitor de
+   compêndio. Testei a versão anterior (âncora `left-0` fixa) e confirmei
+   por raciocínio que ela quebraria nesse outro uso (painel vazando para a
+   direita se o gatilho estivesse mais à direita). Troquei a abordagem:
+   agora, no mobile, o painel abre como modal centralizado na viewport
+   (`fixed` + centralização), independente de onde o gatilho está na tela;
+   a partir de `sm:` volta a ser o dropdown ancorado à direita do gatilho,
+   idêntico ao comportamento original de desktop. Testei nos dois locais
+   de uso (CompendiumReader e QuestionCard) em 320/360/390/430px: painel
+   sempre 100% dentro da viewport, sem corte, formulário completo
+   clicável. Não fiz mudança nenhuma no desktop (1280px testado, painel no
+   mesmo lugar de antes).
+
+3. Larguras de transição (639/640/768)
+   - 639→640: confirmei visualmente e por medição que a barra de leitura
+     realmente muda de duas linhas (mobile) para uma linha (desktop) exatamente
+     em 640px, sem sobreposição em nenhum dos dois lados da transição.
+   - Encontrei uma REGRESSÃO introduzida pela minha própria mudança
+     anterior: em 640-768px, o botão "Algo errado aqui?" estava encolhendo
+     e quebrando texto em 2-3 linhas (virava um bloco de 48x50, distorcido),
+     porque ao separar a barra em 3 blocos independentes (breadcrumb,
+     "Resolver questões", ações secundárias) o bloco de ações secundárias
+     ficou sem proteção contra encolhimento nessa faixa. Corrigi adicionando
+     `sm:shrink-0` ao bloco de ações secundárias (CompendiumReader.tsx),
+     restaurando o comportamento original em que apenas o texto do
+     cabeçalho/breadcrumb encolhe (com reticências), nunca os botões. Testado
+     de novo em 640, 768 e 1280: "Algo errado aqui?" voltou a 103x17 em
+     todas essas larguras, sem quebra de linha, sem sobreposição.
+   - Em 768px encontrei um problema PRÉ-EXISTENTE e NÃO relacionado a esta
+     tarefa: o menu central do cabeçalho (Início/Biblioteca/Questões/
+     Flashcards/Erros) mais busca+tema+perfil não cabem juntos nessa
+     largura — busca, tema e perfil ficam cortados para fora da tela.
+     Confirmei matematicamente que nenhuma das minhas alterações no
+     Header.tsx afeta a largura a partir de 640px (todas as classes que
+     mudei são revertidas via `sm:` para o valor original, ou só existem
+     abaixo de 640px) — ou seja, esse recorte em 768px já existia antes de
+     qualquer edição minha ou da sessão anterior. Não mexi nisso: está fora
+     do escopo desta tarefa (que é sobre celular + preservar desktop) e
+     envolve uma decisão de redesenho do menu central em tablet que cabe à
+     diretoria decidir (encurtar mais os rótulos, ocultar o menu abaixo de
+     lg, hambúrguer, etc.). Sinalizando como novo achado, não corrigido.
+
+AJUSTES DE CÓDIGO NESTA ETAPA
+- src/components/compendium/CompendiumReader.tsx: aumento de padding em
+  Voltar, Resolver questões, Índice, Anotações, Favoritar (mobile apenas,
+  revertido em `sm:` para o valor original); `sm:shrink-0` no bloco de
+  ações secundárias (corrige a regressão do item 3).
+- src/components/Header.tsx: aumento de padding em busca-mobile, tema e
+  perfil (mobile apenas, revertido em `sm:`).
+- src/components/feedback/ContextualFeedbackPopover.tsx: gatilho "Algo
+  errado aqui?" ganhou área de toque maior via padding+margem negativa
+  (sem mudar aparência); painel do popover passou a ser modal centralizado
+  no mobile e dropdown ancorado à direita a partir de `sm:` (resolve o
+  vazamento em qualquer local de uso, não só no leitor de compêndio).
+
+VALIDAÇÕES REALIZADAS
+- Reinstalei o mesmo harness isolado e temporário (Playwright + Chromium +
+  mock de autenticação), agora incluindo também o QuestionCard.tsx com
+  dados mockados. Removido integralmente ao final (`git status` mostra só
+  os 3 arquivos de componente alterados).
+- Medição de bounding boxes (tamanho, corte, sobreposição) em
+  320/360/390/430/639/640/768/1280px — sem sobreposição e sem corte em
+  nenhuma largura, nos dois arquivos (Header e barra de leitura).
+- Testei o popover de feedback nos dois locais de uso (leitor de
+  compêndio e cartão de questão) nas 4 larguras mobile — sempre dentro da
+  viewport.
+- Re-testei interações reais: abrir/fechar Índice, abrir/fechar Anotações,
+  Favoritar (toast confirmado), abrir formulário de feedback — todas
+  funcionando, sem erros de console atribuíveis a esta mudança. (Um teste
+  automatizado deu falso-negativo por usar `networkidle` como critério de
+  espera, sensível a chamadas de rede do ambiente ao Supabase remoto sem
+  sessão real autenticada — não é um problema do código; confirmado
+  trocando o critério de espera.)
+- `npx tsc --noEmit`: sem erros, incluindo o restante do projeto (que tem
+  trabalho em andamento de outra sessão em arquivos diferentes dos meus —
+  não toquei nesses arquivos).
+- `npm run build`: build de produção passou (mesmo aviso pré-existente de
+  chunk >500kB).
+- Confirmei que o AGENTS.md e todo o trabalho concorrente de outra sessão
+  (feature de referências bibliográficas/vínculos verificáveis, tocando
+  QuestionCard.tsx, repositórios, types, migração SQL, docs/diretoria/)
+  permanecem intactos — não fiz commit, não sobrescrevi nada, e verifiquei
+  arquivo por arquivo antes de editar.
+
+PENDÊNCIAS PARA PUBLICAÇÃO
+- Nenhum controle chegou aos 44×44px "ideais"; ficaram entre 32-38px
+  (exceto o link discreto de feedback, que por design não deveria virar um
+  botão grande). Se a diretoria quiser insistir em 44px cheios, isso exige
+  redesenho (ex.: menos itens visíveis por linha, ou um menu "mais ações"),
+  não apenas padding.
+- Achado novo, fora de escopo, não corrigido: cabeçalho principal com
+  colisão/corte em ~768px (tablet) por o menu central + busca/tema/perfil
+  não caberem juntos nessa faixa. Recomendo abrir como tarefa própria.
+- Não fiz commit, push ou deploy, conforme instrução.
+- Validação em Safari/iOS real continua não realizada (sem acesso a esse
+  ambiente nesta sessão).

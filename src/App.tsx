@@ -266,7 +266,7 @@ function AuthenticatedApp() {
           className={`flex-1 min-w-0 w-full ${
             activeView === 'compendium-reader'
               ? 'p-0'
-              : 'max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 pb-24 md:pb-12'
+              : 'max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 pb-24 xl:pb-12'
           }`}
         >
 
