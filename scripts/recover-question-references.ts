@@ -19,9 +19,9 @@
  * sem correspondência exata é reportada como "não encontrada" e pulada —
  * nunca associada à linha mais parecida.
  *
- * Idempotência: uma questão cujo `question_references` já tem QUALQUER
- * linha é pulada (reportada como "já tinha referências") — rodar o script
- * de novo não duplica nada. `sources` é upsert por id (mesma lógica de
+ * Idempotência: vínculos existentes são preservados e apenas os ausentes
+ * são inseridos, permitindo retomar uma execução parcial sem duplicação.
+ * Fontes existentes são preservadas (mesma lógica de
  * `load-pilot-cardiologia.ts`/`load-questoes.ts`): fonte já existente não é
  * regravada.
  *
@@ -58,7 +58,7 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 });
 
 const ONEDRIVE = 'C:\\Users\\vinic\\OneDrive';
-const BANCO_DIR = path.join(ONEDRIVE, 'Questões', '_banco');
+const BANCO_DIR = process.env.NEXUSMED_BANCO_DIR ?? path.join(ONEDRIVE, 'Questões', '_banco');
 
 const log = {
   lines: [] as string[],
@@ -91,16 +91,20 @@ interface FontesJson {
   >;
 }
 
+const seenSources = new Set<string>();
+
 async function ensureSource(sourceId: string, fontes: FontesJson): Promise<'criada' | 'ja-existia' | 'gap-fontes-json'> {
   const citation = fontes.fontes[sourceId];
   const meta = fontes.fontesMeta[sourceId];
   if (!citation || !meta) return 'gap-fontes-json';
 
-  if (!EXECUTE) return 'criada';
+  if (seenSources.has(sourceId)) return 'ja-existia';
 
   const { data: existing, error: selErr } = await admin.from('sources').select('id').eq('id', sourceId).maybeSingle();
   if (selErr) throw selErr;
+  seenSources.add(sourceId);
   if (existing) return 'ja-existia';
+  if (!EXECUTE) return 'criada';
 
   let substituidaPor: string | null = meta.substituidaPor ?? null;
   let observacoes = meta.observacoes ?? null;
@@ -141,7 +145,7 @@ const naoEncontradas: string[] = [];
 async function main() {
   log.push(`=== Recuperação de question_references (${EXECUTE ? 'EXECUTE — grava de verdade' : 'DRY-RUN — não grava nada'}) ===`);
   log.push(`Supabase alvo: ${SUPABASE_URL}`);
-  if (!SUPABASE_URL.includes('127.0.0.1') && !SUPABASE_URL.includes('localhost') && !ALLOW_REMOTE) {
+  if (!['127.0.0.1', 'localhost', '[::1]'].includes(new URL(SUPABASE_URL).hostname) && !ALLOW_REMOTE) {
     throw new Error(
       `SUPABASE_URL (${SUPABASE_URL}) não é local — por padrão este script só conecta no local, nem em dry-run. Rode contra local assim: VITE_SUPABASE_URL=http://127.0.0.1:54321 SUPABASE_SERVICE_ROLE_KEY=<chave local> npx tsx scripts/recover-question-references.ts. Para rodar contra remoto de propósito, passe --allow-remote explicitamente. Abortando antes de qualquer chamada de rede.`
     );
@@ -214,12 +218,11 @@ async function main() {
     }
     const questionId = questionRow.id as string;
 
-    const { count: existingRefsCount, error: existingErr } = await admin
-      .from('question_references')
-      .select('id', { count: 'exact', head: true })
-      .eq('question_id', questionId);
+    const { data: existingRefs, error: existingErr } = await admin
+      .from('question_references').select('source_id').eq('question_id', questionId);
     if (existingErr) throw existingErr;
-    if ((existingRefsCount ?? 0) > 0) {
+    const existingSourceIds = new Set((existingRefs ?? []).map((r) => r.source_id));
+    if ([...new Set(q.referencias)].every((id) => existingSourceIds.has(id))) {
       counts.jaTinhaReferencias++;
       continue;
     }
@@ -227,6 +230,7 @@ async function main() {
     let recuperouAlgo = false;
     for (let i = 0; i < q.referencias.length; i++) {
       const sourceId = q.referencias[i];
+      if (existingSourceIds.has(sourceId)) continue;
       const sourceResult = await ensureSource(sourceId, fontes);
       if (sourceResult === 'criada') counts.sourcesCriadas++;
       else if (sourceResult === 'ja-existia') counts.sourcesJaExistiam++;
@@ -237,13 +241,14 @@ async function main() {
       }
 
       if (EXECUTE) {
-        const { error: qrErr } = await admin.from('question_references').insert({
+        const { error: qrErr } = await admin.from('question_references').upsert({
           question_id: questionId,
           source_id: sourceId,
           sort_order: i,
-        });
+        }, { onConflict: 'question_id,source_id', ignoreDuplicates: true });
         if (qrErr) throw qrErr;
       }
+      existingSourceIds.add(sourceId);
       counts.questionReferencesInseridas++;
       recuperouAlgo = true;
     }
@@ -257,7 +262,7 @@ async function main() {
   log.push(`Já tinham question_references (puladas — idempotência): ${counts.jaTinhaReferencias}`);
   log.push(`Recuperadas${EXECUTE ? '' : ' (simulado)'}: ${counts.recuperada}`);
   log.push(`question_references inseridas${EXECUTE ? '' : ' (simulado)'}: ${counts.questionReferencesInseridas}`);
-  log.push(`Sources criadas${EXECUTE ? '' : ' (simulado)'}: ${counts.sourcesCriadas}`);
+  log.push(`Sources únicas criadas${EXECUTE ? '' : ' (simulado)'}: ${counts.sourcesCriadas}`);
   log.push(`Sources já existentes (reaproveitadas): ${counts.sourcesJaExistiam}`);
   log.push(`Gaps — id de fonte referenciado mas ausente em fontes.json: ${counts.sourcesGapFontesJson.size}`);
   [...counts.sourcesGapFontesJson].forEach((s) => log.push(`  - ${s}`));
@@ -276,6 +281,7 @@ async function main() {
   const reportPath = path.join(__dirname, '..', `recover-question-references.${EXECUTE ? 'execute' : 'dry-run'}.report.txt`);
   fs.writeFileSync(reportPath, log.lines.join('\n'));
   log.push(`\nRelatório salvo em: ${reportPath}`);
+  if (counts.sourcesGapFontesJson.size || counts.naoEncontradaNoSupabase) process.exitCode = 1;
 }
 
 main().catch((err) => {

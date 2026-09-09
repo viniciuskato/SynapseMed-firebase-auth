@@ -1,3 +1,4 @@
+import { sourceUrl } from '../utils/bibliographicSources';
 import { Discipline, Theme, Compendium, CompendiumSection } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { MaterialsRepository } from './MaterialsRepository';
@@ -101,6 +102,7 @@ interface MaterialReferenceRow {
 
 interface SourceRow {
   id: string;
+  verificacao: string;
   identificadores: Record<string, string> | null;
 }
 
@@ -167,15 +169,6 @@ function rowToSection(row: MaterialSectionRow): CompendiumSection {
 // (mesma lógica de urlFromIdentificadores em questionReviewMapper.ts, mas
 // sem importar de lá para não acoplar módulos de compêndio a questão) —
 // nunca inventa DOI/URL para uma fonte que não os tem.
-function urlFromSource(source: SourceRow | undefined, referenceUrl: string | null): string | undefined {
-  if (referenceUrl) return referenceUrl;
-  if (!source?.identificadores) return undefined;
-  const ids = source.identificadores;
-  if (ids.url) return ids.url;
-  if (ids.doi) return `https://doi.org/${ids.doi}`;
-  if (ids.pmid) return `https://pubmed.ncbi.nlm.nih.gov/${ids.pmid}/`;
-  return undefined;
-}
 
 function buildCompendium(
   material: MaterialRow,
@@ -204,7 +197,7 @@ function buildCompendium(
     references: materialRefs.map((r) => r.citation_text),
     referenceSources: materialRefs.map((r) => {
       if (!r.source_id) return { linked: false };
-      return { linked: true, sourceId: r.source_id, url: urlFromSource(sourcesById.get(r.source_id), r.url) };
+      return { linked: true, sourceId: r.source_id, url: sourceUrl(sourcesById.get(r.source_id)?.identificadores, r.url), verificacao: sourcesById.get(r.source_id)?.verificacao };
     }),
   };
 }
@@ -254,7 +247,7 @@ export class SupabaseMaterialsRepository implements MaterialsRepository {
     if (sourceIds.length > 0) {
       const { data: sources, error: srcErr } = await supabase
         .from('sources')
-        .select('id, identificadores')
+        .select('id, identificadores, verificacao')
         .in('id', sourceIds);
       if (srcErr) throw srcErr;
       sourcesById = new Map((sources ?? []).map((s) => [s.id as string, s as SourceRow]));

@@ -1,3 +1,4 @@
+import { sourceUrl } from '../utils/bibliographicSources';
 import { Flashcard, FlashcardSRS, Question } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { calculateNextSRS, createInitialSRS } from '../services/srsAlgorithm';
@@ -108,6 +109,7 @@ function rowToSRS(srsRow: SRSStateRow | undefined, reviews: ReviewRow[]): Flashc
 }
 
 interface BibliographicSource {
+  verificacao?: string;
   sourceId: string;
   citationText: string;
   url?: string;
@@ -174,7 +176,7 @@ export class SupabaseFlashcardsRepository implements FlashcardsRepository {
     if (questionIds.length > 0) {
       const { data: refs, error: refErr } = await supabase
         .from('question_references')
-        .select('question_id, source_id, sort_order, sources(citation_text, identificadores)')
+        .select('question_id, source_id, sort_order, sources(citation_text, identificadores, verificacao)')
         .in('question_id', questionIds)
         .order('sort_order');
       if (refErr) throw refErr;
@@ -182,12 +184,12 @@ export class SupabaseFlashcardsRepository implements FlashcardsRepository {
       for (const r of (refs ?? []) as unknown as {
         question_id: string;
         source_id: string;
-        sources: { citation_text: string; identificadores: Record<string, string> | null } | null;
+        sources: { verificacao: string; citation_text: string; identificadores: Record<string, string> | null } | null;
       }[]) {
         const ids = r.sources?.identificadores;
-        const url = ids?.url ?? (ids?.doi ? `https://doi.org/${ids.doi}` : ids?.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${ids.pmid}/` : undefined);
+        const url = sourceUrl(ids);
         const list = bibliographicSourcesByQuestionId.get(r.question_id) ?? [];
-        list.push({ sourceId: r.source_id, citationText: r.sources?.citation_text ?? r.source_id, url });
+        list.push({ sourceId: r.source_id, citationText: r.sources?.citation_text ?? r.source_id, url, verificacao: r.sources?.verificacao });
         bibliographicSourcesByQuestionId.set(r.question_id, list);
       }
     }

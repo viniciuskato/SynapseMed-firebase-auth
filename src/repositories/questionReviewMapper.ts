@@ -27,14 +27,8 @@ interface QuestionReviewPayload {
 
 // Constrói um link só a partir de um identificador reconhecido e presente —
 // nunca inventa URL/DOI/página para uma fonte que não os tem.
-export function urlFromIdentificadores(identificadores?: Record<string, string> | null): string | undefined {
-  if (!identificadores) return undefined;
-  if (identificadores.url) return identificadores.url;
-  if (identificadores.doi) return `https://doi.org/${identificadores.doi}`;
-  if (identificadores.pmid) return `https://pubmed.ncbi.nlm.nih.gov/${identificadores.pmid}/`;
-  if (identificadores.pmcid) return `https://www.ncbi.nlm.nih.gov/pmc/articles/${identificadores.pmcid}/`;
-  return undefined;
-}
+export { sourceUrl as urlFromIdentificadores } from '../utils/bibliographicSources';
+import { sourceUrl as urlFromIdentificadores } from '../utils/bibliographicSources';
 
 export function mapQuestionReviewPayload(payload: QuestionReviewPayload): QuestionReviewResult {
   return {

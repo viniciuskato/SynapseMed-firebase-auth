@@ -1,3 +1,4 @@
+import { sourceVerificationLabel } from '../../utils/bibliographicSources';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
@@ -207,7 +208,7 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
       )}
 
       {/* ── Sticky Subheader / Top Action Bar ─────────────────────── */}
-      <div className="sticky top-[53px] z-20 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-xs border-b border-[#E2E8F0] dark:border-[#263244] px-4 sm:px-6 py-2 transition-colors">
+      <div className="sticky top-[var(--app-header-height)] z-20 bg-white/95 dark:bg-[#111827]/95 backdrop-blur-xs border-b border-[#E2E8F0] dark:border-[#263244] px-4 sm:px-6 py-2 transition-colors">
         <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-x-2 gap-y-1.5 sm:flex-nowrap sm:gap-x-3 sm:gap-y-0">
           {/* Back & Breadcrumb — always the first line, shrinks to make room */}
           <div className="order-1 flex items-center gap-2.5 min-w-0 flex-1 sm:flex-initial">
@@ -678,6 +679,7 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8] mb-3">
               Referências Bibliográficas & Diretrizes
             </h4>
+            <p className="mb-2 text-xs">Bibliografia geral do compêndio, sem vínculo com afirmações específicas.</p>
             <ul className="space-y-1.5 text-xs text-[#64748B] dark:text-[#94A3B8]">
               {compendium.references.map((ref, rIdx) => {
                 // Bibliografia geral por padrão (lista do compêndio como um
@@ -688,7 +690,7 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
                 // continua honestamente como texto simples.
                 const linkInfo = compendium.referenceSources?.[rIdx];
                 return (
-                  <li key={rIdx} className="flex items-start gap-2">
+                  <li key={rIdx} className="flex flex-wrap items-start gap-2 break-words">
                     <span className="font-mono text-[10px] text-[#94A3B8]">[{rIdx + 1}]</span>
                     {linkInfo?.linked && linkInfo.url ? (
                       <a
@@ -703,6 +705,7 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
                     ) : (
                       <span>{ref}</span>
                     )}
+                    <span className="block basis-full text-[11px]">{linkInfo?.linked ? sourceVerificationLabel(linkInfo.verificacao) : 'Bibliografia textual; sem fonte estruturada vinculada'}</span>
                   </li>
                 );
               })}

@@ -1,3 +1,4 @@
+import { createPortal } from 'react-dom';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { AlertCircle, X, Send, CheckCircle2 } from 'lucide-react';
 import { feedbackRepository } from '../../repositories/FeedbackRepository';
@@ -72,6 +73,12 @@ export const ContextualFeedbackPopover: React.FC<ContextualFeedbackPopoverProps>
   useEffect(() => {
     if (!isOpen) return;
 
+    const appRoot = document.getElementById('root');
+    const wasInert = appRoot?.inert ?? false;
+    if (appRoot) appRoot.inert = true;
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
     const getFocusable = (): HTMLElement[] => {
       if (!dialogRef.current) return [];
       return Array.from(dialogRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
@@ -110,6 +117,8 @@ export const ContextualFeedbackPopover: React.FC<ContextualFeedbackPopoverProps>
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener('keydown', handleKeyDown, true);
+      if (appRoot) appRoot.inert = wasInert;
+      document.body.style.overflow = oldOverflow;
       triggerRef.current?.focus();
     };
   }, [isOpen, submitted, handleClose]);
@@ -122,24 +131,24 @@ export const ContextualFeedbackPopover: React.FC<ContextualFeedbackPopoverProps>
         onClick={() => setIsOpen((prev) => !prev)}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
-        className="text-[11px] text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 flex items-center gap-1 py-3.5 px-2.5 -my-3.5 -mx-2.5 sm:py-0 sm:px-0 sm:my-0 sm:mx-0 transition-colors cursor-pointer"
+        className="text-[11px] text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 flex items-center gap-1 py-3.5 px-2.5 -my-3.5 -mx-2.5 transition-colors cursor-pointer"
       >
         <AlertCircle className="w-3 h-3" />
         <span>Algo errado aqui?</span>
       </button>
 
-      {isOpen && (
+      {isOpen && createPortal(
         <>
-          <div className="fixed inset-0 z-30" onClick={handleClose} aria-hidden="true" />
-          {/* Mobile: modal centralizado na viewport (independe de onde o gatilho está na tela).
-              A partir de sm: volta a ser um dropdown ancorado ao gatilho, à direita. */}
+          <div className="fixed inset-0 z-[100] bg-black/20" onClick={handleClose} aria-hidden="true" />
+          {/* Modal centralizado na viewport, fora de qualquer containing block
+              criado por backdrop-filter nos pais. */}
           <div
             ref={dialogRef}
             role="dialog"
             aria-modal="true"
             aria-label={submitted ? 'Relato enviado' : 'Relatar problema com este conteúdo'}
             tabIndex={-1}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-auto sm:top-auto sm:right-0 sm:translate-x-0 sm:translate-y-0 sm:mt-2 z-40 w-[min(20rem,calc(100vw-2rem))] sm:w-72 bg-white dark:bg-[#0F172A] rounded-2xl border border-slate-200 dark:border-[#243452] elev-lg p-4 text-xs animate-in fade-in max-h-[calc(100vh-2rem)] overflow-y-auto focus:outline-hidden"
+            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[101] w-[min(20rem,calc(100vw-2rem))] sm:w-72 bg-white dark:bg-[#0F172A] rounded-2xl border border-slate-200 dark:border-[#243452] elev-lg p-4 text-xs animate-in fade-in max-h-[calc(100dvh-2rem)] overflow-y-auto focus:outline-hidden"
           >
             {submitted ? (
               <div className="text-center py-2 space-y-2">
@@ -161,7 +170,7 @@ export const ContextualFeedbackPopover: React.FC<ContextualFeedbackPopoverProps>
                     type="button"
                     onClick={handleClose}
                     aria-label="Fechar"
-                    className="w-8 h-8 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
+                    className="w-11 h-11 flex items-center justify-center rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -186,6 +195,7 @@ export const ContextualFeedbackPopover: React.FC<ContextualFeedbackPopoverProps>
                   value={freeText}
                   onChange={(e) => setFreeText(e.target.value)}
                   placeholder="Detalhes (opcional)"
+                  aria-label="Detalhes do problema (opcional)"
                   rows={2}
                   maxLength={500}
                   className="w-full p-2 rounded-lg border border-slate-200 dark:border-[#243452] bg-slate-50 dark:bg-[#0B1220] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 text-[11px] resize-none focus:outline-hidden focus:ring-1 focus:ring-teal-500 mb-2.5"
@@ -204,7 +214,7 @@ export const ContextualFeedbackPopover: React.FC<ContextualFeedbackPopoverProps>
               </>
             )}
           </div>
-        </>
+        </>, document.body
       )}
     </div>
   );

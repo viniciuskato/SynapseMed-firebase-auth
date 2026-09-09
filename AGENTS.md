@@ -207,8 +207,10 @@ protótipo).
   via `supabase db query --linked`, versão aplicada e tabela feedback com
   question_id/material_id/status, question_reactions e duas policies RLS
   esperadas verificadas pela executiva. A diretoria não repetiu a consulta.
-- **Preparado em 2026-09-07 (working tree local, AINDA NÃO commitado nem
-  mesclado em `main`, migration AINDA NÃO aplicada no remoto)**: correção
+- **Preparado em 2026-09-07, commitado em 2026-09-08 na branch
+  `work/consolidacao-diretoria-2026-09-08` (commit `1e89a2f`, HEAD atual da
+  branch `f4f3767` — ver `docs/diretoria/registro.md`), AINDA NÃO mesclado
+  em `main`, migration AINDA NÃO aplicada no remoto**: correção
   do achado de auditoria "question_references/sources descartados na carga
   real" (`Organização/RELATORIO-AUDITORIA-ACERVO-NEXUSMED-2026-09-07.md`,
   seção 4 — Prompt 03 v2). `scripts/load-questoes.ts` agora popula
@@ -218,8 +220,8 @@ protótipo).
   `scripts/recover-question-references.ts` faz a mesma recuperação para as
   393 questões já carregadas no remoto ANTES desta correção — casamento só
   por igualdade EXATA de `(discipline_id, theme_id, question_stem)`, nunca
-  por título/ILIKE; idempotente (questão que já tem qualquer linha em
-  `question_references` é pulada, sources é upsert por id). Migration
+  por título/ILIKE; idempotente e retomável (preserva vínculos existentes
+  e insere somente fontes ausentes, sem duplicação). Migration
   `20260907140000_question_references_in_review.sql` acrescenta um campo
   `references` ao jsonb já devolvido por `get_question_review`/
   `submit_question_attempt` (mesma assinatura das duas funções, só um campo
@@ -234,9 +236,14 @@ protótipo).
   correção; `SupabaseFlashcardsRepository.ts` passou a anexar a fonte
   bibliográfica herdada da questão de origem
   (`question_origin_id` -> `question_references`) a
-  `Flashcard.bibliographicSources`, exibida no verso distinta do material
-  de origem (`compendiumRefId`, botão "Ver no Compêndio" já existente).
-  Validado localmente: `tsc --noEmit` e `npm run build` limpos, pgTAP
+  `Flashcard.bibliographicSources`, exibida no fluxo ativo
+  `FlashcardReviewSession` distinta do material de origem
+  (`compendiumRefId`, botão "Ver no Compêndio" já existente). O estado de
+  verificação editorial é exibido nas fontes de questões, compêndios
+  estruturados e flashcards, com texto que explicita a granularidade do
+  vínculo. Validado localmente: `tsc --noEmit` e `npm run build` limpos,
+  teste visual em Chromium nas larguras 320/360/390/430/640/768/1024/1280
+  e alturas baixas 480/400/320, pgTAP
   83/83 (as duas RPCs já são exercitadas pela suíte existente), carga real
   das 393 questões contra o Supabase LOCAL (675 question_references, 84
   sources, 0 gaps contra `fontes.json`), reexecução sem duplicar nada, e
@@ -246,9 +253,39 @@ protótipo).
   `recover-question-references.ts --execute --allow-remote` contra o
   Supabase REMOTO (as 393 questões reais já estão lá desde 2026-09-06, sem
   essas referências) faz parte do merge desta branch, não é opcional (ver
-  armadilha #8) — precisa ser feito pelo usuário (ver armadilha #3). Teste
-  de UI em navegador (mobile/desktop) ainda não foi feito nesta sessão —
-  só validação de schema/RPC/build.
+  armadilha #8) — precisa ser feito pelo usuário (ver armadilha #3).
+- **Responsividade (01-B/01-C, commitado na mesma branch de consolidação)**:
+  cabeçalho e navegação adaptados por faixa de largura (menu central só a
+  partir de `xl` — 1280px —, dock inferior `MobileBottomNav` abaixo disso),
+  barra de ações do `CompendiumReader` reorganizada no mobile com menu
+  único "Mais ações" (Índice/Anotações/Favoritar, 44px por item), e
+  `ContextualFeedbackPopover` com semântica de diálogo acessível (foco
+  preso, Escape, devolução de foco). **09-A (2026-09-09) validou visualmente
+  em Chromium/Playwright** (não só schema/build) e corrigiu dois problemas
+  reais que só apareciam em navegador: o diálogo de feedback era clipado
+  pelo `backdrop-blur` do cabeçalho (containing block de `filter`) e saía
+  da viewport em ~640px — corrigido renderizando via `createPortal` direto
+  em `document.body`, com `inert` no `#root` e bloqueio de scroll do body
+  enquanto aberto; e a barra sticky do `CompendiumReader` usava
+  `top-[53px]` fixo, que descolava do cabeçalho real sempre que a altura
+  dele mudava — corrigido com `--app-header-height` (CSS var atualizada
+  por `ResizeObserver` no `Header.tsx`) e `top-[var(--app-header-height)]`.
+  Confirmado depois da correção, com Playwright real (não só leitura de
+  código): diálogo dentro da viewport em 390px e 640px, botões do
+  cabeçalho ≥44px em 390px, sem erros de console.
+- **09-A (2026-09-09) — nota de higiene local, não é bug do produto**:
+  o Supabase LOCAL compartilhado (`supabase_db_synapsemed`) acumulava
+  resíduo de questões/fontes de teste (`Disciplina Teste`/`Enunciado A-H`,
+  `fonte-teste-*`) de pelo menos 3 sessões anteriores (2026-09-07 a
+  2026-09-09), nunca limpo apesar de retornos anteriores declararem
+  limpeza feita — removido nesta sessão (contagem confirmada de volta a
+  394 questões / 675 question_references / 84 sources, o baseline real).
+  `supabase test db` (pgTAP) também deixa fixtures próprias (usuários
+  `*@test.local`, uma `Disciplina Teste`) — isso é do próprio runner de
+  teste, não desta branch; normal reaparecer a cada `supabase test db`.
+  Se uma sessão futura ver contagens divergentes de 394/675/84 acima, não
+  presuma corrupção — primeiro confira se não é resíduo de teste não
+  limpo antes de mexer em dado real.
 
 ## Manter este arquivo atualizado
 

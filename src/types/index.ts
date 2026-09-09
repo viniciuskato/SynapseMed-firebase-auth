@@ -98,7 +98,7 @@ export interface Compendium {
    * `url` só aparece quando a fonte tem identificador verificável
    * (doi/pmid/url) — nunca inventada.
    */
-  referenceSources?: { linked: boolean; sourceId?: string; url?: string }[];
+  referenceSources?: { linked: boolean; sourceId?: string; url?: string; verificacao?: string }[];
   isPremiumOnly?: boolean;
 }
 
@@ -170,7 +170,7 @@ export interface Flashcard {
    * Ausente quando o flashcard não tem questão de origem, ou a questão de
    * origem não tem referência estruturada (não inventada).
    */
-  bibliographicSources?: { sourceId: string; citationText: string; url?: string }[];
+  bibliographicSources?: { sourceId: string; citationText: string; url?: string; verificacao?: string }[];
 }
 
 export type AppView =

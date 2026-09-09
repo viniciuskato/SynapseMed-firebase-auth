@@ -1,3 +1,4 @@
+import { sourceVerificationLabel } from '../../utils/bibliographicSources';
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
@@ -176,8 +177,9 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
                       <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-xs text-left max-w-xl mx-auto">
                         <strong className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 mb-1">
                           <Link2 className="w-3.5 h-3.5" />
-                          Fonte bibliográfica:
+                          Bibliografia herdada da questão:
                         </strong>
+                        <p className="mb-2">Referências da questão de origem; sem verificação específica deste flashcard.</p>
                         <ul className="space-y-1">
                           {currentCard.bibliographicSources.map((src) => (
                             <li key={src.sourceId} className="text-slate-500 dark:text-slate-400">
@@ -194,6 +196,7 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
                               ) : (
                                 <span>{src.citationText}</span>
                               )}
+                              <span className="block text-[11px]">{sourceVerificationLabel(src.verificacao)}</span>
                             </li>
                           ))}
                         </ul>
