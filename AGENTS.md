@@ -157,6 +157,35 @@ protótipo).
     é o 3º botão (índice 2, sem texto, só ícone) do dock fixo
     `#mobile-floating-dock`.
 
+13. **O padrão `Resilient*Repository` (grava local, espelha no Supabase com
+    `catch {}` silencioso) foi confirmado como risco real, não só teórico**
+    (Prompt 07-A, 2026-09-09): sem chave de idempotência, reenviar uma
+    operação falha duplicava dado real — `question_attempts`/`error_notebook`
+    (infla XP, calculado a partir de `question_attempts` real — ver armadilha
+    #5) e `flashcard_reviews` (duplica histórico de SRS; pior, o cálculo do
+    SM-2 era feito no navegador a partir do estado local, então duas revisões
+    offline em dispositivos diferentes podiam se sobrescrever com "última
+    gravação vence" baseada em dado desatualizado). Corrigido para as
+    categorias 1 (tentativas/XP) e 2 (flashcards/SRS) com uma fila
+    persistente no cliente (`src/services/syncQueue.ts`, ver
+    `docs/SINCRONIZACAO-CONFIAVEL.md`) + `client_op_id` idempotente
+    verificado no servidor (migration `20260909120000_sync_reliability.sql`)
+    + `submit_flashcard_review` recalculando o SM-2 no servidor dentro de uma
+    transação com `select ... for update` (serializa revisões concorrentes do
+    mesmo card). **Categorias 3-9 (caderno de erros, notas, favoritos,
+    progresso de leitura, simulados, reações, feedback) continuam no padrão
+    antigo** — não presumir que a correção já é geral. Ao mexer em qualquer
+    `Resilient*Repository` novo/existente, ver o plano de migração na Etapa 4
+    daquele documento antes de simplesmente copiar o padrão antigo.
+14. **`toggleBookmark`/`toggleSectionRead` não são operações idempotentes** —
+    são um "liga/desliga", não um "define este valor". Colocá-las numa fila
+    de retry automático sem antes trocar o contrato para `setBookmark(id,
+    bool)`/`setSectionRead(id, bool)` introduziria um bug novo: reenviar a
+    mesma operação depois de uma falha de rede inverteria o estado errado.
+    Por isso ficaram deliberadamente fora da correção de sincronização do
+    Prompt 07-A (ver `docs/SINCRONIZACAO-CONFIAVEL.md`, Etapa 1/4) — não é
+    esquecimento, é uma dependência real de redesenho antes de automatizar.
+
 ## Convenções de trabalho
 
 - **Commits vão direto pra `main`** hoje (sem PR obrigatório) porque é
@@ -320,6 +349,15 @@ protótipo).
   Se uma sessão futura ver contagens divergentes de 394/675/84 acima, não
   presuma corrupção — primeiro confira se não é resíduo de teste não
   limpo antes de mexer em dado real.
+
+- **Em andamento na branch `work/sincronizacao-confiavel-07` (2026-09-09,
+  Prompt 07-A), NÃO mesclada em `main`**: fila de sincronização confiável
+  (`src/services/syncQueue.ts`) com idempotência por `client_op_id`,
+  implementada para as categorias 1 (tentativas de questão/XP) e 2
+  (flashcards/SRS) — ver armadilha #13 e `docs/SINCRONIZACAO-CONFIAVEL.md`
+  para diagnóstico completo, modelo e plano das categorias 3-9 ainda não
+  corrigidas. Migration `20260909120000_sync_reliability.sql` testada e
+  aplicada só em Supabase LOCAL (106/106 pgTAP); nada disso está em produção.
 
 ## Manter este arquivo atualizado
 

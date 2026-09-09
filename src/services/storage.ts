@@ -21,6 +21,8 @@ import {
   INITIAL_FLASHCARDS,
 } from '../data/mockData';
 import { calculateNextSRS, createInitialSRS } from './srsAlgorithm';
+import { onActiveUserChanged } from './syncQueue';
+import { recoverLegacyLocalProgress } from './legacyRecovery';
 
 export const STORAGE_KEYS = {
   DISCIPLINES: 'synapse_disciplines_v1',
@@ -46,6 +48,12 @@ let currentUserId: string | null = null;
 
 export function setStorageUser(uid: string | null): void {
   currentUserId = uid;
+  onActiveUserChanged(uid);
+  if (uid) {
+    // Best-effort: enfileira progresso local pré-existente ainda não confirmado no
+    // servidor (ver docs/SINCRONIZACAO-CONFIAVEL.md, Etapa 5). Nunca apaga dado local.
+    void recoverLegacyLocalProgress(uid);
+  }
 }
 
 export function getStorageUser(): string | null {

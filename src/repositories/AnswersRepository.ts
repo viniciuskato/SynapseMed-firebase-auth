@@ -1,6 +1,9 @@
 import { QuestionAnswerRecord, QuestionReviewResult, Question } from '../types';
-import { StorageService } from '../services/storage';
+import { StorageService, getStorageUser } from '../services/storage';
 import { SupabaseAnswersRepository } from './SupabaseAnswersRepository';
+import { mapQuestionReviewPayload } from './questionReviewMapper';
+import { enqueueAndTry } from '../services/syncQueue';
+import { QuestionAttemptOpPayload } from '../services/syncHandlers';
 
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 
@@ -50,13 +53,25 @@ class ResilientAnswersRepository implements AnswersRepository {
   }
 
   async recordAnswer(record: QuestionAnswerRecord): Promise<QuestionReviewResult> {
+    // Grava local primeiro (fonte de verdade otimista imediata — nunca perde a
+    // resposta do estudante mesmo sem rede). O envio ao Supabase passa pela
+    // fila de sincronização (src/services/syncQueue.ts): idempotente por
+    // client_op_id, com retry/backoff e estado visível — não é mais um
+    // catch{} silencioso. Ver docs/SINCRONIZACAO-CONFIAVEL.md.
     const localResult = await this.local.recordAnswer(record);
-    if (isSupabaseConfigured) {
-      try {
-        return await this.supa.recordAnswer(record);
-      } catch {
-        return localResult;
-      }
+    const userId = getStorageUser();
+    if (isSupabaseConfigured && userId) {
+      const payload: QuestionAttemptOpPayload = {
+        questionId: record.questionId,
+        selectedOption: record.selectedOption,
+        timeSpentSeconds: record.timeSpentSeconds,
+        errorReason: record.errorReason,
+        userNotes: record.userNotes,
+        answerMode: record.answerMode,
+        answerStrategy: record.answerStrategy,
+      };
+      const serverResult = await enqueueAndTry(userId, 'question_attempt', payload);
+      if (serverResult) return mapQuestionReviewPayload(serverResult as Parameters<typeof mapQuestionReviewPayload>[0]);
     }
     return localResult;
   }

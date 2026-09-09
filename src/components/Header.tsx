@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { UserPlan, UserStats, ThemeMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { SyncStatusIndicator } from './common/SyncStatusIndicator';
 import { Logo } from './common/Logo';
 
 interface HeaderProps {
@@ -224,6 +225,8 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <Search className="w-4 h-4" />
           </button>
+
+          <SyncStatusIndicator />
 
           {/* Gamified Streak Flame Badge */}
           <div

@@ -30,7 +30,10 @@ import { materialsRepository } from './repositories/MaterialsRepository';
 import { questionsRepository } from './repositories/QuestionsRepository';
 import { flashcardsRepository } from './repositories/FlashcardsRepository';
 import { answersRepository } from './repositories/AnswersRepository';
+import { registerSyncHandlers } from './services/syncHandlers';
 import { isCardDueToday } from './services/srsAlgorithm';
+
+registerSyncHandlers();
 import { GamificationService } from './services/gamification';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoadingScreen } from './components/common/LoadingScreen';
