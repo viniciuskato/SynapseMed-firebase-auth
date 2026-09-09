@@ -35,10 +35,18 @@ import { supabase } from '../lib/supabaseClient';
 
 export type SyncOpState = 'pending' | 'syncing' | 'synced' | 'failed';
 
-export type SyncErrorKind = 'network' | 'auth' | 'permission' | 'validation' | 'schema' | 'unknown';
+export type SyncErrorKind = 'network' | 'auth' | 'permission' | 'validation' | 'schema' | 'crypto_unavailable' | 'unknown';
 
 export interface SyncOp<TPayload = unknown> {
-  id: string; // client_op_id — chave de idempotência enviada ao servidor
+  id: string; // chave local (dedupe/UI) — ver `clientOpId` para a chave enviada ao servidor
+  // Chave de idempotência enviada ao servidor. Igual a `id` no caso comum
+  // (uuid gerado com sucesso no momento do enqueue). Fica `undefined` quando
+  // nenhuma fonte criptográfica estava disponível no momento do enqueue —
+  // nesse caso `id` é um identificador local (nunca enviado ao servidor) e
+  // `runFlush` tenta gerar `clientOpId` de novo a cada flush, antes de
+  // chamar o handler (Problema 4 do Prompt 07-C: falha de geração de UUID
+  // nunca impede a operação de existir na fila nem de ser retentada).
+  clientOpId?: string;
   userId: string;
   category: string;
   payload: TPayload;
@@ -134,6 +142,21 @@ function uuid(): string {
   );
 }
 
+/** Gera um `client_op_id` válido para quem precisa de um id ESTÁVEL antes de chamar `enqueue` (ex.: recuperação legada ambígua, que precisa guardar o id antes de o usuário decidir). Lança nas mesmas condições que `uuid()`. */
+export function generateClientOpId(): string {
+  return uuid();
+}
+
+let placeholderSeq = 0;
+/** Id local (nunca enviado ao servidor) para uma operação cujo `client_op_id` real ainda não pôde ser gerado. */
+function placeholderId(): string {
+  placeholderSeq += 1;
+  return `local-pending-uuid-${Date.now()}-${placeholderSeq}`;
+}
+
+const CRYPTO_UNAVAILABLE_MESSAGE =
+  'Não foi possível gerar um identificador de sincronização seguro neste navegador.';
+
 /**
  * Classifica o erro para decidir a política de retentativa. Não usar a
  * mensagem bruta na interface — só a categoria.
@@ -181,7 +204,7 @@ export function classifySyncError(err: any): SyncErrorKind {
 }
 
 function isRetryable(kind: SyncErrorKind): boolean {
-  return kind === 'network' || kind === 'unknown';
+  return kind === 'network' || kind === 'unknown' || kind === 'crypto_unavailable';
 }
 
 export function needsLogin(op: SyncOp): boolean {
@@ -198,37 +221,37 @@ export function needsSupport(op: SyncOp): boolean {
  * real do servidor (ou de esperar a conclusão) deve usar `enqueueAndTry`.
  *
  * Se não houver fonte de aleatoriedade criptográfica disponível para gerar um
- * `client_op_id` válido (ver `uuid()`), a operação NÃO é persistida na fila —
- * enviar um id incompatível com a coluna `uuid` do Postgres seria pior que
- * não enviar nada. O dado local (gravado antes desta chamada, nos
- * repositórios) permanece intacto; só a tentativa de sincronização é perdida
- * e reportada com uma mensagem compreensível.
+ * `client_op_id` válido (ver `uuid()`) NO MOMENTO do enqueue, a operação é
+ * persistida mesmo assim, com um id local (nunca enviado ao servidor) e
+ * `clientOpId` ausente — nunca enviamos um id incompatível com a coluna
+ * `uuid` do Postgres, mas também nunca deixamos o dado desaparecer
+ * silenciosamente. `runFlush` tenta gerar o `client_op_id` real de novo a
+ * cada flush (evento `online`, troca de aba, heartbeat de 60s, ou o próximo
+ * carregamento da página) antes de despachar a operação — o dado local
+ * (gravado antes desta chamada, nos repositórios) permanece intacto em
+ * qualquer caso, e a falha é visível na fila (nunca só no console).
  */
 export function enqueue<TPayload>(userId: string, category: string, payload: TPayload, clientOpId?: string): SyncOp<TPayload> {
   knownUserIds.add(userId);
   const now = new Date().toISOString();
 
   let id: string;
+  let resolvedClientOpId: string | undefined;
   try {
-    id = clientOpId ?? uuid();
+    resolvedClientOpId = clientOpId ?? uuid();
+    id = resolvedClientOpId;
   } catch (e) {
-    const failedOp: SyncOp<TPayload> = {
-      id: '',
-      userId,
-      category,
-      payload,
-      createdAt: now,
-      updatedAt: now,
-      state: 'failed',
-      attempts: 0,
-      lastError: { kind: 'unknown', message: String((e as Error)?.message || e) },
-    };
-    console.error('sync-queue: operação não enfileirada (falha ao gerar client_op_id)', e);
-    return failedOp;
+    id = placeholderId();
+    resolvedClientOpId = undefined;
+    console.error(
+      'sync-queue: client_op_id não pôde ser gerado agora — operação enfileirada como pendente para nova tentativa automática',
+      e
+    );
   }
 
   const op: SyncOp<TPayload> = {
     id,
+    clientOpId: resolvedClientOpId,
     userId,
     category,
     payload,
@@ -236,6 +259,7 @@ export function enqueue<TPayload>(userId: string, category: string, payload: TPa
     updatedAt: now,
     state: 'pending',
     attempts: 0,
+    ...(resolvedClientOpId ? {} : { lastError: { kind: 'crypto_unavailable' as SyncErrorKind, message: CRYPTO_UNAVAILABLE_MESSAGE } }),
   };
   const ops = loadQueue(userId);
   ops.push(op);
@@ -353,13 +377,47 @@ async function runFlush(userId: string): Promise<void> {
   if (changed) saveQueue(userId, ops);
 
   for (let i = 0; i < ops.length; i++) {
-    const op = ops[i];
+    let op = ops[i];
     if (op.state === 'synced') continue;
     if (op.state === 'failed' && !isRetryable(op.lastError?.kind ?? 'unknown')) continue;
     if (op.nextRetryAt && new Date(op.nextRetryAt).getTime() > now) continue;
 
     const handler = handlers.get(op.category);
     if (!handler) continue; // categoria sem handler registrado nesta sessão (ex.: código antigo) — não trava a fila
+
+    // Operação enfileirada sem `clientOpId` (crypto indisponível no momento
+    // do enqueue, ver Problema 4) — tenta gerar agora, antes de qualquer
+    // envio. Nunca despacha o handler sem um client_op_id válido.
+    let clientOpId = op.clientOpId;
+    if (!clientOpId) {
+      try {
+        clientOpId = uuid();
+      } catch (e) {
+        const attempts = op.attempts + 1;
+        const retryable = attempts < MAX_RETRYABLE_ATTEMPTS;
+        const backoff = Math.min(BASE_BACKOFF_MS * 2 ** (attempts - 1), MAX_BACKOFF_MS);
+        ops[i] = {
+          ...op,
+          state: retryable ? 'pending' : 'failed',
+          attempts,
+          nextRetryAt: retryable ? new Date(Date.now() + backoff).toISOString() : undefined,
+          lastError: { kind: 'crypto_unavailable', message: CRYPTO_UNAVAILABLE_MESSAGE },
+          updatedAt: new Date().toISOString(),
+        };
+        changed = true;
+        saveQueue(userId, ops);
+        continue; // próxima operação — esta é retentada num flush futuro
+      }
+      // Atualiza a referência local de `op` também — os `spread`s abaixo
+      // (estado 'syncing', depois 'synced'/'failed') partem desta versão
+      // com `clientOpId` preenchido, nunca da capturada no topo do laço
+      // (senão o clientOpId recém-gerado seria sobrescrito de volta a
+      // `undefined` no próximo spread).
+      op = { ...op, clientOpId, updatedAt: new Date().toISOString() };
+      ops[i] = op;
+      changed = true;
+      saveQueue(userId, ops);
+    }
 
     const activeUserId = await getActiveSupabaseUserId();
     if (activeUserId !== userId) {
@@ -375,7 +433,7 @@ async function runFlush(userId: string): Promise<void> {
     saveQueue(userId, ops);
 
     try {
-      const result = await handler(op.payload, op.id);
+      const result = await handler(op.payload, clientOpId);
       ops = loadQueue(userId);
       const idx = ops.findIndex((o) => o.id === op.id);
       if (idx >= 0) {

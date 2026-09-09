@@ -1,4 +1,4 @@
-# Sincronização confiável entre dispositivos (Prompt 07-A / 07-B)
+# Sincronização confiável entre dispositivos (Prompt 07-A / 07-B / 07-C)
 
 > Executado em `C:\Users\vinic\dev\NexusMed\firebase-auth`, branch
 > `work/sincronizacao-confiavel-07`. Este documento é o retorno completo da
@@ -13,6 +13,18 @@
 > "Correções do Prompt 07-B" abaixo, que também substitui qualquer afirmação
 > de isolamento/recuperação feita mais abaixo neste documento que ainda não
 > era verdadeira antes desta correção.
+>
+> **Atualização 07-C**: a revisão da diretoria sobre o código do 07-B
+> encontrou quatro pendências adicionais, todas na recuperação legada e na
+> geração de `client_op_id` — nenhuma delas exigiu migration nova. As quatro
+> foram reproduzidas e corrigidas nesta entrega, além de um bug real
+> encontrado só durante o teste de navegador da correção do Problema 4 (não
+> por leitura de código) — ver seção "Correções do Prompt 07-C" abaixo, que
+> também substitui qualquer afirmação de recuperação legada feita mais abaixo
+> neste documento que ainda não era verdadeira antes desta correção. Também
+> foi validado nesta entrega, com dois `BrowserContext` reais, o isolamento
+> entre duas contas (estudante e editorial/admin) sob os mesmos cenários já
+> cobertos no 07-B — ver "Validação de isolamento entre contas (07-C)".
 
 ## Etapa 1 — Diagnóstico por categoria
 
@@ -287,6 +299,197 @@ ANTES de chamar `enqueue`) permanece intacto. `enqueueAndTry` detecta esse
 caso (`op.id` vazio) e devolve `null` imediatamente, sem tentar esperar por
 uma operação que nunca vai existir.
 
+## Correções do Prompt 07-C
+
+A revisão da diretoria sobre o código do 07-B encontrou quatro pendências,
+todas dentro das categorias já implementadas (1 e 2) — nenhuma migration
+nova foi necessária. Todos os quatro pontos, e um bug real encontrado durante
+o teste de navegador da correção do quarto, foram reproduzidos e corrigidos
+com Playwright/Chromium contra o Supabase LOCAL — ver Etapa 6 atualizada.
+
+### Problema 1 — `pendingAnswerOps` apontando para uma operação que já saiu da fila
+
+**Causa confirmada**: o ledger de recuperação legada (`src/services/
+legacyRecovery.ts`) guarda `question_id -> client_op_id` em
+`pendingAnswerOps` enquanto espera a operação chegar a `synced` na fila. Mas
+a fila poda operações sincronizadas antigas (`pruneSynced`, `syncQueue.ts`,
+mantém só as últimas 30) para não crescer sem limite — se isso acontecer
+ANTES de um login confirmar o `synced` no ledger (ex.: muitas revisões de
+flashcard entre um login e outro), a entrada em `pendingAnswerOps` passa a
+apontar para um id que não existe mais na fila local. O código do 07-B
+apenas `continue`ava nesse caso — o registro ficava preso indefinidamente,
+nunca confirmado, nunca recriado.
+
+**Correção**: `question_attempts.client_op_id` é uma coluna real
+(migration `sync_reliability`, já existente desde o 07-A) — continua sendo
+uma fonte de verdade consultável mesmo depois de a operação sair da fila
+local. Quando `pendingAnswerOps[questionId]` aponta para um id ausente da
+fila, `recoverLegacyLocalProgress` agora:
+
+1. Consulta `question_attempts` pelo mesmo `client_op_id` (com RLS, só pode
+   achar uma linha do próprio usuário).
+2. Se existir → confirma recuperado no ledger, remove `pendingAnswerOps`.
+3. Se não existir (nem na fila, nem no servidor) → **recria a operação com
+   o MESMO `client_op_id`** (nunca um novo) e o payload local preservado. A
+   idempotência do RPC por `(user_id, client_op_id)` garante que isso não
+   duplica se, por algum motivo, a operação já tivesse sido aplicada.
+4. Se a consulta falhar (rede indisponível neste login) → preserva o dado e
+   a pendência exatamente como estão, sem gerar id novo; tenta de novo no
+   próximo login.
+
+Testado com Playwright: caso 2 (sincronizada e podada) e caso 3 (ausente dos
+dois lados) — ver Etapa 6, cenário A.
+
+### Problema 2 — ambiguidade de recuperação legada visível só no console
+
+**Causa confirmada**: quando a comparação entre a resposta local e o
+histórico remoto de uma questão não podia ser feita com segurança, o 07-B
+registrava a pendência só em `console.warn` — o estudante nunca sabia que
+havia uma decisão dele pendente, nem tinha como decidir.
+
+**Correção**: o caso ambíguo agora fica registrado em `ledger.ambiguous`
+(persistente em `localStorage`, sobrevive a reload) até o usuário decidir.
+`SyncStatusIndicator.tsx` mostra "Há progresso antigo para revisar" (ícone
+`History`) sempre que houver pelo menos uma pendência, mesmo com a fila de
+sincronização totalmente vazia — e abre `LegacyRecoveryDialog.tsx`
+(`src/components/common/LegacyRecoveryDialog.tsx`), um diálogo acessível
+(foco preso, Escape, `inert` no `#root`, via `createPortal`, mesmo padrão do
+`ContextualFeedbackPopover`) que mostra, por pendência: o enunciado da
+questão (nunca o id), a alternativa respondida localmente e a data
+aproximada. Três decisões, nenhuma apaga o registro local original:
+
+- **"Enviar como nova tentativa"** (`resolveAmbiguousSubmitAsNew`): usa um
+  `client_op_id` **estável**, gerado no momento em que a ambiguidade foi
+  detectada e guardado no próprio ledger — reabrir o diálogo ou recarregar
+  a página antes de decidir nunca gera outro id, então mesmo que o usuário
+  clique duas vezes ou recarregue no meio do envio, não duplica. O aviso no
+  diálogo deixa explícito que isso entra no histórico e pode afetar XP e o
+  caderno de erros.
+- **"Manter somente neste dispositivo"** (`resolveAmbiguousKeepLocalOnly`):
+  nunca envia, nunca apaga o `localStorage` — só marca aquela resposta local
+  exata (questionId + timestamp) para não ser sinalizada de novo. Se o
+  estudante responder a mesma questão de novo depois (timestamp novo), a
+  comparação roda do zero.
+- **"Decidir depois"**: não é uma função própria — fechar o diálogo sem
+  escolher simplesmente deixa a pendência em `ledger.ambiguous`; ela volta a
+  aparecer no indicador de sincronização na próxima vez, sem duplicar.
+
+Testado com Playwright: detecção, exibição sem IDs técnicos, persistência
+após reload, as duas decisões ativas e o efeito de cada uma no servidor e no
+ledger — ver Etapa 6, cenários C e C2.
+
+### Problema 3 — janela de 5 minutos tratada como prova de tentativas distintas
+
+**Causa confirmada**: `isSameAttempt` (07-B) rejeitava um match sempre que a
+diferença entre o horário local e `answered_at` remoto passasse de 5
+minutos, **mesmo quando alternativa, modo e estratégia de resposta
+coincidiam exatamente**. Como `answered_at` é o instante em que o SERVIDOR
+recebeu a operação (não quando o estudante respondeu), uma resposta que
+ficou horas ou dias offline antes de sincronizar era erroneamente tratada
+como uma tentativa distinta — arriscando reenvio duplicado de uma tentativa
+que já tinha chegado ao servidor.
+
+**Correção**: `compareAttempt` (substitui `isSameAttempt`) devolve três
+resultados — `match` | `no` | `uncertain` — em vez de um booleano:
+
+- Alternativa diferente → `no` (nunca é a mesma tentativa, isso não muda).
+- Alternativa igual **e** modo/estratégia disponíveis e iguais nos dois
+  lados → `match`, **qualquer que seja a diferença de horário** — o
+  conteúdo da tentativa já é suficiente prova, o horário é só um dado
+  auxiliar que dispensamos aqui.
+- Alternativa igual mas modo/estratégia ausentes ou incompletos num dos
+  lados (dado histórico anterior à captura desses campos) → usa o horário
+  como evidência AUXILIAR: dentro da janela de 5 min, `match`; fora dela,
+  `uncertain` (nunca `no` — nunca tratamos isso como prova de distinção,
+  só como "não temos certeza suficiente").
+
+Uma questão é tratada como já sincronizada se qualquer tentativa remota
+for `match`; como claramente nova (enfileira) se todas forem `no`; como
+ambígua (Problema 2) se houver ao menos um `uncertain` e nenhum `match`.
+
+**Limite desta comparação, documentado explicitamente**: sem
+alternativa+modo+estratégia coincidindo nos dois lados, não existe forma
+determinística de provar que duas tentativas com a mesma alternativa, em
+horários muito distantes, são a mesma ou não — a única fonte de verdade
+adicional possível seria o próprio usuário. É exatamente para esse caso que
+existe a experiência de ambiguidade do Problema 2; não foi criada nenhuma
+heurística "mais inteligente" para adivinhar no lugar do usuário.
+
+Testado com Playwright: alternativa+modo+estratégia idênticos com 6h de
+diferença de horário → reconhecido como a MESMA tentativa, sem duplicar —
+ver Etapa 6, cenário B.
+
+### Problema 4 — falha de geração de UUID não persistia nem aparecia na interface
+
+**Causa confirmada**: quando nenhuma fonte criptográfica estava disponível
+(nem `randomUUID` nem `getRandomValues`), `enqueue()` (07-B) devolvia um
+`SyncOp` com `state: 'failed'` **sem nunca gravá-lo na fila** — a operação
+não existia em lugar nenhum além do valor de retorno descartado pelo
+chamador, o erro só aparecia em `console.error`, e não havia qualquer
+tentativa automática de recuperação (nem ao ambiente voltar a oferecer
+`crypto`, nem após reload).
+
+**Correção**: `SyncOp` ganhou um campo `clientOpId?: string` distinto de
+`id` — `id` é agora sempre uma chave local (gerada mesmo sem `crypto`, nunca
+enviada ao servidor), e `clientOpId` é a chave real enviada ao servidor,
+podendo ficar ausente. Quando `uuid()` falha no momento do `enqueue()`, a
+operação é persistida mesmo assim (`id` local, `clientOpId` ausente, `state:
+'pending'`, `lastError.kind: 'crypto_unavailable'`) — nunca desaparece, nunca
+gera um id incompatível com a coluna `uuid` do Postgres. `runFlush` tenta
+gerar o `clientOpId` de novo a cada flush (evento `online`, troca de aba,
+heartbeat de 60s, ou o próximo carregamento da página) ANTES de despachar o
+handler; se conseguir, despacha normalmente; se não, aplica a mesma política
+de backoff exponencial das falhas retentáveis (`isRetryable` passou a
+incluir `crypto_unavailable`) — visível na UI como as demais falhas
+retentáveis (`SyncStatusIndicator`), nunca só no console.
+
+**Bug real encontrado só no teste de navegador desta própria correção** (não
+por leitura de código): a primeira versão do fix gerava o `clientOpId` e
+gravava `ops[i] = { ...op, clientOpId, ... }`, mas o passo seguinte
+(marcar `state: 'syncing'`) fazia `ops[i] = { ...op, state: 'syncing', ... }`
+usando a variável `op` **capturada no topo do laço, antes do clientOpId ser
+atribuído** — sobrescrevendo `clientOpId` de volta para `undefined` bem a
+tempo de despachar o handler sem ele. O teste de navegador via a operação
+ficar presa em `pending`/`clientOpId: undefined` para sempre, mesmo com
+`crypto` restaurado; a inspeção do código sozinha não bastava porque o bug
+só se manifestava na sequência real de mutações do array dentro do mesmo
+laço. Corrigido reatribuindo a variável local `op` (não só `ops[i]`) a cada
+mutação, para que os `spread`s seguintes sempre partam da versão mais
+recente.
+
+Testado com Playwright: `crypto` bloqueado no momento do enqueue → operação
+persistida, sem `clientOpId`, falha visível; nenhuma tentativa chega ao
+servidor enquanto isso; `crypto` restaurado sem reload → a mesma operação é
+retentada automaticamente (via evento `online`, sem reimportar nada), ganha
+um `clientOpId` real e sincroniza; exatamente 1 tentativa chega ao servidor
+— ver Etapa 6, cenário UUID.
+
+## Validação de isolamento entre contas (07-C)
+
+Decisão de produto confirmada: manter uma conta pessoal de estudante e uma
+conta editorial/administrativa distintas. Esta entrega não implementa o
+sistema completo de papéis editoriais (fora de escopo) — só validou que a
+fila de sincronização, tentativas, flashcards, XP e estado local de uma
+conta nunca atravessam para a outra, reutilizando o mecanismo de isolamento
+já corrigido no Bloqueio 2 do 07-B (`getActiveSupabaseUserId` +
+`flushAllKnown` nunca varrendo todos os UIDs conhecidos). Testado com dois
+usuários reais (`sync07c.student@test.local` role `student`,
+`sync07c.editorial@test.local` role `admin`), ambos descartáveis e removidos
+ao final:
+
+1. **Mesma janela, troca real de sessão** (A fica com operação pendente,
+   faz logout, B loga em seguida): a operação de A não é enviada nem sob A
+   nem sob B; a fila de A permanece intacta enquanto B está ativo.
+2. **A → B → A**: a operação que ficou pendente durante a passagem por B é
+   sincronizada sob o dono correto quando A loga de novo.
+3. **Duas `BrowserContext` simultâneas** (dois dispositivos reais, A e B
+   autenticados ao mesmo tempo, cada um respondendo à mesma questão): cada
+   tentativa é aplicada sob a própria conta; nenhuma atravessa para a conta
+   errada sob concorrência real.
+
+Nenhum vazamento de dado entre contas foi observado nos três cenários — ver
+Etapa 6, script de isolamento.
+
 ## Etapa 6 — Testes
 
 ### O que foi executado e passou
@@ -353,42 +556,112 @@ passaram**, cobrindo:
    removidas, a operação não é persistida na fila (`op.id === ''`,
    `state === 'failed'`) — nunca um id incompatível chega perto de uma RPC.
 
-**Cenários pedidos e NÃO cobertos por automação de navegador nesta entrega**
-(limitação confirmada, não contornada — priorização de tempo, não
-dificuldade técnica): 3 (reenvio pós-aplicação-no-servidor-mas-antes-da-
-resposta-chegar-ao-cliente — coberto indiretamente pelos testes pgTAP de
-idempotência de `client_op_id`, mas não reproduzido como uma falha de rede
-real via Playwright), 5 (duas abas/dispositivos revisando o mesmo flashcard
-simultaneamente — a serialização por `select ... for update` está coberta
-pelo pgTAP existente, não por dois `BrowserContext` reais revisando ao mesmo
-tempo), 7 como reload explícito com uma operação real presa em `syncing` no
-momento do reload (a limpeza de `syncing` órfão no início de `runFlush` está
-implementada e coberta indiretamente pelo cenário 2, mas não com uma prova
-determinística de "estava em `syncing`, reload, não passou de "pending" pra
-sempre" isolada), 8 (erros de sessão expirada, RLS/permissão, schema
-ausente e número máximo de tentativas — cobertos pela lógica de
+**Cenários pedidos e NÃO cobertos por automação de navegador no 07-B**
+(atualizado pelo 07-C abaixo — vários destes passaram a ser cobertos): 3
+(reenvio pós-aplicação-no-servidor-mas-antes-da-resposta-chegar-ao-cliente),
+5 (duas abas/dispositivos revisando o mesmo flashcard simultaneamente), 7
+como reload explícito com uma operação real presa em `syncing`, 8 (erros de
+sessão expirada, RLS/permissão, schema ausente e número máximo de
+tentativas), e 10 (os sete sub-casos pedidos de recuperação legada).
+
+### Prompt 07-C — testes reais de navegador (Playwright/Chromium contra Supabase LOCAL)
+
+Mesmo ambiente do 07-B (Playwright fora do repositório, `vite` dev com
+`.env.development.local` apontando para o Supabase local, nunca o `.env.local`
+real). Dois usuários de teste novos e descartáveis
+(`sync07c.student@test.local` role `student`, `sync07c.editorial@test.local`
+role `admin`), removidos ao final (auth + profiles confirmados ausentes
+depois). **31/31 asserções passaram** em quatro scripts:
+
+**Script principal (recuperação legada) — 18/18**:
+- **Cenário A (Problema 1)**: (A1) ledger apontando para `client_op_id` já
+  sincronizado mas removido da fila local → confirmado recuperado, sem
+  duplicar (`question_attempts` permanece com 1 linha). (A2) ledger
+  apontando para `client_op_id` ausente da fila E do servidor → recriado com
+  o MESMO `client_op_id`.
+- **Cenário B (Problema 3)**: resposta local com mesma alternativa/modo/
+  estratégia que uma tentativa remota, mas sincronizada 6h depois →
+  reconhecida como a MESMA tentativa (não gera ambiguidade, não duplica) —
+  prova direta de que a janela de 5 min deixou de ser um critério decisivo
+  isolado.
+- **Cenário C (Problema 2)**: tentativa remota existente mas inconclusiva →
+  registrada em `ledger.ambiguous`, nunca marcada como recuperada sem
+  certeza; indicador de sincronização mostra "Há progresso antigo para
+  revisar" mesmo sem nada pendente na fila; diálogo mostra a alternativa e a
+  data sem nunca expor o `questionId`; pendência sobrevive a um reload;
+  "Enviar como nova tentativa" cria uma segunda linha real no histórico e
+  sai da lista de ambíguos; reload subsequente não duplica de novo
+  (idempotência do `client_op_id` estável).
+- **Cenário C2 (Problema 2)**: "Manter somente neste dispositivo" nunca
+  apaga o registro local original, nunca cria uma linha nova no servidor, e
+  a MESMA resposta não volta a ser sinalizada em reloads seguintes.
+
+**Script UUID (Problema 4) — 4/4**: com `randomUUID`/`getRandomValues`
+indisponíveis desde o carregamento da página, a operação é persistida (id
+local, sem `clientOpId`, falha `crypto_unavailable` visível) e nenhuma
+tentativa chega ao servidor; ao ambiente voltar a oferecer `crypto` (sem
+reload — só o evento `online` real, sem reimportar módulo algum), a mesma
+operação ganha um `client_op_id` real e sincroniza; exatamente 1 tentativa
+chega ao servidor. Foi durante a primeira execução deste script que o bug de
+clobbering do `clientOpId` (ver Problema 4 acima) foi detectado — o teste
+falhava consistentemente até a correção do laço em `runFlush`.
+
+**Script de isolamento entre contas — 6/6** (ver "Validação de isolamento
+entre contas (07-C)" acima): troca real de sessão na mesma janela (A
+pendente → logout → B loga) sem vazamento nos dois sentidos; A → B → A
+retoma a fila de A; duas `BrowserContext` simultâneas sem cruzamento sob
+concorrência real.
+
+**Script de SRS concorrente (item 5 da lista de pendências do 07-B, agora
+coberto) — 3/3**: duas `BrowserContext` autenticadas na MESMA conta
+disparando revisões quase simultâneas do mesmo flashcard (via evento
+`online` disparado em paralelo nas duas) resultam em exatamente 2 linhas
+reais em `flashcard_reviews` (nenhuma perdida, nenhuma fantasma);
+`repetition_count`/`interval_days`/`ease_factor` finais são consistentes com
+as duas revisões aplicadas em sequência serializada pelo `select ... for
+update` do servidor (nunca "1" por sobrescrita de estado desatualizado);
+reenviar os mesmos `client_op_id` depois de já sincronizados não duplica.
+
+**Cenários da lista original do 07-B ainda NÃO cobertos por automação de
+navegador nesta entrega** (limitação confirmada, não contornada — os itens
+3 e 8 seguem cobertos apenas indiretamente por pgTAP/lógica, não por
+reprodução determinística via navegador): item 3 (reenvio simulando o
+servidor aplicar a operação mas a resposta não chegar ao cliente — a
+idempotência que isso depende está provada por pgTAP e pelos testes de
+reenvio de `client_op_id` acima, mas não há uma simulação de navegador que
+corte a resposta HTTP depois do servidor já ter comitado); item 7 como
+reload explícito com uma operação real presa em `syncing` no exato momento
+do reload (a limpeza de `syncing` órfão no início de `runFlush` continua
+implementada e coberta indiretamente pelos cenários de reconciliação, sem
+uma prova isolada "estava em syncing, reload, virou pending, sincronizou
+uma vez"); item 8 (classes de erro de sessão expirada, RLS/permissão,
+schema ausente e número máximo de tentativas individualmente — cobertas por
 `classifySyncError` e pelos testes pgTAP de ownership/validação, não
-reproduzidos individualmente via navegador), e 10 (os sete sub-casos pedidos
-de recuperação legada — a lógica está implementada e documentada acima com
-testes de leitura de código, mas não há teste de navegador ponta a ponta
-criando dado legado pré-existente e validando os três desfechos via UI).
-**Não declarar esses sub-cenários como testados em navegador** — ficam como
-pendência explícita para uma sessão futura com mais tempo dedicado à
-automação (a infraestrutura de teste — usuários, Playwright, DB local — já
-está pronta e documentada acima, é trabalho de extensão, não de descoberta).
+reproduzidas uma a uma via navegador real nesta entrega).
+**Não declarar esses três sub-cenários como testados em navegador.**
 
 ## Resumo do que está pronto para revisão de merge
 
 - Migration `20260909120000_sync_reliability.sql` aplicada e testada só em
   Supabase LOCAL — **não aplicada no remoto** (fora do escopo desta sessão:
   só pode escrever/rodar contra o Supabase local). Nenhuma alteração de
-  schema foi necessária no 07-B — os quatro bloqueios eram todos client-side.
+  schema foi necessária no 07-B nem no 07-C — todos os bloqueios corrigidos
+  até aqui foram client-side.
 - Código cliente (`syncQueue.ts`, `syncHandlers.ts`, `legacyRecovery.ts`,
-  `SyncStatusIndicator.tsx`, `AnswersRepository.ts`,
+  `SyncStatusIndicator.tsx`, `LegacyRecoveryDialog.tsx`,
+  `useAmbiguousRecoveries.ts`, `AnswersRepository.ts`,
   `FlashcardsRepository.ts`) compila (`tsc --noEmit`) e builda (`npm run
   build`) limpo, e **foi exercitado em navegador real (Playwright/Chromium)
-  no 07-B** para os cenários listados acima — não mais só por leitura de
-  código.
+  no 07-B e no 07-C** para os cenários listados acima — não mais só por
+  leitura de código.
+- Isolamento entre duas contas (estudante + editorial/admin) validado com
+  dois `BrowserContext` reais no 07-C — sem vazamento de fila, tentativas,
+  flashcards ou XP entre contas nos três cenários testados.
+- Três sub-cenários da lista original do 07-B permanecem sem prova
+  determinística de navegador (ver acima) — a lógica está implementada e
+  coberta por pgTAP/leitura de código, não é ausência de tratamento.
 - Categorias 3-9 permanecem no padrão antigo, com o plano de correção
   documentado acima (Etapa 4) — favoritos e progresso de leitura precisam de
-  uma mudança de contrato antes de qualquer fila automática de retry.
+  uma mudança de contrato antes de qualquer fila automática de retry. Fora
+  de escopo desta entrega (07-C ficou nas categorias 1 e 2, por instrução
+  explícita).

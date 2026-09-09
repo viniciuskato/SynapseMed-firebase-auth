@@ -202,6 +202,31 @@ protótipo).
     real do código client-side que os chama (dedupe de promises, checagem de
     sessão ativa, comparação de dados legados) — para essa camada, só teste
     de navegador real detecta esse tipo de bug.
+    **(07-C, 2026-09-09) Quatro pendências adicionais corrigidas**: ledger de
+    recuperação legada (`legacyRecovery.ts`) podia apontar para um
+    `client_op_id` já removido da fila local (poda de sincronizadas antigas)
+    e ficava preso sem nunca confirmar nem recriar — corrigido consultando
+    `question_attempts.client_op_id` no servidor e, se ausente dos dois
+    lados, recriando com o MESMO id; ambiguidade de recuperação legada só
+    aparecia em `console.warn` — agora persiste em `ledger.ambiguous` e tem
+    UI dedicada (`LegacyRecoveryDialog.tsx`) com três decisões (enviar como
+    nova tentativa/manter só local/decidir depois), nenhuma apaga o dado
+    local; comparação de tentativas tratava diferença de horário >5min como
+    prova de distinção mesmo quando alternativa+modo+estratégia coincidiam
+    — corrigido para usar horário só como evidência auxiliar quando o resto
+    não basta (`compareAttempt`, 3 resultados: match/no/uncertain); falha de
+    geração de UUID (`crypto` indisponível) não persistia na fila nem
+    aparecia na UI — corrigido separando `id` (sempre local) de `clientOpId`
+    (real, pode ficar ausente até um flush futuro conseguir gerá-lo).
+    **Bug encontrado só em teste de navegador desta última correção** (não
+    por leitura de código): ao gerar o `clientOpId` dentro de `runFlush`, o
+    passo seguinte (`state: 'syncing'`) fazia spread da variável `op`
+    capturada no TOPO do laço, de antes do `clientOpId` existir — sobrescrevia
+    o campo de volta para `undefined` a tempo de despachar o handler sem ele.
+    Corrigido reatribuindo a variável local `op` (não só `ops[i]`) a cada
+    mutação dentro do mesmo laço, para que os `spread`s seguintes sempre
+    partam da versão mais recente. Ver `docs/SINCRONIZACAO-CONFIAVEL.md`,
+    seção "Correções do Prompt 07-C", para o detalhamento completo.
 14. **`toggleBookmark`/`toggleSectionRead` não são operações idempotentes** —
     são um "liga/desliga", não um "define este valor". Colocá-las numa fila
     de retry automático sem antes trocar o contrato para `setBookmark(id,
@@ -397,6 +422,26 @@ protótipo).
   ficam como pendência de teste de navegador (lógica implementada e
   documentada, não exercitada ponta a ponta) — ver
   `docs/SINCRONIZACAO-CONFIAVEL.md` para o detalhamento completo.
+  **07-C (mesmo dia)** corrigiu quatro pendências adicionais encontradas na
+  revisão do 07-B: ledger apontando para operação removida da fila (agora
+  consulta o servidor pelo `client_op_id` e recria com o mesmo id quando
+  ausente dos dois lados), ambiguidade de recuperação legada só visível no
+  console (agora tem UI dedicada, `LegacyRecoveryDialog.tsx`, persistente
+  entre reloads, três decisões, nenhuma apaga dado local), janela de 5min
+  tratada como prova de distinção (agora só evidência auxiliar quando
+  alternativa+modo+estratégia não bastam por si só) e falha de UUID que não
+  persistia nem aparecia na UI (agora sempre visível e retentada
+  automaticamente). Também corrigiu, só durante o teste de navegador da
+  própria correção de UUID, um bug real de `clientOpId` sendo sobrescrito de
+  volta para `undefined` dentro do laço de `runFlush` — ver armadilha #13.
+  Validado com 31/31 asserções reais de navegador (recuperação legada, UUID,
+  isolamento entre duas contas — estudante e editorial/admin — e SRS
+  concorrente entre duas `BrowserContext` da mesma conta), além de `tsc`/
+  `build`/106 pgTAP mantidos verdes. Três sub-cenários da lista original do
+  07-B (reenvio pós-servidor-pré-cliente, reload isolado em `syncing`,
+  classes de erro individuais) continuam sem prova determinística de
+  navegador — cobertos só por pgTAP/leitura de código, não por
+  desconhecimento. Categorias 3-9 continuam fora de escopo.
 
 ## Manter este arquivo atualizado
 

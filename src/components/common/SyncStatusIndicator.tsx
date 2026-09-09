@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { Cloud, CloudOff, RefreshCw, AlertTriangle, Check } from 'lucide-react';
+import { Cloud, CloudOff, RefreshCw, AlertTriangle, Check, History } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSyncQueueStatus } from '../../hooks/useSyncQueueStatus';
+import { useAmbiguousRecoveries } from '../../hooks/useAmbiguousRecoveries';
 import { retryAllFailed } from '../../services/syncQueue';
+import { LegacyRecoveryDialog } from './LegacyRecoveryDialog';
 
 // ============================================================================
 // Indicador discreto de sincronização (Prompt 07-A).
@@ -16,9 +18,11 @@ import { retryAllFailed } from '../../services/syncQueue';
 export const SyncStatusIndicator: React.FC = () => {
   const { user } = useAuth();
   const status = useSyncQueueStatus(user?.id ?? null);
+  const ambiguous = useAmbiguousRecoveries(user?.id ?? null);
   const [open, setOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
 
-  if (status.status === 'synced' && status.pending === 0 && status.failed === 0) {
+  if (status.status === 'synced' && status.pending === 0 && status.failed === 0 && ambiguous.length === 0) {
     return null; // nada pendente: não polui a interface com "tudo certo" o tempo todo
   }
 
@@ -36,6 +40,9 @@ export const SyncStatusIndicator: React.FC = () => {
           tone: 'text-rose-600 dark:text-rose-400',
         };
       default:
+        if (ambiguous.length > 0) {
+          return { icon: History, spin: false, label: 'Há progresso antigo para revisar', tone: 'text-amber-600 dark:text-amber-400' };
+        }
         return { icon: Check, spin: false, label: 'Sincronizado', tone: 'text-emerald-600 dark:text-emerald-400' };
     }
   })();
@@ -82,7 +89,27 @@ export const SyncStatusIndicator: React.FC = () => {
               Alguns itens não puderam ser enviados neste momento. Continue estudando normalmente — seu progresso local está preservado.
             </p>
           )}
+          {ambiguous.length > 0 && (
+            <>
+              <p className="mt-2 text-slate-600 dark:text-slate-300">
+                {ambiguous.length === 1 ? '1 resposta antiga' : `${ambiguous.length} respostas antigas`} deste dispositivo{' '}
+                {ambiguous.length === 1 ? 'não pôde' : 'não puderam'} ser comparada{ambiguous.length === 1 ? '' : 's'} com segurança ao
+                seu histórico sincronizado.
+              </p>
+              <button
+                type="button"
+                onClick={() => setReviewOpen(true)}
+                className="mt-2 w-full rounded-md bg-amber-600 text-white py-1.5 font-medium hover:bg-amber-700"
+              >
+                Revisar
+              </button>
+            </>
+          )}
         </div>
+      )}
+
+      {reviewOpen && user && ambiguous.length > 0 && (
+        <LegacyRecoveryDialog userId={user.id} items={ambiguous} onClose={() => setReviewOpen(false)} />
       )}
     </div>
   );
