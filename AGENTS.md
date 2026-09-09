@@ -69,7 +69,16 @@ protótipo).
 4. **`.env.local` aponta pro Supabase REMOTO por padrão.** Scripts que
    tocam dado real (`scripts/load-*.ts`) têm trava de "só local por
    padrão" — não remover essa trava, não confiar que o ambiente atual é
-   local sem checar `VITE_SUPABASE_URL` primeiro.
+   local sem checar `VITE_SUPABASE_URL` primeiro. **Para testar o app de
+   verdade no navegador contra o Supabase LOCAL** (`npm run dev`), crie
+   (ou reaproveite, se já existir) um `.env.development.local` com
+   `VITE_SUPABASE_URL=http://127.0.0.1:54321` e o `ANON_KEY` local (`supabase
+   status`) — o Vite dá prioridade a `.env.[mode].local` sobre `.env.local`
+   só no modo `development` (`npm run dev`/`vite`, não `vite build`), então
+   isso não afeta build de produção nem precisa tocar no `.env.local` real.
+   Esse arquivo é git-ignorado (`.env.*` no `.gitignore`) — criado no 07-B
+   para os testes de navegador do Prompt 07-B, pode ser reaproveitado por
+   sessões futuras que precisem do mesmo setup.
 5. **`StorageService.getStats()` tinha `streakDays` fixo** (`totalAnswered
    > 0 ? 4 : 1`), nunca uma sequência real, e lia de uma cópia local do
    StorageService desconectada dos dados sincronizados. Foi substituído
@@ -177,6 +186,22 @@ protótipo).
     antigo** — não presumir que a correção já é geral. Ao mexer em qualquer
     `Resilient*Repository` novo/existente, ver o plano de migração na Etapa 4
     daquele documento antes de simplesmente copiar o padrão antigo.
+    **(07-B, 2026-09-09) Uma primeira implementação client-side sem teste de
+    navegador real teve quatro bugs sérios apesar de 106/106 pgTAP passando**:
+    `enqueueAndTry` podia retornar antes da operação terminar (dedupe de
+    flush concorrente mal feito), a fila de um usuário podia ser enviada
+    autenticada como outro usuário (eventos periódicos varriam todos os UIDs
+    conhecidos sem checar a sessão ativa do Supabase), a recuperação de dados
+    legados tratava qualquer `question_attempts` remoto para a questão como
+    prova de sincronização (ignorando que múltiplas tentativas por questão
+    são legítimas), e o fallback de UUID gerava um formato incompatível com a
+    coluna `uuid` do Postgres. Todos corrigidos e reproduzidos com
+    Playwright/Chromium real contra o Supabase local — ver
+    `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Correções do Prompt 07-B".
+    **Lição**: testes pgTAP provam contratos de servidor, não o comportamento
+    real do código client-side que os chama (dedupe de promises, checagem de
+    sessão ativa, comparação de dados legados) — para essa camada, só teste
+    de navegador real detecta esse tipo de bug.
 14. **`toggleBookmark`/`toggleSectionRead` não são operações idempotentes** —
     são um "liga/desliga", não um "define este valor". Colocá-las numa fila
     de retry automático sem antes trocar o contrato para `setBookmark(id,
@@ -351,13 +376,27 @@ protótipo).
   limpo antes de mexer em dado real.
 
 - **Em andamento na branch `work/sincronizacao-confiavel-07` (2026-09-09,
-  Prompt 07-A), NÃO mesclada em `main`**: fila de sincronização confiável
-  (`src/services/syncQueue.ts`) com idempotência por `client_op_id`,
-  implementada para as categorias 1 (tentativas de questão/XP) e 2
-  (flashcards/SRS) — ver armadilha #13 e `docs/SINCRONIZACAO-CONFIAVEL.md`
-  para diagnóstico completo, modelo e plano das categorias 3-9 ainda não
-  corrigidas. Migration `20260909120000_sync_reliability.sql` testada e
-  aplicada só em Supabase LOCAL (106/106 pgTAP); nada disso está em produção.
+  Prompt 07-A + 07-B), NÃO mesclada em `main`**: fila de sincronização
+  confiável (`src/services/syncQueue.ts`) com idempotência por
+  `client_op_id`, implementada para as categorias 1 (tentativas de
+  questão/XP) e 2 (flashcards/SRS) — ver armadilha #13 e
+  `docs/SINCRONIZACAO-CONFIAVEL.md` para diagnóstico completo, modelo e
+  plano das categorias 3-9 ainda não corrigidas. Migration
+  `20260909120000_sync_reliability.sql` testada e aplicada só em Supabase
+  LOCAL (106/106 pgTAP); nada disso está em produção. **07-B (mesmo dia)**
+  corrigiu quatro bloqueios encontrados na revisão do código do 07-A antes
+  de qualquer teste de navegador — retorno cedo de `enqueueAndTry` sob flush
+  concorrente, fila de um usuário podendo ser processada sob a sessão de
+  outro, recuperação legada tratando qualquer tentativa remota da questão
+  como prova de sincronização, e fallback de UUID incompatível com a coluna
+  `uuid` — todos client-side, sem migration nova. Reproduzidos e corrigidos
+  com testes reais de navegador (Playwright/Chromium contra Supabase local,
+  15/15 asserções passando) além de `tsc`/`build`/106 pgTAP mantidos verdes.
+  Cenários de duas abas simultâneas, reenvio pós-servidor-pré-cliente,
+  reload durante `syncing` isolado e os sete sub-casos de recuperação legada
+  ficam como pendência de teste de navegador (lógica implementada e
+  documentada, não exercitada ponta a ponta) — ver
+  `docs/SINCRONIZACAO-CONFIAVEL.md` para o detalhamento completo.
 
 ## Manter este arquivo atualizado
 
