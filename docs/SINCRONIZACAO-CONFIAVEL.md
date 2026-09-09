@@ -894,3 +894,38 @@ em AGENTS.md de não tratar esse resíduo específico como corrupção.
   uma mudança de contrato antes de qualquer fila automática de retry. Fora
   de escopo desta entrega (07-C ficou nas categorias 1 e 2, por instrução
   explícita).
+
+## Publicação em produção (Prompt 07-D, 2026-09-09)
+
+Aprovada pela diretoria após 07-A/07-B/07-C/07-C2, sem nova pendência de
+código encontrada nesta revisão final. Sequência executada: revisão
+completa do diff (`origin/main...HEAD`, 18 arquivos) sem segredos, contas
+versionadas ou catch silencioso nos fluxos publicados → push da branch →
+migration `20260909120000_sync_reliability.sql` aplicada no Supabase
+remoto (`synapsemed`/`jfvhwwvixwvgjfqzlkkb`) e verificada diretamente no
+schema via `supabase db dump` (colunas, índices únicos, corpo das RPCs e
+grants restritos a `authenticated`) → merge `--no-ff` em `main` (commit
+`c8914ad`) → deploy automático do Vercel confirmado por hash/tamanho de
+bundle idêntico ao build local, com `__syncDebug`/`__setTestBackoffOverride`
+ausentes → smoke test em produção (login real de duas contas descartáveis,
+troca A→B→A na mesma janela sem vazamento de `localStorage`, 0 erros de
+console/requisições 5xx).
+
+Diferença metodológica desta rodada em relação ao 07-C2: as contas e
+fixtures fixas usadas nos 90/90 asserções de navegador do 07-C2 já haviam
+sido removidas ao final daquela sessão, então esta sessão não as reexecutou
+byte a byte — em vez disso, escreveu uma verificação funcional nova contra
+as RPCs publicadas (tentativa normal, idempotência, isolamento entre
+usuários com o mesmo `client_op_id`, flashcard/SRS, ownership), rodada
+tanto no Supabase local (10/10) quanto — após a migration — diretamente no
+schema remoto de produção com contas descartáveis (9/9). Os cenários
+puramente client-side de rede real (offline/reconexão por corte de rede,
+reload com operação presa em `syncing`, as seis classes de erro,
+`LegacyRecoveryDialog`) não foram refeitos nesta rodada e continuam
+apoiados apenas na evidência determinística já registrada do 07-C2 — o
+código em si não mudou entre 07-C2 e 07-D.
+
+Estado final: **categorias 1 e 2 publicadas e verificadas em produção**.
+Categorias 3-9 continuam pendentes, fora de escopo. Ver
+`docs/diretoria/registro.md`, entrada "Concluído — 07-D", para o retorno
+completo com todas as contagens e comandos de verificação.

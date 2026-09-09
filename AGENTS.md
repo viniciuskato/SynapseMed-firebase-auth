@@ -325,6 +325,44 @@ protótipo).
   — comportamento de fallback sem placeholder confirmado só por código,
   não visualmente). Ver `docs/diretoria/registro.md` para o retorno
   completo do 09-B.
+- **PUBLICADO em produção em 2026-09-09 (07-D)**: sincronização confiável
+  das categorias 1 (tentativas de questão/XP) e 2 (flashcards/SRS) —
+  branch `work/sincronizacao-confiavel-07` mesclada em `main` (`--no-ff`,
+  commit de merge `c8914ad`, `main`/`origin/main` avançaram de `e2daf83`).
+  Migration `20260909120000_sync_reliability.sql` aplicada e verificada
+  diretamente no remoto via `supabase db dump --linked -s public`
+  (colunas `client_op_id`, índices únicos parciais
+  `question_attempts_user_client_op_uq`/`flashcard_reviews_card_client_op_uq`,
+  corpo das RPCs `submit_question_attempt`/`submit_flashcard_review` e
+  grants restritos a `authenticated`, sem `anon`/`public`, todos
+  conferidos no dump, não só na saída do CLI). Deploy automático do
+  Vercel confirmado pelo bundle publicado (`assets/index-DCCf7ebW.js`,
+  mesmo tamanho em bytes do build local; instrumentação de teste
+  `__syncDebug`/`__setTestBackoffOverride` confirmada AUSENTE do bundle,
+  0 ocorrências). Verificação funcional direta no banco (contas
+  descartáveis criadas e promovidas a `active` via `supabase db query
+  --linked` — conexão real como `postgres`, nunca via service role):
+  tentativa normal, reenvio idempotente por `client_op_id` (exatamente 1
+  linha), dois usuários usando o mesmo `client_op_id` sem colisão
+  (isolamento por `user_id`), revisão de flashcard com SM-2 no servidor,
+  idempotência de flashcard e bloqueio de ownership (usuário B não revisa
+  flashcard de A) — 9/9 no schema remoto pós-migration. Smoke test em
+  produção via Playwright real contra `https://synapse-med-firebase-
+  auth.vercel.app`: login real de duas contas descartáveis, troca de
+  conta na mesma janela A→B→A sem vazamento de chaves de
+  localStorage/fila entre usuários, 0 erros de console e 0
+  requisições 5xx — 7/7. Contagens de `question_attempts`, `flashcard_reviews`,
+  `flashcards`, `flashcard_srs_state`, `profiles`, `error_notebook`,
+  `questions` e `question_options` idênticas antes/depois da migration e
+  antes/depois do smoke test; contas de teste (`sync07d-verify.*`,
+  `smoke07d.*`) confirmadas removidas (0 remanescentes). Não repetidas
+  nesta rodada, por já provadas deterministicamente em 07-C2 com
+  navegador real: os três sub-cenários de reenvio pós-servidor/reload em
+  `syncing`/seis classes de erro e as 90 asserções completas de UI (fila
+  offline, `LegacyRecoveryDialog`, recuperação de UUID) — ver
+  `docs/diretoria/registro.md` para o retorno completo do 07-D.
+  Categorias 3-9 do backlog de sincronização permanecem pendentes, fora
+  de escopo desta publicação.
 - **Histórico (preparado em 2026-09-07, commitado em 2026-09-08 na branch
   `work/consolidacao-diretoria-2026-09-08`, commit `1e89a2f`)**: correção
   do achado de auditoria "question_references/sources descartados na carga
