@@ -71,10 +71,33 @@ export interface SyncQueueSummary {
 
 type Handler = (payload: any, clientOpId: string) => Promise<unknown>;
 
-const MAX_RETRYABLE_ATTEMPTS = 8;
+const MAX_RETRYABLE_ATTEMPTS_DEFAULT = 8;
 const SYNCED_RETENTION = 30; // mantém só as últimas N ops sincronizadas, para não crescer sem limite
-const BASE_BACKOFF_MS = 15_000;
+const BASE_BACKOFF_MS_DEFAULT = 15_000;
 const MAX_BACKOFF_MS = 10 * 60_000;
+
+// ----------------------------------------------------------------------------
+// Override de backoff SÓ PARA TESTE (Prompt 07-C2, cenário "máximo de
+// tentativas esgotado"). Sem instrumentação, provar esse cenário exigiria
+// esperar ~30min reais de backoff exponencial real. `import.meta.env.DEV`
+// garante que isto nunca tem efeito em produção (build de produção usa
+// import.meta.env.DEV = false, morto por tree-shaking — confirmado com
+// `npm run build`, ver docs/SINCRONIZACAO-CONFIAVEL.md). Nunca chamado fora
+// de teste: nenhum código de produção importa esta função.
+// ----------------------------------------------------------------------------
+let testBackoffOverrideMs: number | null = null;
+let testMaxAttemptsOverride: number | null = null;
+export function __setTestBackoffOverride(baseMs: number | null, maxAttempts: number | null = null): void {
+  if (!(import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV) return;
+  testBackoffOverrideMs = baseMs;
+  testMaxAttemptsOverride = maxAttempts;
+}
+function currentBaseBackoffMs(): number {
+  return testBackoffOverrideMs ?? BASE_BACKOFF_MS_DEFAULT;
+}
+function currentMaxRetryableAttempts(): number {
+  return testMaxAttemptsOverride ?? MAX_RETRYABLE_ATTEMPTS_DEFAULT;
+}
 
 const handlers = new Map<string, Handler>();
 const flushPromises = new Map<string, Promise<void>>();
@@ -394,8 +417,8 @@ async function runFlush(userId: string): Promise<void> {
         clientOpId = uuid();
       } catch (e) {
         const attempts = op.attempts + 1;
-        const retryable = attempts < MAX_RETRYABLE_ATTEMPTS;
-        const backoff = Math.min(BASE_BACKOFF_MS * 2 ** (attempts - 1), MAX_BACKOFF_MS);
+        const retryable = attempts < currentMaxRetryableAttempts();
+        const backoff = Math.min(currentBaseBackoffMs() * 2 ** (attempts - 1), MAX_BACKOFF_MS);
         ops[i] = {
           ...op,
           state: retryable ? 'pending' : 'failed',
@@ -445,8 +468,8 @@ async function runFlush(userId: string): Promise<void> {
       const idx = ops.findIndex((o) => o.id === op.id);
       if (idx >= 0) {
         const attempts = ops[idx].attempts + 1;
-        const retryable = isRetryable(kind) && attempts < MAX_RETRYABLE_ATTEMPTS;
-        const backoff = Math.min(BASE_BACKOFF_MS * 2 ** (attempts - 1), MAX_BACKOFF_MS);
+        const retryable = isRetryable(kind) && attempts < currentMaxRetryableAttempts();
+        const backoff = Math.min(currentBaseBackoffMs() * 2 ** (attempts - 1), MAX_BACKOFF_MS);
         ops[idx] = {
           ...ops[idx],
           state: retryable ? 'pending' : 'failed',

@@ -442,6 +442,27 @@ protótipo).
   classes de erro individuais) continuam sem prova determinística de
   navegador — cobertos só por pgTAP/leitura de código, não por
   desconhecimento. Categorias 3-9 continuam fora de escopo.
+  **07-C2 (mesmo dia, sessão nova)** fechou os três sub-cenários acima com
+  Playwright/Chromium real contra o Supabase local: reenvio simulando
+  "servidor aplicou, resposta não chegou ao cliente" (`route.fetch()` real +
+  `route.abort()`), reload/reabertura de `BrowserContext` com operação real
+  presa em `syncing` (três variações), e as seis classes de erro
+  (`classifySyncError`) individualmente — cada uma com classificação,
+  mensagem, retry e recuperação confirmadas. **Diferente do 07-B/07-C,
+  nenhum defeito real foi encontrado** — 90/90 asserções (52 dos três
+  cenários + 38 de regressão completa) passaram na primeira execução,
+  reaproveitando instrumentação de teste (`window.__syncDebug`,
+  `__setTestBackoffOverride`, ambos condicionais a `import.meta.env.DEV`,
+  confirmados fora do bundle de produção) e fixtures deixados por uma
+  execução anterior deste mesmo prompt que morreu por rate limit sem
+  commitar nada. `tsc`/`build`/106 pgTAP mantidos verdes; dados de teste
+  removidos e confirmados ausentes ao final. Ver
+  `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Correções/Validações do Prompt
+  07-C2", para o detalhamento completo. Com isso, a lista de pendências de
+  teste de navegador conhecidas para as categorias 1 e 2 está fechada —
+  branch tecnicamente pronta para revisão de merge em `main` (decisão de
+  mesclar continua sendo do usuário/diretoria; nenhum merge/push/deploy foi
+  feito nesta sessão). Categorias 3-9 continuam fora de escopo.
 
 ## Manter este arquivo atualizado
 

@@ -32,8 +32,29 @@ import { flashcardsRepository } from './repositories/FlashcardsRepository';
 import { answersRepository } from './repositories/AnswersRepository';
 import { registerSyncHandlers } from './services/syncHandlers';
 import { isCardDueToday } from './services/srsAlgorithm';
+import * as syncQueueDebug from './services/syncQueue';
+import { supabase as supabaseDebugClient } from './lib/supabaseClient';
 
 registerSyncHandlers();
+
+// ============================================================================
+// Ponte de depuração SÓ PARA TESTE (Prompt 07-C2), nunca no bundle de
+// produção: `import.meta.env.DEV` é `false` em `vite build` e o bloco inteiro
+// é eliminado por tree-shaking (confirmado com `npm run build` — a string
+// "__syncDebug" não aparece no bundle publicado). Permite a testes reais de
+// navegador (Playwright/Chromium) ler o estado real da fila
+// (`localStorage`/`syncQueue`) e forçar condições de erro determinísticas
+// (sessão expirada, RLS, schema incompatível) sem precisar clicar em cada
+// caminho de UI que não existe para provocar esses erros deliberadamente.
+// Nunca usado por código de produção — só por scripts de teste externos ao
+// repositório (ver docs/SINCRONIZACAO-CONFIAVEL.md, seção do Prompt 07-C2).
+// ============================================================================
+if (import.meta.env.DEV) {
+  (window as unknown as { __syncDebug?: unknown }).__syncDebug = {
+    ...syncQueueDebug,
+    supabase: supabaseDebugClient,
+  };
+}
 import { GamificationService } from './services/gamification';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LoadingScreen } from './components/common/LoadingScreen';

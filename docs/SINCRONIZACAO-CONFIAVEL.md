@@ -638,7 +638,231 @@ uma vez"); item 8 (classes de erro de sessão expirada, RLS/permissão,
 schema ausente e número máximo de tentativas individualmente — cobertas por
 `classifySyncError` e pelos testes pgTAP de ownership/validação, não
 reproduzidas uma a uma via navegador real nesta entrega).
-**Não declarar esses três sub-cenários como testados em navegador.**
+**Não declarar esses três sub-cenários como testados em navegador** — ficaram
+assim até o 07-C. **Atualização 07-C2: os três (itens 3, 7 e 8) foram
+reproduzidos e confirmados com Playwright/Chromium real nesta entrega** — ver
+seção "Correções/Validações do Prompt 07-C2" abaixo.
+
+## Correções/Validações do Prompt 07-C2
+
+Objetivo desta entrega: provar deterministicamente, com Playwright/Chromium
+real contra o Supabase LOCAL, os três sub-cenários que ficaram sem prova de
+navegador no 07-B/07-C — (1) reenvio pós-servidor-pré-cliente, (2) reload com
+operação real presa em `syncing`, (3) classes de erro individuais — mais a
+regressão completa. **Diferente do 07-B e do 07-C, nenhum defeito real foi
+encontrado nesta rodada**: as 90 asserções de navegador (52 dos três cenários
++ 38 de regressão) passaram na primeira execução completa, sem precisar de
+nenhuma correção de código além da instrumentação de teste em si.
+
+### Ambiente e instrumentação
+
+Uma execução anterior deste mesmo prompt (07-C2) havia morrido por rate limit
+de API sem deixar nenhum commit, mas tinha deixado duas mudanças não
+commitadas na working tree e um projeto Playwright completo fora do
+repositório (`%TEMP%\nexusmed-pw-07c2`, com `create-users.js`,
+`scenarios-1-2-3.js` e `regression.js` já escritos). Esta sessão revisou essa
+sobra linha a linha antes de reaproveitar — não assumiu que estava correta:
+
+- `src/App.tsx`: ponte `window.__syncDebug = { ...syncQueue, supabase }`,
+  condicional a `import.meta.env.DEV`, expondo o módulo `syncQueue` inteiro
+  (inclusive `enqueue`, `enqueueAndTry`, `flush`, `retryAllFailed`,
+  `registerHandler`, `__setTestBackoffOverride`) e o cliente Supabase para os
+  scripts de teste.
+- `src/services/syncQueue.ts`: `__setTestBackoffOverride(baseMs,
+  maxAttempts)`, também condicional a `import.meta.env.DEV`, permitindo
+  configurar um backoff/limite de tentativas menor só para o cenário 3.6 (sem
+  isso, provar "máximo de tentativas esgotado" exigiria ~30min reais de
+  backoff exponencial).
+
+Avaliação: a instrumentação é sã — não altera nenhum caminho de produção (só
+lê/expõe), é sempre condicional a `import.meta.env.DEV`, e foi desenhada
+exatamente para os três cenários pedidos neste prompt. Mantida como estava.
+Confirmado com `npm run build` + `grep` no bundle publicado
+(`dist/assets/*.js`) que nem a string `__syncDebug` nem
+`__setTestBackoffOverride` aparecem no bundle de produção — o
+`import.meta.env.DEV === false` do build elimina o bloco inteiro por
+tree-shaking do Vite/Rollup.
+
+Os fixtures de teste hardcoded nos scripts (`sync07c2.a@test.local`,
+`sync07c2.b@test.local`, uma questão dedicada "Enunciado Sync"/"Disciplina
+Sync Teste", dois flashcards `11111111-...-101`/`-102`) também já existiam no
+Supabase local, criados pela sessão anterior antes de morrer — verificados um
+a um (status `active`/`published`, IDs batendo com o que os scripts esperam)
+antes de reutilizá-los, em vez de recriar do zero.
+
+### Cenário 1 — resposta perdida após commit no servidor
+
+**Técnica**: `page.route()` intercepta `**/rest/v1/rpc/submit_question_attempt`;
+dentro do handler, `route.fetch()` executa a requisição REAL contra o
+Supabase local (aplica de verdade no Postgres) e só depois `route.abort('failed')`
+— simula "servidor aplicou, cliente nunca recebeu a resposta HTTP". Em
+seguida, a mesma operação (mesmo `client_op_id`) é reenviada pela fila real
+(sem interceptação).
+
+**Evidência antes/depois** (9/9 asserções): antes do corte, 0 linhas em
+`question_attempts` para aquele `client_op_id`; a chamada via `route.fetch()`
+de fato chegou ao servidor (corpo de resposta capturado antes do abort);
+após o abort, exatamente **1** linha já aplicada no servidor mas a fila local
+ainda não sabe disso (`state` ≠ `synced`); `enqueueAndTry` devolve `null` ao
+chamador (não trava a UI). Depois do reenvio automático (backoff real, sem
+interceptação), a fila converge para `synced` e o servidor continua com
+exatamente **1** linha (idempotência por `client_op_id` reconhecendo o
+resultado já aplicado, não duplicando). Reload da página confirmado sem criar
+nenhuma tentativa adicional.
+
+### Cenário 2 — reload/reabertura de contexto com operação presa em `syncing`
+
+Três variações, todas com `page.route()` que nunca resolve (trava a promise
+indefinidamente) para colocar uma operação REAL em `syncing` no momento exato
+do reload/fechamento — não uma simulação de estado, a operação passou de
+fato pelo caminho real que marca `state: 'syncing'` em `runFlush`.
+
+- **2a — nunca chegou a aplicar no servidor**: rota travada nunca chega a
+  `route.continue()`; confirmado 0 linhas no servidor antes do reload. Após
+  o reload, a operação órfã em `syncing` volta a `pending` no início do
+  próximo flush (código existente desde o 07-B) e é retomada: converge para
+  `synced` com exatamente 1 linha aplicada.
+- **2b — já tinha sido aplicada no servidor antes do reload**: mesma técnica
+  do Cenário 1 (`route.fetch()` real seguido de travamento em vez de
+  abort/fulfill) — confirmado que o servidor já tinha 1 linha ANTES do
+  reload. Depois do reload, reenvio pelo mesmo `client_op_id` reconhece o
+  resultado idempotente já existente — continua em exatamente 1 linha, sem
+  duplicar.
+- **2c — fechar/reabrir `BrowserContext` (não só reload)**: operação real
+  presa em `syncing`, `ctx.storageState()` capturado, `ctx.close()` de
+  verdade (não só navegação), novo `browser.newContext({ storageState })` —
+  tecnicamente equivalente e testado à parte do reload simples. A operação é
+  retomada e sincroniza com exatamente 1 linha; `SyncStatusIndicator` para de
+  mostrar pendência (nenhum elemento com `aria-label` de "Sincronizando"/
+  "Aguardando sincronização" após convergir).
+
+14/14 asserções passando nas três variações.
+
+### Cenário 3 — classes de erro individuais (6 sub-casos, 29/29 asserções)
+
+Cada um testado isoladamente, verificando classificação (`window.__syncDebug`
+lendo o estado real da operação no `localStorage`), mensagem visível ao
+usuário (texto renderizado, nunca stack/id técnico), política de retry,
+preservação da operação e recuperação após a causa ser removida:
+
+1. **Sessão expirada/ausente**: `access_token` persistido corrompido
+   diretamente no `localStorage` (preservando a sessão "presente" para o
+   handler ser de fato despachado e falhar por 401, não pular por falta de
+   sessão) → classificado `auth`, `state: failed` (não insiste sozinho), 0
+   linhas no servidor, texto visível orienta relogar. Relogar de verdade +
+   "Tentar novamente" manual recupera a MESMA operação → 1 linha final.
+2. **Violação de RLS/permissão**: usuário A tenta gravar o SRS de um
+   flashcard que pertence a B → RLS de `flashcard_srs_state` rejeita de
+   verdade no servidor → classificado `permission`, falha permanente sem
+   retry automático, nenhuma escrita indevida confirmada por query direta.
+3. **RPC indisponível/schema incompatível**: handler de teste chama uma RPC
+   inexistente (`rpc_inexistente_07c2_xyz`) → PostgREST devolve "function ...
+   does not exist" → classificado `schema`, falha permanente.
+4. **Validação (rating fora de 1-4)**: `submit_flashcard_review` com
+   `rating: 9` → rejeitado pelo servidor ("rating inválido: deve ser 1, 2, 3
+   ou 4") → classificado `validation`, falha permanente, nenhuma revisão
+   gravada.
+5. **Erro transitório de rede**: `route.abort('internetdisconnected')` antes
+   de chegar ao servidor → classificado `network`, `state: pending` com
+   backoff (retentável automaticamente, não `failed`); ao remover a
+   interceptação, recupera sozinho e converge para 1 linha.
+6. **Máximo de tentativas esgotado**: `__setTestBackoffOverride(80, 3)`
+   acelera o backoff (80ms em vez de 15s+) e reduz o limite para 3
+   tentativas; rota abortando toda vez confirma pelo menos 3 requisições
+   reais disparadas antes do `state: failed`; sem loop agressivo depois
+   (nenhuma requisição nova em 1.2s de espera); causa removida (rota
+   liberada) + "Tentar novamente" manual recupera a mesma operação → 1 linha
+   final, sem duplicar.
+
+### Regressão (38/38 asserções)
+
+Envio normal via login pelo FORMULÁRIO real da UI (não só login programático)
+→ 1 nova tentativa gravada com gabarito real da RPC; idempotência (mesmo
+`client_op_id` duas vezes → mesmo resultado devolvido, 1 linha no servidor);
+flashcard/SRS (SM-2 real aplicado no servidor, 1 nova revisão, estado SRS
+atualizado); troca de conta A→B→A (operação de A nunca enviada sob a sessão
+de B, fila de A preservada, retomada quando A loga de novo); duas contas em
+`BrowserContext` simultâneos (concorrência real, cada tentativa gravada sob o
+UID correto, nenhuma atravessa); as três decisões de recuperação ambígua
+(`LegacyRecoveryDialog`) — "enviar como nova tentativa" (nova linha real,
+sai da lista), "manter somente neste dispositivo" (nunca envia, nunca apaga
+local, não volta a ser sinalizada), "decidir depois" (fechar sem escolher,
+coberto estruturalmente pelo mesmo ledger); falha/recuperação de geração de
+UUID (operação persistida sem `clientOpId` com `crypto` indisponível, `crypto`
+restaurado sem reload via evento `online` real, mesma operação ganha um
+`clientOpId` real e sincroniza, exatamente 1 tentativa no servidor).
+
+### Contagens antes/depois (amostra representativa dos scripts)
+
+- R1: `question_attempts` do usuário para a questão de regressão: 43 → 44
+  (exatamente +1).
+- R3: `flashcard_reviews` do flashcard de regressão: 7 → 8 (exatamente +1);
+  `repetition_count` avançou para 8 (SM-2 real, não recalculado no cliente).
+- R7 (UUID): `question_attempts`: 47 → 48 (exatamente +1, mesmo depois de
+  crypto indisponível → restaurado → sincronizado).
+- Cenários 1/2a/2b/2c/3.1/3.5/3.6: cada um fechou em exatamente 1 linha no
+  servidor para o `client_op_id` daquele cenário — nunca 0 (perda) nem >1
+  (duplicação) — confirmado por query direta (`admin.from(...).select(...)`
+  com a `service_role` key local, não pela UI).
+
+### Validações obrigatórias
+
+- `npx tsc --noEmit`: sem erros.
+- `npm run build`: limpo (mesmo aviso pré-existente de chunk >500kB, não
+  relacionado a esta entrega); instrumentação de teste confirmada FORA do
+  bundle publicado (grep por `__syncDebug`/`__setTestBackoffOverride` em
+  `dist/assets/*.js`: 0 ocorrências).
+- `supabase test db` (pgTAP): **106/106** — sem regressão, nenhum teste novo
+  necessário (os três cenários desta entrega são todos client-side/rede, já
+  cobertos do lado do servidor pelos testes existentes de idempotência).
+- Playwright: **90/90** (52 dos cenários 1-3 + 38 de regressão), 0 falhas.
+
+### Dados de teste removidos
+
+Usuários `sync07c2.a@test.local`/`sync07c2.b@test.local` (via
+`supabase.auth.admin.deleteUser`, cascade em `profiles`), a questão dedicada
+"Enunciado Sync" (voltada a `draft` antes de apagar, por causa do trigger de
+proteção — ver AGENTS.md armadilha #11 — cascade em opções/keys/attempts), os
+dois flashcards de fixture e suas `flashcard_reviews`/`flashcard_srs_state`,
+e todas as `question_attempts`/`error_notebook` desses dois usuários
+(inclusive a gerada pela seção de recuperação ambígua R6a sobre a questão de
+seed "Questão demonstrativa de seed", que É de `supabase/seed.sql` e foi
+preservada — só a tentativa de teste sobre ela foi removida). Confirmado por
+query direta: 0 linhas de `auth.users`/`profiles` com e-mail
+`sync07c2%@test.local` ao final.
+
+**Nota sobre o baseline**: a contagem de `questions`/`question_attempts`/
+`flashcard_reviews`/`profiles` no Supabase local não voltou aos números
+documentados em AGENTS.md (394/675/84 etc., que já eram sobre o REMOTO, não o
+local) nem ao número exato observado no início desta sessão — isso é
+esperado e documentado desde o 09-A: `supabase test db` deixa fixtures
+próprias com sufixo aleatório (`Disciplina Sync Teste`/`SYNC-<random>`,
+usuários `*@test.local`) que reaparecem a cada execução do pgTAP, e nenhuma
+sessão anterior tampouco as limpou. Esta sessão limpou especificamente tudo
+que criou/reaproveitou para este prompt (fixtures 07-C2), sem tocar no
+resíduo de pgTAP pré-existente — consistente com a orientação já registrada
+em AGENTS.md de não tratar esse resíduo específico como corrupção.
+
+### Riscos remanescentes / não determinístico
+
+- Nenhum defeito real foi encontrado nesta rodada — histórico (07-B, 07-C)
+  mostra que isso já aconteceu duas vezes seguidas antes de uma rodada limpa,
+  então "nenhum bug" é um resultado honesto desta entrega, não uma garantia
+  de ausência de bugs em geral.
+- Duas `BrowserContext` reais disputando o MESMO `client_op_id` ao mesmo
+  tempo (corrida de escrita concorrente na MESMA operação, não em operações
+  diferentes) não foi testada nesta entrega — só a idempotência sequencial
+  (reenvio depois que o primeiro já terminou). A migration já usa `unique
+  (user_id, client_op_id)`/`(flashcard_id, client_op_id)`, então uma corrida
+  real resultaria em uma das duas chamadas recebendo violação de unicidade
+  (capturável, não uma duplicata) — mas isso não foi provado com navegador
+  real, só inferido do schema.
+- Instrumentação de teste (`__syncDebug`, `__setTestBackoffOverride`) continua
+  no código-fonte, condicional a `DEV`. Não é dívida técnica urgente (mesmo
+  padrão usado desde o 07-B/07-C, sempre confirmado fora do bundle a cada
+  entrega), mas cresce a cada rodada — pode valer a pena consolidar num
+  arquivo dedicado (`src/testing/syncDebugBridge.ts`) importado só em `DEV`,
+  em vez de inline em `App.tsx`, numa iteração futura.
 
 ## Resumo do que está pronto para revisão de merge
 
@@ -657,9 +881,14 @@ reproduzidas uma a uma via navegador real nesta entrega).
 - Isolamento entre duas contas (estudante + editorial/admin) validado com
   dois `BrowserContext` reais no 07-C — sem vazamento de fila, tentativas,
   flashcards ou XP entre contas nos três cenários testados.
-- Três sub-cenários da lista original do 07-B permanecem sem prova
-  determinística de navegador (ver acima) — a lógica está implementada e
-  coberta por pgTAP/leitura de código, não é ausência de tratamento.
+- **Atualização 07-C2**: os três sub-cenários que permaneciam sem prova
+  determinística de navegador desde o 07-B (reenvio pós-servidor-pré-cliente,
+  reload isolado com operação em `syncing`, classes de erro individuais)
+  foram reproduzidos e confirmados com Playwright/Chromium real contra o
+  Supabase local — 90/90 asserções (52 dos três cenários + 38 de regressão),
+  0 defeitos novos encontrados. Ver seção "Correções/Validações do Prompt
+  07-C2" para o detalhamento completo. Isso fecha a lista de pendências de
+  teste de navegador conhecidas para as categorias 1 e 2.
 - Categorias 3-9 permanecem no padrão antigo, com o plano de correção
   documentado acima (Etapa 4) — favoritos e progresso de leitura precisam de
   uma mudança de contrato antes de qualquer fila automática de retry. Fora
