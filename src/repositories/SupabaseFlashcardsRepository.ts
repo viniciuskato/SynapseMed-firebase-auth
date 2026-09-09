@@ -283,6 +283,12 @@ export class SupabaseFlashcardsRepository implements FlashcardsRepository {
     return this.saveFlashcard(newCard);
   }
 
+  // NOTA (Prompt 07-A): o caminho realmente usado em produção para revisão de
+  // flashcard é a RPC `submit_flashcard_review` (via syncQueue/syncHandlers em
+  // FlashcardsRepository.ts), que recalcula o SM-2 no servidor de forma
+  // atômica e idempotente. Este método continua aqui só para satisfazer a
+  // interface `FlashcardsRepository`; chamá-lo direto faz duas escritas
+  // separadas sem lock nem client_op_id — não usar para revisão real.
   async reviewFlashcard(cardId: string, rating: 1 | 2 | 3 | 4): Promise<Flashcard | null> {
     const { data: cardRow, error: cErr } = await supabase.from('flashcards').select('*').eq('id', cardId).maybeSingle();
     if (cErr) throw cErr;

@@ -69,7 +69,16 @@ protótipo).
 4. **`.env.local` aponta pro Supabase REMOTO por padrão.** Scripts que
    tocam dado real (`scripts/load-*.ts`) têm trava de "só local por
    padrão" — não remover essa trava, não confiar que o ambiente atual é
-   local sem checar `VITE_SUPABASE_URL` primeiro.
+   local sem checar `VITE_SUPABASE_URL` primeiro. **Para testar o app de
+   verdade no navegador contra o Supabase LOCAL** (`npm run dev`), crie
+   (ou reaproveite, se já existir) um `.env.development.local` com
+   `VITE_SUPABASE_URL=http://127.0.0.1:54321` e o `ANON_KEY` local (`supabase
+   status`) — o Vite dá prioridade a `.env.[mode].local` sobre `.env.local`
+   só no modo `development` (`npm run dev`/`vite`, não `vite build`), então
+   isso não afeta build de produção nem precisa tocar no `.env.local` real.
+   Esse arquivo é git-ignorado (`.env.*` no `.gitignore`) — criado no 07-B
+   para os testes de navegador do Prompt 07-B, pode ser reaproveitado por
+   sessões futuras que precisem do mesmo setup.
 5. **`StorageService.getStats()` tinha `streakDays` fixo** (`totalAnswered
    > 0 ? 4 : 1`), nunca uma sequência real, e lia de uma cópia local do
    StorageService desconectada dos dados sincronizados. Foi substituído
@@ -156,6 +165,76 @@ protótipo).
     só é visível em desktop (`xl:inline`); em telas menores o mesmo item
     é o 3º botão (índice 2, sem texto, só ícone) do dock fixo
     `#mobile-floating-dock`.
+
+13. **O padrão `Resilient*Repository` (grava local, espelha no Supabase com
+    `catch {}` silencioso) foi confirmado como risco real, não só teórico**
+    (Prompt 07-A, 2026-09-09): sem chave de idempotência, reenviar uma
+    operação falha duplicava dado real — `question_attempts`/`error_notebook`
+    (infla XP, calculado a partir de `question_attempts` real — ver armadilha
+    #5) e `flashcard_reviews` (duplica histórico de SRS; pior, o cálculo do
+    SM-2 era feito no navegador a partir do estado local, então duas revisões
+    offline em dispositivos diferentes podiam se sobrescrever com "última
+    gravação vence" baseada em dado desatualizado). Corrigido para as
+    categorias 1 (tentativas/XP) e 2 (flashcards/SRS) com uma fila
+    persistente no cliente (`src/services/syncQueue.ts`, ver
+    `docs/SINCRONIZACAO-CONFIAVEL.md`) + `client_op_id` idempotente
+    verificado no servidor (migration `20260909120000_sync_reliability.sql`)
+    + `submit_flashcard_review` recalculando o SM-2 no servidor dentro de uma
+    transação com `select ... for update` (serializa revisões concorrentes do
+    mesmo card). **Categorias 3-9 (caderno de erros, notas, favoritos,
+    progresso de leitura, simulados, reações, feedback) continuam no padrão
+    antigo** — não presumir que a correção já é geral. Ao mexer em qualquer
+    `Resilient*Repository` novo/existente, ver o plano de migração na Etapa 4
+    daquele documento antes de simplesmente copiar o padrão antigo.
+    **(07-B, 2026-09-09) Uma primeira implementação client-side sem teste de
+    navegador real teve quatro bugs sérios apesar de 106/106 pgTAP passando**:
+    `enqueueAndTry` podia retornar antes da operação terminar (dedupe de
+    flush concorrente mal feito), a fila de um usuário podia ser enviada
+    autenticada como outro usuário (eventos periódicos varriam todos os UIDs
+    conhecidos sem checar a sessão ativa do Supabase), a recuperação de dados
+    legados tratava qualquer `question_attempts` remoto para a questão como
+    prova de sincronização (ignorando que múltiplas tentativas por questão
+    são legítimas), e o fallback de UUID gerava um formato incompatível com a
+    coluna `uuid` do Postgres. Todos corrigidos e reproduzidos com
+    Playwright/Chromium real contra o Supabase local — ver
+    `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Correções do Prompt 07-B".
+    **Lição**: testes pgTAP provam contratos de servidor, não o comportamento
+    real do código client-side que os chama (dedupe de promises, checagem de
+    sessão ativa, comparação de dados legados) — para essa camada, só teste
+    de navegador real detecta esse tipo de bug.
+    **(07-C, 2026-09-09) Quatro pendências adicionais corrigidas**: ledger de
+    recuperação legada (`legacyRecovery.ts`) podia apontar para um
+    `client_op_id` já removido da fila local (poda de sincronizadas antigas)
+    e ficava preso sem nunca confirmar nem recriar — corrigido consultando
+    `question_attempts.client_op_id` no servidor e, se ausente dos dois
+    lados, recriando com o MESMO id; ambiguidade de recuperação legada só
+    aparecia em `console.warn` — agora persiste em `ledger.ambiguous` e tem
+    UI dedicada (`LegacyRecoveryDialog.tsx`) com três decisões (enviar como
+    nova tentativa/manter só local/decidir depois), nenhuma apaga o dado
+    local; comparação de tentativas tratava diferença de horário >5min como
+    prova de distinção mesmo quando alternativa+modo+estratégia coincidiam
+    — corrigido para usar horário só como evidência auxiliar quando o resto
+    não basta (`compareAttempt`, 3 resultados: match/no/uncertain); falha de
+    geração de UUID (`crypto` indisponível) não persistia na fila nem
+    aparecia na UI — corrigido separando `id` (sempre local) de `clientOpId`
+    (real, pode ficar ausente até um flush futuro conseguir gerá-lo).
+    **Bug encontrado só em teste de navegador desta última correção** (não
+    por leitura de código): ao gerar o `clientOpId` dentro de `runFlush`, o
+    passo seguinte (`state: 'syncing'`) fazia spread da variável `op`
+    capturada no TOPO do laço, de antes do `clientOpId` existir — sobrescrevia
+    o campo de volta para `undefined` a tempo de despachar o handler sem ele.
+    Corrigido reatribuindo a variável local `op` (não só `ops[i]`) a cada
+    mutação dentro do mesmo laço, para que os `spread`s seguintes sempre
+    partam da versão mais recente. Ver `docs/SINCRONIZACAO-CONFIAVEL.md`,
+    seção "Correções do Prompt 07-C", para o detalhamento completo.
+14. **`toggleBookmark`/`toggleSectionRead` não são operações idempotentes** —
+    são um "liga/desliga", não um "define este valor". Colocá-las numa fila
+    de retry automático sem antes trocar o contrato para `setBookmark(id,
+    bool)`/`setSectionRead(id, bool)` introduziria um bug novo: reenviar a
+    mesma operação depois de uma falha de rede inverteria o estado errado.
+    Por isso ficaram deliberadamente fora da correção de sincronização do
+    Prompt 07-A (ver `docs/SINCRONIZACAO-CONFIAVEL.md`, Etapa 1/4) — não é
+    esquecimento, é uma dependência real de redesenho antes de automatizar.
 
 ## Convenções de trabalho
 
@@ -320,6 +399,70 @@ protótipo).
   Se uma sessão futura ver contagens divergentes de 394/675/84 acima, não
   presuma corrupção — primeiro confira se não é resíduo de teste não
   limpo antes de mexer em dado real.
+
+- **Em andamento na branch `work/sincronizacao-confiavel-07` (2026-09-09,
+  Prompt 07-A + 07-B), NÃO mesclada em `main`**: fila de sincronização
+  confiável (`src/services/syncQueue.ts`) com idempotência por
+  `client_op_id`, implementada para as categorias 1 (tentativas de
+  questão/XP) e 2 (flashcards/SRS) — ver armadilha #13 e
+  `docs/SINCRONIZACAO-CONFIAVEL.md` para diagnóstico completo, modelo e
+  plano das categorias 3-9 ainda não corrigidas. Migration
+  `20260909120000_sync_reliability.sql` testada e aplicada só em Supabase
+  LOCAL (106/106 pgTAP); nada disso está em produção. **07-B (mesmo dia)**
+  corrigiu quatro bloqueios encontrados na revisão do código do 07-A antes
+  de qualquer teste de navegador — retorno cedo de `enqueueAndTry` sob flush
+  concorrente, fila de um usuário podendo ser processada sob a sessão de
+  outro, recuperação legada tratando qualquer tentativa remota da questão
+  como prova de sincronização, e fallback de UUID incompatível com a coluna
+  `uuid` — todos client-side, sem migration nova. Reproduzidos e corrigidos
+  com testes reais de navegador (Playwright/Chromium contra Supabase local,
+  15/15 asserções passando) além de `tsc`/`build`/106 pgTAP mantidos verdes.
+  Cenários de duas abas simultâneas, reenvio pós-servidor-pré-cliente,
+  reload durante `syncing` isolado e os sete sub-casos de recuperação legada
+  ficam como pendência de teste de navegador (lógica implementada e
+  documentada, não exercitada ponta a ponta) — ver
+  `docs/SINCRONIZACAO-CONFIAVEL.md` para o detalhamento completo.
+  **07-C (mesmo dia)** corrigiu quatro pendências adicionais encontradas na
+  revisão do 07-B: ledger apontando para operação removida da fila (agora
+  consulta o servidor pelo `client_op_id` e recria com o mesmo id quando
+  ausente dos dois lados), ambiguidade de recuperação legada só visível no
+  console (agora tem UI dedicada, `LegacyRecoveryDialog.tsx`, persistente
+  entre reloads, três decisões, nenhuma apaga dado local), janela de 5min
+  tratada como prova de distinção (agora só evidência auxiliar quando
+  alternativa+modo+estratégia não bastam por si só) e falha de UUID que não
+  persistia nem aparecia na UI (agora sempre visível e retentada
+  automaticamente). Também corrigiu, só durante o teste de navegador da
+  própria correção de UUID, um bug real de `clientOpId` sendo sobrescrito de
+  volta para `undefined` dentro do laço de `runFlush` — ver armadilha #13.
+  Validado com 31/31 asserções reais de navegador (recuperação legada, UUID,
+  isolamento entre duas contas — estudante e editorial/admin — e SRS
+  concorrente entre duas `BrowserContext` da mesma conta), além de `tsc`/
+  `build`/106 pgTAP mantidos verdes. Três sub-cenários da lista original do
+  07-B (reenvio pós-servidor-pré-cliente, reload isolado em `syncing`,
+  classes de erro individuais) continuam sem prova determinística de
+  navegador — cobertos só por pgTAP/leitura de código, não por
+  desconhecimento. Categorias 3-9 continuam fora de escopo.
+  **07-C2 (mesmo dia, sessão nova)** fechou os três sub-cenários acima com
+  Playwright/Chromium real contra o Supabase local: reenvio simulando
+  "servidor aplicou, resposta não chegou ao cliente" (`route.fetch()` real +
+  `route.abort()`), reload/reabertura de `BrowserContext` com operação real
+  presa em `syncing` (três variações), e as seis classes de erro
+  (`classifySyncError`) individualmente — cada uma com classificação,
+  mensagem, retry e recuperação confirmadas. **Diferente do 07-B/07-C,
+  nenhum defeito real foi encontrado** — 90/90 asserções (52 dos três
+  cenários + 38 de regressão completa) passaram na primeira execução,
+  reaproveitando instrumentação de teste (`window.__syncDebug`,
+  `__setTestBackoffOverride`, ambos condicionais a `import.meta.env.DEV`,
+  confirmados fora do bundle de produção) e fixtures deixados por uma
+  execução anterior deste mesmo prompt que morreu por rate limit sem
+  commitar nada. `tsc`/`build`/106 pgTAP mantidos verdes; dados de teste
+  removidos e confirmados ausentes ao final. Ver
+  `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Correções/Validações do Prompt
+  07-C2", para o detalhamento completo. Com isso, a lista de pendências de
+  teste de navegador conhecidas para as categorias 1 e 2 está fechada —
+  branch tecnicamente pronta para revisão de merge em `main` (decisão de
+  mesclar continua sendo do usuário/diretoria; nenhum merge/push/deploy foi
+  feito nesta sessão). Categorias 3-9 continuam fora de escopo.
 
 ## Manter este arquivo atualizado
 
