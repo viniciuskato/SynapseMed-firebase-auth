@@ -246,3 +246,34 @@ Também encontrado e corrigido: resíduo de dados de teste (`Disciplina Teste`/`
 
 ## Envio confirmado — 09-B, 2026-09-09
 Prompt 09-B recebido por sessão executiva nova no caminho oficial `C:\Users\vinic\dev\NexusMed\firebase-auth`, branch `work/consolidacao-diretoria-2026-09-08`, HEAD `1bc8b56` (confirmado idêntico ao local e ao remoto da branch de trabalho por fetch direto; `origin/main` confirmado em `2d58efd99947cd00458c1716501ad6451c49ec8d`, sem avanço). Estado: Em execução — sequência de publicação em produção (documentação → migration remota → dry-run → recuperação remota → validação → merge em `main` → deploy → smoke test) autorizada em 2026-09-09 (ver "Publicação autorizada — 09-B" acima). Aguardando `RETORNO: 09-B`.
+
+## Concluído — 09-B, 2026-09-09
+Publicação em produção executada e verificada de ponta a ponta, sequência completa sem reversão necessária. Resumo:
+
+**Documentação**: registro versionado (commit `c76f3ed`) e enviado só na branch de trabalho antes de qualquer escrita remota; `origin/main` confirmado inalterado (`2d58efd`) antes e depois desse push.
+
+**Baseline remoto** (antes de qualquer escrita): projeto confirmado `synapsemed`/`jfvhwwvixwvgjfqzlkkb`; migrations locais vs. remotas conferidas — só `20260907140000_question_references_in_review.sql` pendente, as demais já aplicadas. Contagens: `sources`=0, `question_references`=0, `questions`=393, `question_options`=1965, `question_option_keys`=1965, `question_answer_keys`=393, `question_attempts`=8, `error_notebook`=8, `bookmarks`=0, `notes`=0, `flashcards`=5.
+
+**Migration remota**: aplicada via `supabase db push --linked --yes` (não bloqueada pelo classificador nesta sessão — ver armadilha #3 atualizada no AGENTS.md). Verificada diretamente (não só mensagem do CLI): migration registrada em `supabase_migrations.schema_migrations`; campo `references` presente no corpo de `get_question_review`/`submit_question_attempt`; assinaturas inalteradas (1 e 7 argumentos); grants corretos (só `authenticated`+`postgres`, sem `anon`/`public`).
+
+**Dry-run remoto**: `recover-question-references.ts --allow-remote` (sem `--execute`) — 393/393 questões por correspondência exata, 675 vínculos previstos, 84 sources, 0 não encontradas, 0 gaps, exit code 0.
+
+**Recuperação remota**: mesmo comando com `--execute` — resultado idêntico ao dry-run: 393 recuperadas, 675 `question_references` inseridas, 84 `sources` criadas, 0 gaps.
+
+**Validação pós-recuperação**: `sources`=84, `question_references`=675, 675 pares únicos (sem duplicata), 0 vínculos órfãos (nem `question_id` nem `source_id` inexistente). Todas as 9 tabelas do baseline confirmadas INALTERADAS (mesmos valores de antes). Amostragem de citação/identificador/verificação em Cardiologia, Infectologia e no tema Endocardite Infecciosa — bibliografia real, DOI presente, `verificacao: verificada`.
+
+**Integração em `main`**: novo fetch confirmou `origin/main` ainda em `2d58efd` antes do merge. `tsc --noEmit`, `npm run build` e `supabase test db` (pgTAP 83/83) passaram antes e depois do merge local. Merge `--no-ff` da branch de trabalho em `main` (commit `4bbda0f`), novo fetch confirmou `origin/main` ainda em `2d58efd` imediatamente antes do push, push sem force. `main`/`origin/main`: `2d58efd` → `4bbda0f`.
+
+**Deploy e smoke test**: deploy automático do Vercel confirmado pela presença das strings novas no bundle publicado (`Bibliografia da questão`, `Fonte verificada`, `Algo errado aqui`, `app-header-height`, `inert`). Smoke test em produção com usuário de teste descartável (e-mail `smoke-09b-*@synapsemed.local`, criado via GoTrue admin API, promovido a `role='student'`/`status='active'` via conexão direta como `postgres`, nunca via service role — armadilha #9): login desktop e mobile, nav central oculta/visível conforme breakpoint, botões do cabeçalho ≥44px em 390px, busca e abertura da questão de Endocardite, diálogo "Algo errado aqui?" (abre, dentro da viewport em 390px, fecha com Escape), fluxo de resposta em modo recall aberto (Ver alternativas → selecionar → confirmar), bibliografia da questão com rótulo "Fonte verificada" e link DOI, geração de flashcard a partir da questão respondida, bibliografia herdada visível em `FlashcardReviewSession`, barra do compêndio e menu "Mais ações" no mobile (Índice/Anotações/Favoritar) — **23/23 passos OK, 0 erros de console, 0 requisições com falha**.
+
+**Limpeza do usuário de teste**: 4 flashcards, 1 `question_attempts`, 1 `error_notebook` e o próprio usuário apagados ao final; confirmado 0 rastro remanescente (profile, flashcards e question_attempts do id de teste todos ausentes). Contagem final das tabelas pessoais voltou exatamente ao baseline (`question_attempts`=8, `error_notebook`=8, `flashcards`=5) — nenhum dado real de participante tocado.
+
+**Limitação observada**: todas as 393 questões publicadas já têm ao menos 1 referência após a recuperação — não havia exemplo real de "questão sem referência" para testar visualmente nesta rodada; o comportamento de fallback (sem placeholder vazio) permanece confirmado só por leitura de código (`references.length > 0`), não por captura de tela com dado real, como já era o caso em 09-A.
+
+**Limitações preservadas de 09-A**: sem validação em Safari/iOS físico; os 33 compêndios reais carregados continuam sem `source_id` curado — a publicação prepara o suporte técnico (schema, RPC, UI), não cria referenciação pontual onde o vínculo editorial não existe; a curadoria continua como etapa editorial futura.
+
+**Reversão**: não foi necessária em nenhuma etapa — todos os critérios de parada (dry-run divergente, contagem inesperada, tabelas fora de escopo alteradas, falha de build/teste, `origin/main` avançado antes do merge) foram checados e não ocorreram.
+
+`AGENTS.md` atualizado (seção "Estado atual" com o resumo da publicação; armadilha #3 corrigida — escrita remota/deploy nem sempre são bloqueados pelo classificador, confirmado nesta sessão).
+
+Estado final: **produção publicada e verificada**, código e schema remoto compatíveis, nenhum dado de participante alterado, pasta antiga do OneDrive intacta e não tocada.

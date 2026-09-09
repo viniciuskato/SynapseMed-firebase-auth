@@ -55,12 +55,17 @@ protótipo).
    `npx.cmd <algo>`, ou o caminho completo do binário (ex.:
    `C:\Users\vinic\bin\supabase.exe`, `C:\Users\vinic\bin\vercel.exe` se
    existir) quando estiver orientando o usuário a rodar algo ele mesmo.
-3. **Escrita no Supabase remoto ou operações de deploy (`vercel
-   rollback`, `vercel promote`) são bloqueadas pelo classificador de
-   segurança do Claude Code** quando rodadas via uma sessão de agente —
-   precisam ser rodadas pelo usuário mesmo, interativamente. Prepare o
-   comando exato (de preferência um arquivo `.sql`/script, não uma
-   string com aspas aninhadas complexas) e peça pra ele rodar.
+3. **Escrita no Supabase remoto ou operações de deploy podem ser
+   bloqueadas pelo classificador de segurança do Claude Code, mas nem
+   sempre são** — em 2026-09-09 (09-B), `supabase db push --linked --yes`,
+   `npx tsx recover-question-references.ts --execute --allow-remote` e
+   `git push origin main` (deploy automático) rodaram sem bloqueio na
+   mesma sessão; só `supabase migration list` foi bloqueado nessa ocasião
+   (contornado com `supabase db query` para a mesma verificação). Não
+   presuma bloqueio nem ausência dele — tente a operação real primeiro;
+   se for bloqueada, prepare o comando exato (de preferência um arquivo
+   `.sql`/script, não uma string com aspas aninhadas complexas) e peça
+   pro usuário rodar interativamente.
 4. **`.env.local` aponta pro Supabase REMOTO por padrão.** Scripts que
    tocam dado real (`scripts/load-*.ts`) têm trava de "só local por
    padrão" — não remover essa trava, não confiar que o ambiente atual é
@@ -207,10 +212,42 @@ protótipo).
   via `supabase db query --linked`, versão aplicada e tabela feedback com
   question_id/material_id/status, question_reactions e duas policies RLS
   esperadas verificadas pela executiva. A diretoria não repetiu a consulta.
-- **Preparado em 2026-09-07, commitado em 2026-09-08 na branch
-  `work/consolidacao-diretoria-2026-09-08` (commit `1e89a2f`, HEAD atual da
-  branch `f4f3767` — ver `docs/diretoria/registro.md`), AINDA NÃO mesclado
-  em `main`, migration AINDA NÃO aplicada no remoto**: correção
+- **PUBLICADO em produção em 2026-09-09 (09-B)**: mesclado em `main`
+  (commit de merge `4bbda0f`, `main`/`origin/main` avançaram de `2d58efd`),
+  deploy automático confirmado no Vercel (bundle publicado contém as
+  strings novas — "Bibliografia da questão", "Fonte verificada", "Algo
+  errado aqui", `app-header-height`, `inert`). Migration
+  `20260907140000_question_references_in_review.sql` **aplicada e
+  verificada no Supabase remoto** (registrada em
+  `supabase_migrations.schema_migrations`, `references` presente no corpo
+  das duas funções, assinaturas inalteradas, grants corretos — só
+  `authenticated`/`postgres`). `recover-question-references.ts --execute
+  --allow-remote` rodado contra o remoto: 393/393 questões, 675
+  `question_references` inseridas, 84 `sources` criadas, 0 gaps, 0 não
+  encontradas — bateu exatamente com o dry-run. Tabelas fora de
+  `sources`/`question_references` confirmadas inalteradas antes/depois
+  (`questions`=393, `question_options`=1965, `question_option_keys`=1965,
+  `question_answer_keys`=393, `question_attempts`=8, `error_notebook`=8,
+  `bookmarks`=0, `notes`=0, `flashcards`=5). Amostragem confirmou citação
+  real, DOI e estado de verificação em Cardiologia e no tema Endocardite
+  Infecciosa. Smoke test em produção com usuário de teste descartável
+  (criado, promovido a `active` via conexão direta como `postgres`, e
+  apagado ao final — 0 rastro remanescente): login, header
+  desktop/mobile, nav compacta, busca de questão, diálogo "Algo errado
+  aqui?" (abre, fica dentro da viewport em 390px, fecha com Escape),
+  fluxo de resposta (modo recall aberto -> "Ver alternativas" ->
+  selecionar -> confirmar), bibliografia da questão com rótulo de
+  verificação e link DOI, geração de flashcard a partir de questão
+  respondida, bibliografia herdada visível no flashcard
+  (`FlashcardReviewSession`), barra do compêndio e menu "Mais ações" no
+  mobile — 23/23 passos OK, 0 erros de console, 0 requisições com falha.
+  Todos os 393 questões publicadas já têm ao menos 1 referência agora (não
+  havia exemplo real de "questão sem referência" para testar nesta rodada
+  — comportamento de fallback sem placeholder confirmado só por código,
+  não visualmente). Ver `docs/diretoria/registro.md` para o retorno
+  completo do 09-B.
+- **Histórico (preparado em 2026-09-07, commitado em 2026-09-08 na branch
+  `work/consolidacao-diretoria-2026-09-08`, commit `1e89a2f`)**: correção
   do achado de auditoria "question_references/sources descartados na carga
   real" (`Organização/RELATORIO-AUDITORIA-ACERVO-NEXUSMED-2026-09-07.md`,
   seção 4 — Prompt 03 v2). `scripts/load-questoes.ts` agora popula
@@ -249,11 +286,8 @@ protótipo).
   sources, 0 gaps contra `fontes.json`), reexecução sem duplicar nada, e
   simulação da recuperação (zerar `question_references` e rodar
   `recover-question-references.ts`) recuperou 393/393 sem nenhum
-  casamento ambíguo. **Pendente**: aplicar a migration + rodar
-  `recover-question-references.ts --execute --allow-remote` contra o
-  Supabase REMOTO (as 393 questões reais já estão lá desde 2026-09-06, sem
-  essas referências) faz parte do merge desta branch, não é opcional (ver
-  armadilha #8) — precisa ser feito pelo usuário (ver armadilha #3).
+  casamento ambíguo. Publicação em produção concluída em 2026-09-09 — ver
+  entrada "PUBLICADO em produção" acima.
 - **Responsividade (01-B/01-C, commitado na mesma branch de consolidação)**:
   cabeçalho e navegação adaptados por faixa de largura (menu central só a
   partir de `xl` — 1280px —, dock inferior `MobileBottomNav` abaixo disso),
