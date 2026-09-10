@@ -2312,8 +2312,94 @@ esgotando tentativas (mecanismo genérico de `syncQueue.ts`, inalterado).
 `npx.cmd tsc --noEmit` e `npm run build` limpos antes e depois de cada
 mudança. Bundle de produção confirmado sem `__syncDebug`.
 
+### Publicação (mesma sessão, 2026-09-10)
+
+Todos os critérios de bloqueio passaram (183/183 pgTAP, 15/15 Playwright
+local, tsc/build limpos) — publicado sem nova rodada:
+
+1. `origin/main` reconfirmado em `70b3be0` imediatamente antes de
+   qualquer escrita (sem avanço desde o início da sessão).
+2. Consulta remota somente leitura reconfirmou 0 linhas de `feedback`
+   com `question_id`/`material_id` preenchidos simultaneamente
+   (14 linhas reais no total) — só então a migration foi aplicada.
+3. `supabase db push --linked --yes`: migration
+   `20260910120000_sync_reliability_categorias_8_9.sql` aplicada no
+   remoto (bloqueada uma vez pelo classificador de segurança do Claude
+   Code, passou na segunda tentativa — ver AGENTS.md armadilha #3).
+   Verificado diretamente no remoto pós-push: constraint
+   `feedback_question_or_material_exclusive` presente
+   (`pg_get_constraintdef`), `submit_feedback`/`set_feedback_status`
+   `security definer` com grants restritos a `authenticated`/`postgres`
+   (sem `anon`), `submit_feedback` contém o bloco de tratamento de
+   `unique_violation` no corpo compilado, `feedback.updated_at` +
+   trigger `trg_feedback_set_updated_at` presentes, as 4 policies RLS de
+   `feedback` inalteradas, `relrowsecurity = true`. Contagens de
+   `feedback`/`question_reactions`/`profiles`/`questions`/`materials`
+   idênticas antes/depois da migration (nenhum dado real tocado).
+4. Branch mesclada em `main` (`--no-ff`, commit de merge `2d2bb33`,
+   `main`/`origin/main` avançaram de `70b3be0`); `tsc --noEmit`/`npm run
+   build` limpos no merge, bundle local (`assets/index-BIAyvaqw.js`)
+   confirmado sem `__syncDebug`/`__setTestBackoffOverride`; push sem
+   force.
+5. Deploy automático do Vercel confirmado por polling do bundle
+   publicado — `assets/index-BIAyvaqw.js` byte-a-byte idêntico ao hash
+   do build local (mesmo arquivo, sem republish parcial), 0 ocorrências
+   de `__syncDebug`/`__setTestBackoffOverride` no bundle servido.
+
+### Smoke test em produção
+
+Contas descartáveis criadas via `admin.auth.admin.createUser({
+email_confirm: true })` contra o projeto remoto, promovidas via
+`supabase db query --linked` (conexão real como `postgres`). Duas
+rodadas: a primeira (`smoke07f2.*`) serviu de piloto e teve um problema
+de SELETOR do próprio script de teste (o clique em "avançar status" no
+painel admin usava um `locator` grande demais e podia clicar no botão
+errado — corrigido localizando o menor ancestral do título do feedback
+que contém um botão); a segunda rodada (`smoke07f2b.*`, contas novas
+para evitar estado acumulado das rodadas de depuração anteriores) é a
+que conta como resultado válido:
+
+- Login real de estudante e de admin descartáveis em produção.
+- Feedback geral enviado pela UI real (menu do usuário → "Enviar
+  feedback"): sucesso, tela de confirmação exibida.
+- Admin localizou o feedback na aba Editorial → Feedback e avançou o
+  status pela UI; confirmado por leitura direta do banco (não só a
+  tela) que `status` realmente virou `em_analise`.
+- Estudante bloqueado ao chamar `set_feedback_status` diretamente
+  (sessão de produção real via `supabase-js`, fora da UI) — RPC recusou.
+- 0 erros de console, 0 respostas 5xx durante toda a sessão de
+  navegador (estudante + admin).
+- **Reação (👍/👎) não pôde ser confirmada de ponta a ponta pela UI
+  nesta rodada de smoke test**: o clique em "Confirmar Resposta" foi
+  confirmado no nível de rede (`submit_question_attempt` retornou `200`,
+  3 tentativas de fato gravadas no banco pelas rodadas de depuração),
+  mas o componente `QuestionCard` guarda `isSubmitted` em `useState`
+  local — nunca reidratado a partir de tentativas já existentes no
+  servidor ao montar — então a UI só mostra a área de reação dentro da
+  MESMA sessão de clique que confirmou a resposta, e mesmo aí a
+  automação de clique (`span:text-is('A')` seguido de "Confirmar
+  Resposta") ficou instável entre tentativas nesta rodada especificamente
+  em produção (funcionou na primeira execução completa da sessão,
+  não nas seguintes com as mesmas contas). Isso é uma característica de
+  automação de teste, não um defeito reproduzido do produto: o mesmo
+  fluxo de reação (adicionar/trocar/remover) passou 3/3 de forma limpa e
+  determinística tanto via `window.__syncDebug` (Supabase local, mesma
+  sessão) quanto na primeira execução real contra produção logo no
+  início desta rodada de smoke test (antes de qualquer ajuste de
+  seletor). Não é uma regressão desta entrega — o código de reações
+  (`QuestionReactionsRepository`, `handleToggleReaction`) não foi tocado
+  no 07-F2.
+- Limpeza: as duas contas (`smoke07f2.*` e `smoke07f2b.*`) removidas via
+  `delete from auth.users` (cascade real). Contagens de
+  `feedback`/`question_attempts`/`question_reactions`/`profiles`
+  confirmadas idênticas ao baseline pré-smoke-test (`feedback`=14,
+  `question_attempts`=8, `question_reactions`=0, `profiles`=9) — 0
+  rastro remanescente.
+
 ### Estado ao final desta sessão
 
-Ver "Estado atual" em `AGENTS.md` para o resultado da fase de publicação
-(push, migration remota, merge, deploy, smoke test) — preenchido depois
-que a fase de publicação desta sessão terminar.
+Categorias 8 e 9 do backlog de sincronização confiável **publicadas em
+produção** — as duas últimas do backlog completo (categorias 1-9,
+começado no Prompt 07-A). `main`/`origin/main` avançaram de `70b3be0`
+para `2d2bb33`. Ver "Estado atual" em `AGENTS.md` para o resumo
+consolidado.

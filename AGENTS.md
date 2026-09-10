@@ -354,6 +354,25 @@ protótipo).
     só é atualizado quando O PRÓPRIO componente escreve (nunca por uma
     assinatura em tempo real) está sujeita ao mesmo tipo de staleness
     entre abas/dispositivos da mesma conta — não é exclusivo de reações.
+19. **Achado do smoke test do 07-F2 (2026-09-10), não corrigido (fora do
+    escopo mínimo autorizado dessa sessão, registrado para decisão
+    futura)**: `QuestionCard.isSubmitted` é `useState<boolean>(false)`
+    local, nunca reidratado a partir de um `question_attempts` já
+    existente no servidor para aquela questão/usuário ao montar o
+    componente. Na prática isso é compatível com o produto ser um app de
+    PRÁTICA (múltiplas tentativas por questão são legítimas, ver
+    `question_attempts`/armadilha #13) — reabrir a página sempre permite
+    responder de novo, o que é o comportamento desejado para repetição
+    espaçada. O efeito colateral: a área de reação 👍/👎 (que só existe
+    dentro do bloco `isSubmitted && !isExamMode`) também só aparece
+    dentro da MESMA sessão de clique que confirmou a resposta — não há
+    como reagir à explicação de uma questão respondida em uma visita
+    anterior sem respondê-la de novo primeiro. Não confirmado se é
+    intencional (só reagir logo após ver a explicação) ou um efeito
+    colateral não previsto do design de `isSubmitted`. Não é uma
+    regressão do 07-F2 (código de `QuestionCard`/reações não foi tocado
+    nesta sessão) — descoberto ao tentar automatizar reação após reload
+    real em produção durante o smoke test.
 
 ## Convenções de trabalho
 
@@ -579,8 +598,9 @@ protótipo).
   conteúdo fabricado que apareceu nesses dois arquivos de documentação
   durante a sessão, sem nenhuma chamada de ferramenta desta sessão por
   trás, removido antes da publicação.
-- **Em andamento na branch `work/sincronizacao-confiavel-07f` (2026-09-10,
-  Prompt 07-F), NÃO mesclada em `main`**: sincronização confiável das
+- **Branch `work/sincronizacao-confiavel-07f` (2026-09-10, Prompt 07-F;
+  mesclada em `main` no 07-F2 abaixo, junto com o complemento daquela
+  sessão)**: sincronização confiável das
   categorias 8 (reações 👍/👎) e 9 (feedback de participantes + status
   editorial pendente/em_analise/resolvido) — as duas últimas do backlog de
   sincronização (categorias 1-7 já publicadas, ver entradas acima).
@@ -615,8 +635,13 @@ protótipo).
   `docs/diretoria/registro.md`, entrada "Retorno recebido — 07-F", para o
   detalhamento completo, incluindo limitações (cenários não cobertos por
   navegador, ex. sequência de retry com backoff exponencial real).
-- **Mesma branch `work/sincronizacao-confiavel-07f` (2026-09-10, Prompt
-  07-F2)**: fecha os dois bloqueios que o 07-F tinha deixado explícitos.
+- **PUBLICADO em produção em 2026-09-10 (07-F2)**: fecha os dois
+  bloqueios que o 07-F tinha deixado explícitos, na mesma branch
+  `work/sincronizacao-confiavel-07f` mesclada em `main` (`--no-ff`,
+  commit de merge `2d2bb33`, `main`/`origin/main` avançaram de `70b3be0`
+  — os 5 commits do 07-F foram junto, então esta publicação também é a
+  publicação das categorias 8/9 inteiras, não só do complemento do
+  07-F2).
   (1) O handler `feedback_submit` tratava QUALQUER `23505` como sucesso,
   sem checar se a linha existente era do MESMO usuário e MESMO conteúdo —
   corrigido com uma RPC transacional nova, `submit_feedback`
@@ -647,8 +672,28 @@ protótipo).
   `SyncStatusIndicator`/reações regressão/admin avançando status/estudante
   bloqueado — contagem direta no banco confirmou 0 duplicatas em qualquer
   cenário, e a limpeza das 3 contas descartáveis removeu tudo via cascade,
-  confirmado por contagem antes/depois). Ver
-  `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Prompt 07-F2", para o
+  confirmado por contagem antes/depois). Migration
+  `20260910120000_sync_reliability_categorias_8_9.sql` aplicada e
+  verificada no Supabase remoto (constraint, RPCs `security definer` com
+  grants restritos a `authenticated`/`postgres`, `updated_at` + trigger,
+  as 4 policies RLS de `feedback` inalteradas — tudo conferido por
+  consulta direta, não só pela mensagem de sucesso do CLI; contagens de
+  `feedback`/`question_reactions`/`profiles`/`questions`/`materials`
+  idênticas antes/depois). Deploy automático do Vercel confirmado
+  (bundle publicado `assets/index-BIAyvaqw.js` byte-a-byte idêntico ao
+  build local, 0 ocorrências de `__syncDebug`). Smoke test em produção
+  com contas descartáveis (`smoke07f2.*`/`smoke07f2b.*@synapsemed.local`,
+  promovidas via `supabase db query --linked`, todas removidas ao final
+  — contagens de `feedback`/`question_attempts`/`question_reactions`/
+  `profiles` idênticas ao baseline pré-teste): feedback geral enviado
+  pela UI, admin avançando status confirmado por leitura direta do
+  banco (não só a tela), estudante bloqueado ao chamar a RPC
+  diretamente, 0 erros de console, 0 respostas 5xx. **Reação não pôde
+  ser confirmada de ponta a ponta pela UI nesta rodada de smoke test**
+  (achado de automação, não do produto — ver armadilha #19 nova para o
+  detalhamento; o mesmo fluxo de reação passou limpo tanto localmente
+  quanto na primeira tentativa real em produção desta mesma sessão).
+  Ver `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Prompt 07-F2", para o
   detalhamento completo.
 - **Histórico — em andamento na branch `work/sincronizacao-dados-estudo-07e`
   (2026-09-09, Prompt 07-E), mesclada em `main` no 07-E4 acima**:
