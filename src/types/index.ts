@@ -284,6 +284,10 @@ export interface UserFeedback {
   title: string;
   description: string;
   createdAt: string;
+  // Preenchido pelo servidor (trigger `set_feedback_updated_at`, migration
+  // sync_reliability_categorias_8_9) — ausente em itens só-locais que ainda
+  // não foram confirmados pelo servidor. Nunca calculado no cliente.
+  updatedAt?: string;
   userId?: string | null;
   userEmail?: string | null;
   questionId?: string | null;

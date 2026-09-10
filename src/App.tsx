@@ -39,6 +39,8 @@ import { bookmarksRepository } from './repositories/BookmarksRepository';
 import { readingProgressRepository } from './repositories/ReadingProgressRepository';
 import { errorNotebookRepository } from './repositories/ErrorNotebookRepository';
 import { simuladosRepository } from './repositories/SimuladosRepository';
+import { feedbackRepository } from './repositories/FeedbackRepository';
+import { questionReactionsRepository } from './repositories/QuestionReactionsRepository';
 import { buildSimuladoSelection, SimuladoSelectionResult } from './services/simuladoSelection';
 
 registerSyncHandlers();
@@ -50,8 +52,10 @@ registerSyncHandlers();
 // — a string "__syncDebug" não aparece no bundle publicado). Permite a
 // testes reais de navegador (Playwright/Chromium) ler o estado real da fila
 // (`localStorage`/`syncQueue`), forçar condições de erro determinísticas e
-// chamar os repositórios das categorias 3-7 (`notesRepository` etc.) do
-// MESMO jeito que os componentes React fazem — ainda é o caminho client-side
+// chamar os repositórios das categorias 3-9 (`notesRepository` etc.,
+// ampliado no 07-F2 com `feedbackRepository`/`questionReactionsRepository`
+// para testar a RPC `submit_feedback`) do MESMO jeito que os componentes
+// React fazem — ainda é o caminho client-side
 // real (grava local -> enfileira -> handler -> RPC), só disparado pelo
 // console em vez de um clique, para cenários de concorrência entre
 // dispositivos que não têm como ser exercitados clicando um botão só (ex.:
@@ -67,6 +71,8 @@ if (import.meta.env.DEV) {
     readingProgressRepository,
     errorNotebookRepository,
     simuladosRepository,
+    feedbackRepository,
+    questionReactionsRepository,
     storage: StorageService,
   };
 }

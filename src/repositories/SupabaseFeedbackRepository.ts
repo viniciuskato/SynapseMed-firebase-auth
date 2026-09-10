@@ -34,6 +34,7 @@ interface FeedbackRow {
   title: string;
   description: string;
   created_at: string;
+  updated_at: string;
   question_id: string | null;
   material_id: string | null;
   status: UserFeedback['status'];
@@ -46,6 +47,7 @@ function rowToFeedback(row: FeedbackRow): UserFeedback {
     title: row.title,
     description: row.description,
     createdAt: row.created_at,
+    updatedAt: row.updated_at,
     userId: row.user_id,
     userEmail: null,
     questionId: row.question_id,
@@ -87,8 +89,18 @@ export class SupabaseFeedbackRepository implements FeedbackRepository {
     return ((data ?? []) as FeedbackRow[]).map(rowToFeedback);
   }
 
+  // Categoria 9 (status editorial) — Prompt 07-F. Antes desta correção, a
+  // única proteção server-side era RLS (`feedback_admin_update_status`) +
+  // privilégio de coluna (`grant update (status)`) — já bloqueava um
+  // estudante de verdade, mas de forma SILENCIOSA (UPDATE que a RLS nega
+  // afeta 0 linhas sem lançar erro). Trocado pela RPC `set_feedback_status`
+  // (mesmo padrão de `publish_question`: `security definer` + checagem
+  // explícita de `app.is_admin_active`, exceção clara em vez de no-op
+  // silencioso — ver migration 20260910120000_sync_reliability_categorias_8_9.sql).
+  // Idempotente: marcar o mesmo status de novo não é erro nem reescreve
+  // `updated_at` à toa. RLS continua ativa como camada 2.
   async updateFeedbackStatus(id: string, status: UserFeedback['status']): Promise<void> {
-    const { error } = await supabase.from('feedback').update({ status }).eq('id', id);
+    const { error } = await supabase.rpc('set_feedback_status', { p_feedback_id: id, p_status: status });
     if (error) throw error;
   }
 }
