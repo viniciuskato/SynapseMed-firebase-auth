@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseClient';
 import { NotesRepository } from './NotesRepository';
+import { StorageService } from '../services/storage';
 
 // ============================================================================
 // Fase 4-5 wiring — Supabase-backed NotesRepository
@@ -46,6 +47,7 @@ interface NoteRow {
   question_id: string | null;
   flashcard_id: string | null;
   note_text: string;
+  updated_at: string;
 }
 
 async function resolveNoteColumn(targetId: string): Promise<NoteTargetColumn> {
@@ -64,38 +66,47 @@ export class SupabaseNotesRepository implements NotesRepository {
   async getNotes(): Promise<Record<string, string>> {
     const { data, error } = await supabase
       .from('notes')
-      .select('material_id, material_section_id, question_id, flashcard_id, note_text');
+      .select('material_id, material_section_id, question_id, flashcard_id, note_text, updated_at');
     if (error) throw error;
 
     const result: Record<string, string> = {};
     for (const row of (data ?? []) as NoteRow[]) {
       const targetId = row.material_id ?? row.material_section_id ?? row.question_id ?? row.flashcard_id;
-      if (targetId) result[targetId] = row.note_text;
+      if (targetId) {
+        result[targetId] = row.note_text;
+        // Guarda o `updated_at` conhecido como "base" para a próxima escrita
+        // (ver upsert_note na migration sync_reliability_conflict_guards) —
+        // é assim que o dispositivo sabe se o servidor mudou desde a última
+        // vez que ele viu esta nota, sem precisar de um editor colaborativo.
+        StorageService.setNoteBaseVersion(targetId, row.updated_at);
+      }
     }
     return result;
   }
 
+  // NOTA: este método não é chamado no fluxo real do app — `saveNote`
+  // passa pela fila de sincronização (`note_upsert`,
+  // src/services/syncHandlers.ts), que já usa a RPC `upsert_note` com
+  // detecção de conflito. Mantido por conformidade com a interface
+  // `NotesRepository` e atualizado para não reintroduzir o upsert cego que
+  // a revisão do 07-E2 removeu do caminho real.
   async saveNote(targetId: string, noteText: string): Promise<void> {
     const column = await resolveNoteColumn(targetId);
-
-    const { data: userData, error: userErr } = await supabase.auth.getUser();
-    if (userErr) throw userErr;
-
-    // Upsert real (single round-trip, atômico) contra o índice único parcial
-    // (user_id, <coluna>) — ver migration sync_reliability_categorias_3_a_7.
-    // Antes disto era delete+insert em duas viagens separadas: sem
-    // constraint de unicidade e sem transação, uma falha entre as duas
-    // (ou uma corrida real entre dois dispositivos) podia deixar 0 ou 2
-    // linhas para o mesmo alvo. "Última nota vale" continua sendo a
-    // semântica pretendida (mesma do LocalStorageNotesRepository) — só a
-    // forma de aplicá-la deixou de ser insegura.
-    const { error } = await supabase
-      .from('notes')
-      .upsert(
-        { user_id: userData.user?.id, [column]: targetId, note_text: noteText },
-        { onConflict: `user_id,${column}` }
-      );
+    const { data, error } = await supabase.rpc('upsert_note', {
+      p_material_id: column === 'material_id' ? targetId : null,
+      p_material_section_id: column === 'material_section_id' ? targetId : null,
+      p_question_id: column === 'question_id' ? targetId : null,
+      p_flashcard_id: column === 'flashcard_id' ? targetId : null,
+      p_note_text: noteText,
+      p_base_updated_at: StorageService.getNoteBaseVersion(targetId),
+    });
     if (error) throw error;
+    if (data?.conflict) {
+      // Caminho não exercitado pelo app real (ver nota acima) — não
+      // duplica a lógica de merge do handler da fila; só evita a
+      // sobrescrita silenciosa, propagando um erro explícito.
+      throw new Error('conflito de sincronização detectado ao salvar nota (ver upsert_note)');
+    }
   }
 }
 

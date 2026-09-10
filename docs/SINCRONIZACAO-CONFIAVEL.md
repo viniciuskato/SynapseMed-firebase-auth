@@ -1120,3 +1120,291 @@ mesclada em `main`, migration NÃO aplicada no remoto, nada em produção.
 Categorias 8/9 (reações, feedback) permanecem fora de escopo. Ver
 `docs/diretoria/registro.md`, entrada "Retorno recebido — 07-E", para o
 retorno completo.
+
+## Prompt 07-E2 — Testes de navegador e conflitos das categorias 3-7
+
+> Executado em `C:\Users\vinic\dev\NexusMed\firebase-auth`, mesma branch
+> `work/sincronizacao-dados-estudo-07e` (HEAD do 07-E: `69f9c36`).
+> Continuação direta do 07-E: fecha a limitação explícita deixada por ele
+> ("nenhum teste de navegador real foi executado") e resolve os dois riscos
+> de perda silenciosa que a diretoria proibiu explicitamente no prompt
+> (notas e simulados).
+
+### Etapa 1 — Revisão de código antes dos testes
+
+Confirmado por leitura: cada handler novo (`bookmark_set`,
+`reading_progress_set`, `note_upsert`, `error_notebook_update`,
+`simulado_save`) usa a sessão ativa via `supabase.auth.getUser()`/RPC
+`security definer` com `auth.uid()` — nunca um `user_id` vindo do payload do
+cliente. `client_op_id`/retry já eram estáveis para as categorias 1/2
+(inalterado nesta entrega). Concorrência antes desta entrega:
+
+- **Notas**: nenhuma — "última gravação vence" sem nenhuma detecção de
+  conflito (ver Etapa 3 abaixo, RISCO REAL confirmado e corrigido).
+- **Simulados**: nenhuma — substituição total incondicional por `id`, sem
+  checar se a sessão já estava em estado terminal (ver Etapa 4 abaixo,
+  RISCO REAL confirmado e corrigido).
+
+### Etapa 2 — Ambiente de teste
+
+Mesmo padrão das entregas 07-B em diante: Playwright/Chromium reaproveitado
+de uma pasta temporária anterior (`%TEMP%\nexusmed-pw-07c2\node_modules`,
+copiado para `%TEMP%\nexusmed-pw-07e2` — Chromium e `@supabase/supabase-js`
+já instalados, sem reinstalar do zero), `vite` dev servido em
+`http://127.0.0.1:5180` (porta 3000 já ocupada por processo não relacionado
+a este repositório, confirmado antes de começar) com
+`.env.development.local` apontando para o Supabase LOCAL. Três usuários de
+teste descartáveis (`sync07e2.a@test.local`, `sync07e2.b@test.local` role
+`student`, `sync07e2.admin@test.local` role `admin`), promovidos via `docker
+exec supabase_db_synapsemed psql -U postgres` (nunca client/service role —
+armadilha #9), removidos ao final. Fixture dedicada: 1 disciplina/tema/
+compêndio/2 seções/1 questão publicada.
+
+**Ponte de depuração ampliada** (`src/App.tsx`, `window.__syncDebug`,
+condicional a `import.meta.env.DEV`, mesmo padrão do 07-C2): passou a expor
+também os 5 repositórios das categorias 3-7 (`notesRepository`,
+`bookmarksRepository`, `readingProgressRepository`,
+`errorNotebookRepository`, `simuladosRepository`) e `StorageService` —
+permite que os scripts de teste chamem o MESMO caminho client-side real que
+os componentes React usam (grava local → enfileira → handler → RPC), só
+disparado pelo console em vez de um clique, para cenários de concorrência
+entre "dispositivos" que não têm como ser exercitados clicando um botão só
+(duas edições offline da mesma nota, por exemplo). Não é uma chamada direta
+de RPC — é o repositório de produção de ponta a ponta. Confirmado com `npm
+run build` + `grep` no bundle: 0 ocorrências de `__syncDebug`.
+
+### Etapa 3 — Notas: conflito real confirmado e corrigido
+
+**Teste que expôs o defeito**: dois `BrowserContext` autenticados na MESMA
+conta (simulando dois dispositivos), ambos carregando a mesma nota, editando
+com textos diferentes sem saber um do outro (mesmo padrão "offline
+simultâneo" que o prompt pede). **Resultado antes da correção**: a segunda
+edição a sincronizar apagava silenciosamente a primeira — exatamente o
+comportamento que a diretoria proibiu explicitamente ("não aceita LWW
+silencioso se ele puder apagar texto válido sem o usuário saber").
+
+**Correção aplicada** (migration
+`20260909140000_sync_reliability_conflict_guards.sql`, RPC `upsert_note`):
+
+- Cada dispositivo guarda localmente o `updated_at` da nota que conhece
+  como "base" (`StorageService.getNoteBaseVersion`/`setNoteBaseVersion`,
+  populado a cada leitura bem-sucedida via `SupabaseNotesRepository.getNotes`
+  e a cada escrita bem-sucedida via o handler).
+- `upsert_note` recebe essa base (`p_base_updated_at`). Se a linha já
+  existe, a base foi informada, o `updated_at` atual do servidor é MAIS
+  NOVO que a base E o texto atual diverge do que está sendo salvo agora →
+  conflito real: a escrita NÃO é aplicada, a RPC devolve `{conflict: true,
+  server_text, server_updated_at}` em vez de escrever.
+- O handler (`note_upsert`, `src/services/syncHandlers.ts`) nunca decide
+  sozinho qual versão vale: funde as duas (`mergeConflictingNoteText`) com
+  uma marcação visível ("Conflito de sincronização em <data>: ... a versão
+  do outro dispositivo foi preservada abaixo") e regrava com a base
+  atualizada — nunca perde nenhuma das duas edições, nunca constrói um
+  editor colaborativo em tempo real.
+- Sem base conhecida (primeira sincronização de um dispositivo, ou nota
+  nova) a escrita procede normalmente — mesma semântica "última grava
+  vence" de antes, preservada onde não há conflito real.
+
+**Testado com Playwright** (dois `BrowserContext`, mesma conta): conflito
+real detectado e as duas edições preservadas no texto final do servidor;
+edições SEQUENCIAIS do MESMO dispositivo nunca disparam a detecção contra
+si mesmas (3 edições em sequência terminam no texto mais recente, sem fusão
+espúria); nota editada offline sobrevive a um reload real; depois de
+reconectar (evento `online` real), a edição pendente sincroniza.
+
+### Etapa 4 — Simulados: estado terminal protegido
+
+**Teste que expôs o defeito**: sessão de simulado finalizada num
+"dispositivo" (score 100, `completed_at` real); um segundo envio (simulando
+um dispositivo atrasado/rascunho antigo reconectando) com o MESMO `id` de
+sessão mas `completed_at` e `score` DIFERENTES. **Resultado antes da
+correção**: `save_simulado_session` sobrescrevia incondicionalmente — o
+resultado real (score 100) seria substituído silenciosamente pelo envio
+atrasado.
+
+**Correção aplicada** (mesma migration, `save_simulado_session` revisado):
+antes de aplicar a substituição total, a função verifica se a sessão já
+existe E já tem `completed_at` preenchido (estado terminal). Se sim, só
+aceita um reenvio com o MESMO `completed_at` (retry idempotente real — o
+cliente sempre reenvia o `completedAt` congelado no momento da finalização,
+nunca gera um novo); qualquer `completed_at` diferente (inclusive nulo, ou
+seja, "reabrir" a sessão) é rejeitado com uma exceção (`sessao_ja_
+finalizada`, SQLSTATE `P0001` → classificado `validation` no cliente,
+permanente, visível na UI, sem retry infinito).
+
+**Testado com Playwright**: primeira finalização aceita; reenvio do MESMO
+payload continua idempotente mesmo com a sessão já finalizada; dispositivo
+atrasado com resultado DIFERENTE não sobrescreve (score real preservado);
+a operação do dispositivo atrasado termina em `state: 'failed'` — falha
+permanente e visível, nunca um retry silencioso indefinido; rascunho de
+respostas em andamento (`localStorage`, isolado por usuário) sobrevive a
+reload real.
+
+**Ajuste no teste pgTAP existente** (`sync_reliability_categorias_3_a_7.
+test.sql`): o teste de "reenviar o mesmo payload não duplica" chamava
+`now()` duas vezes em SQL separado, gerando dois timestamps DIFERENTES —
+isso disparava incorretamente a nova guarda de estado terminal contra o
+próprio reenvio idempotente (falso positivo). Corrigido capturando
+`completed_at` numa variável (`v_completed_at \gset`) e reutilizando o MESMO
+valor nas duas chamadas — reflete o comportamento real do cliente
+(`completedAt` congelado uma vez, nunca recalculado a cada retry). 8
+asserções novas: guarda rejeita `completed_at` diferente e `completed_at`
+nulo (reabertura) numa sessão já finalizada; reenvio do MESMO
+`completed_at` continua sendo aceito; `upsert_note` sem conflito, com
+conflito real detectado (preserva o texto do primeiro dispositivo), e sem
+base conhecida (procede normalmente).
+
+### Etapa 5 — Bug real encontrado em `syncQueue.ts` (motor compartilhado)
+
+Não fazia parte do escopo original (categorias 3-7), mas foi descoberto
+DURANTE o teste de favoritos ("operações em ordem invertida têm resultado
+definido", item explícito da Etapa 5 do prompt) e afeta TODAS as categorias
+1-7 igualmente, por isso foi corrigido nesta mesma entrega (a falha foi
+demonstrada por um teste desta entrega, não uma refatoração especulativa):
+
+**Causa confirmada**: `runFlush` (`src/services/syncQueue.ts`) carrega
+`ops = loadQueue(userId)` UMA VEZ no topo da função. O primeiro `await` real
+dentro do laço principal é `getActiveSupabaseUserId()` — um ponto de
+suspensão de verdade (chamada assíncrona ao Supabase). Duas operações
+enfileiradas em sequência rápida (ex.: `bookmark_set` com `desired:false`
+seguido de `desired:true`, ambas síncronas, sem nenhum `await` entre elas)
+gravam corretamente as DUAS no `localStorage` antes de qualquer coisa
+assíncrona rodar — mas quando `runFlush` retoma depois do `await` e
+escreve de volta o `ops` capturado ANTES do `await` (para marcar a operação
+atual como `'syncing'`), isso sobrescreve o `localStorage` com um array que
+não inclui a operação mais nova, apagando-a silenciosamente da fila.
+Reproduzido deterministicamente: a segunda operação (`desired:true`)
+simplesmente não existia mais em `getOps()` depois do flush — contagem
+final no servidor ficava em 0 (desfavoritado) em vez de 1 (favoritado,
+resultado esperado do "último set enfileirado vence").
+
+**Correção**: antes de marcar `'syncing'`, `runFlush` recarrega a fila
+(`loadQueue`) e localiza a operação pelo `id` (nunca pelo índice `i`, que
+pode não apontar mais para a mesma operação depois do reload) — nunca mais
+escreve de volta um snapshot capturado antes do `await`.
+
+**Achado relacionado, mesmo arquivo**: o evento `online` real e a aba
+voltando a ficar visível não ignoravam o backoff exponencial
+(`nextRetryAt`) — uma operação que tinha falhado por rede pouco antes
+(ex.: nota editada offline, uma tentativa falhou, depois a página recarrega
+e a rede volta) ficava presa até ~15s+ (base do backoff) mesmo com o
+navegador confirmando reconexão real, porque `runFlush` sempre respeitava
+`nextRetryAt` independente de QUEM disparou o flush. Corrigido: `flush`/
+`flushAllKnown` ganharam um parâmetro `force` — `true` só para os eventos
+`online`/`visibilitychange` (sinais fortes e explícitos de reconexão),
+sempre `false` para o heartbeat periódico de 60s (que continua respeitando
+o backoff normalmente, para não virar retry agressivo).
+
+Testado com Playwright: as duas operações em ordem invertida convergem para
+o estado do ÚLTIMO set enfileirado (4 operações no total na fila do
+dispositivo, todas `synced`, contagem final = 1 linha no servidor); nota
+offline sincroniza logo após o evento `online` real (sem esperar o backoff
+completo).
+
+### Etapa 6 — Favoritos, progresso de leitura, caderno de erros
+
+Nenhum defeito adicional encontrado (além do bug de `syncQueue.ts` da Etapa
+5, que afeta favoritos mas não é específico dele). Confirmado com
+Playwright: `bookmark_set`/`reading_progress_set` são idempotentes por
+`desired` explícito (reenviar o mesmo `desired: true` não duplica);
+`set_section_read` faz merge real entre dois dispositivos marcando seções
+diferentes (nunca sobrescreve); um dispositivo mais antigo desmarcando uma
+seção que ele conhece não desmarca uma seção mais nova que ele não conhece;
+logout com operação de favorito pendente NUNCA a envia sob a sessão de
+outra conta (0 linhas sob B), e A retomando a sessão sincroniza a própria
+operação corretamente; caderno de erros é derivado só de
+`submit_question_attempt` (nunca escrito diretamente pelo cliente) — uma
+tentativa correta posterior a um erro já resolvido não reabre o item
+(sem disputa de responsabilidade entre os dois fluxos); retry de
+`updateErrorLog` não duplica.
+
+### Etapa 7 — Validações
+
+- `npx tsc --noEmit`: sem erros (antes e depois de cada correção).
+- `npm run build`: limpo (mesmo aviso pré-existente de chunk >500kB);
+  instrumentação de teste (`__syncDebug`, agora incluindo os 5 repositórios
+  novos + `StorageService`) confirmada FORA do bundle publicado (0
+  ocorrências).
+- `supabase test db` (pgTAP), com `supabase db reset` antes e depois:
+  **139/139** (106 de 07-A/07-D + 33 de `sync_reliability_categorias_3_a_7.
+  test.sql`, sendo 25 do 07-E + 8 novas do 07-E2), em duas execuções
+  completas (antes e depois da limpeza final).
+- Playwright/Chromium: **25/25 asserções**, 0 falhas, em duas execuções
+  completas contra bancos recém-resetados (confirma que nenhum teste
+  depende de estado residual de execução anterior) — 3 em notas
+  (conflito), 1 em notas (sequencial), 2 em notas (reload/reconexão), 4 em
+  favoritos (idempotência/ordem/dispositivo2), 2 em favoritos
+  (logout/retomada), 3 em progresso de leitura, 5 em caderno de erros, 4 em
+  simulados (estado terminal), 1 em simulados (rascunho/reload).
+- Confirmação direta no Postgres (não só pela UI/asserção client-side): toda
+  contagem crítica (notas, `bookmarks`, `reading_progress`,
+  `error_notebook`, `simulations`) foi lida via `docker exec ... psql`
+  diretamente, nunca só inferida do resultado da chamada client-side.
+
+### Regra final de conflitos
+
+- **Notas**: "última gravação vence" continua sendo a regra padrão (dono
+  único, sem colaboração em tempo real esperada) — MAS só quando não há
+  evidência de conflito real. Quando o servidor mudou desde a última
+  leitura conhecida do dispositivo E o texto diverge, a escrita não é
+  aplicada às cegas: as duas versões são fundidas com marcação visível.
+  Não é resolução automática "inteligente" nem editor colaborativo — é
+  a proteção mínima contra perda silenciosa pedida pelo prompt.
+- **Simulados**: substituição total continua sendo a regra (não é um
+  evento incremental), MAS o estado terminal (`completed_at` preenchido) é
+  protegido — só o mesmo reenvio exato (retry idempotente) é aceito depois
+  disso; qualquer tentativa de mudar o resultado já fechado é rejeitada de
+  forma permanente e visível, nunca aplicada silenciosamente.
+
+### Limitações confirmadas, não contornadas
+
+- **Corrida real de duas escritas SIMULTÂNEAS na mesma nota** (duas
+  requisições HTTP em voo ao mesmo tempo, não sequenciais) não foi testada
+  — só a sequência "dispositivo 1 sincroniza, depois dispositivo 2
+  sincroniza" (que já é o cenário real de "dois dispositivos offline,
+  reconectando em momentos diferentes"). A `select ... for update`
+  implícita pelo modelo de conflito (comparação de `updated_at`) previne
+  dado inconsistente mesmo sob corrida real (a segunda escrita concorrente
+  leria o `updated_at` já atualizado pela primeira e detectaria conflito
+  corretamente), mas isso não foi provado com duas requisições disparadas
+  literalmente ao mesmo tempo via navegador.
+- **Achado FORA de escopo, não corrigido**: `AuthContext.tsx` (não faz
+  parte das categorias 3-7) tem uma corrida benigna entre a
+  `supabase.auth.getSession()` inicial (chamada no mount) e o evento de
+  login real (`onAuthStateChange`) — um preenchimento/clique de formulário
+  MUITO rápido (script automatizado, não um humano digitando) pode fazer a
+  promise inicial (que capturou "sem sessão" antes do login) resolver
+  DEPOIS do evento de login, revertendo `StorageService.setActiveUser` de
+  volta para `null` por um instante. Não reproduzido com login humano real
+  (digitar credenciais leva segundos, tempo suficiente para a promise
+  inicial já ter resolvido antes do clique). Contornado só no PRÓPRIO
+  script de teste (checagem de estabilidade antes de prosseguir); não
+  corrigido no produto porque está fora do escopo desta entrega
+  (categorias 3-7) e não foi demonstrado como um risco real de uso humano
+  — registrado aqui para uma sessão futura avaliar se vale a pena
+  endurecer mesmo assim.
+- Simulados: não foi testado o caso "dois dispositivos DIFERENTES (não a
+  mesma sessão/página) finalizando a MESMA sessão de simulado quase
+  simultaneamente" com uma requisição HTTP genuinamente em voo no momento
+  em que a outra commita — só a sequência determinística (primeiro finaliza
+  e sincroniza, depois o segundo tenta). O comportamento sob essa corrida
+  real depende de qual `UPDATE` commita primeiro no Postgres; como a
+  função inteira roda dentro de uma transação e o SELECT de `completed_at`
+  não usa `for update` explícito (não é necessário: a checagem de estado
+  terminal é sobre uma condição de negócio, não uma seção crítica que
+  precise lock pessimista — o pior caso sob corrida real é as duas
+  transações lerem `completed_at is null` e ambas tentarem finalizar, uma
+  ganha e a outra bate no reenvio idempotente OU na guarda, dependendo da
+  ordem de commit — nunca uma perda silenciosa, só um resultado
+  não-determinístico de QUAL das duas finalizações "ganha", que é
+  aceitável dado que ambas seriam legítimas), isso não foi provado com
+  navegador real.
+
+Estado final: **três defeitos reais corrigidos** (perda silenciosa de nota
+em conflito, sobrescrita silenciosa de simulado finalizado, perda
+silenciosa de operação enfileirada em `syncQueue.ts` sob concorrência),
+25/25 Playwright + 139/139 pgTAP + tsc + build limpos, branch
+`work/sincronizacao-dados-estudo-07e` NÃO mesclada em `main`, migration NÃO
+aplicada no remoto, nenhuma escrita remota realizada. Ver
+`docs/diretoria/registro.md`, entrada "Concluído — 07-E2", para o retorno
+completo.

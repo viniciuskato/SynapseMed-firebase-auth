@@ -14,7 +14,7 @@
 -- corretos, não uma corrida de fato disputando o lock ao mesmo tempo.
 -- ============================================================================
 
-select plan(25);
+select plan(33);
 
 select tests.clear_auth();
 
@@ -176,15 +176,23 @@ select tests.authenticate_as(:'v_user_a');
 
 select gen_random_uuid() as v_sim_id \gset
 
+-- `completed_at` é capturado UMA VEZ e reutilizado nas duas chamadas abaixo —
+-- reflete o comportamento real do cliente (SimuladoSession.tsx congela
+-- `completedAt` no momento de "Finalizar Prova" e a fila reenvia o MESMO
+-- payload em retry, nunca gera um novo timestamp a cada tentativa). Usar
+-- `now()` de novo em cada chamada SQL separada dispararia incorretamente a
+-- guarda de estado terminal (07-E2) contra o próprio reenvio idempotente.
+select now() as v_completed_at \gset
+
 select lives_ok(
   format(
     $$ select public.save_simulado_session(jsonb_build_object(
         'id', %L, 'name', 'Simulado Teste', 'config', jsonb_build_object('name', 'Simulado Teste'),
-        'started_at', now(), 'completed_at', now(), 'score', 80, 'total_time_seconds', 120,
+        'started_at', now(), 'completed_at', %L::timestamptz, 'score', 80, 'total_time_seconds', 120,
         'questions', jsonb_build_array(jsonb_build_object('question_id', %L, 'position', 0)),
         'answers', jsonb_build_array(jsonb_build_object('question_id', %L, 'selected_option_id', %L, 'time_spent_seconds', 30))
       )) $$,
-    :'v_sim_id', :'v_question_id', :'v_question_id', :'v_opt_a'
+    :'v_sim_id', :'v_completed_at', :'v_question_id', :'v_question_id', :'v_opt_a'
   ),
   'primeira gravação da sessão de simulado é aceita'
 );
@@ -212,7 +220,7 @@ select is(
 -- perguntas/respostas.
 select public.save_simulado_session(jsonb_build_object(
   'id', :'v_sim_id', 'name', 'Simulado Teste', 'config', jsonb_build_object('name', 'Simulado Teste'),
-  'started_at', now(), 'completed_at', now(), 'score', 80, 'total_time_seconds', 120,
+  'started_at', now(), 'completed_at', :'v_completed_at'::timestamptz, 'score', 80, 'total_time_seconds', 120,
   'questions', jsonb_build_array(jsonb_build_object('question_id', :'v_question_id', 'position', 0)),
   'answers', jsonb_build_array(jsonb_build_object('question_id', :'v_question_id', 'selected_option_id', :'v_opt_a', 'time_spent_seconds', 30))
 ));
@@ -293,5 +301,108 @@ select is(
   'Simulado Teste',
   'a sessão do usuário A permanece intacta após a tentativa do usuário B'
 );
+
+-- ----------------------------------------------------------------------------
+-- save_simulado_session: estado terminal protegido (Prompt 07-E2)
+-- ----------------------------------------------------------------------------
+-- Revisão de código encontrou risco real: sem esta guarda, um dispositivo
+-- atrasado (rascunho antigo, reconectando depois de outro dispositivo já ter
+-- finalizado a MESMA sessão) sobrescreveria silenciosamente o resultado já
+-- fechado. `v_sim_id` já está finalizado (completed_at = v_completed_at,
+-- gravado acima) — qualquer completed_at DIFERENTE agora deve ser rejeitado.
+
+select tests.authenticate_as(:'v_user_a');
+
+select throws_ok(
+  format(
+    $$ select public.save_simulado_session(jsonb_build_object(
+        'id', %L, 'config', jsonb_build_object('name', 'Reenvio Atrasado'),
+        'started_at', now(), 'completed_at', now(), 'score', 10, 'total_time_seconds', 999,
+        'questions', '[]'::jsonb, 'answers', '[]'::jsonb
+      )) $$,
+    :'v_sim_id'
+  ),
+  'P0001',
+  'sessao_ja_finalizada: esta sessão de simulado já foi finalizada em outro envio e não pode ser sobrescrita',
+  'dispositivo atrasado com completed_at diferente não sobrescreve sessão já finalizada'
+);
+
+select is(
+  (select score from public.simulations where id = :'v_sim_id'),
+  80::numeric,
+  'score original (80) preservado — o reenvio atrasado (score 10) não foi aplicado'
+);
+
+-- Tentar "reabrir" a sessão (completed_at nulo) depois de finalizada também
+-- é rejeitado — nunca regride silenciosamente um resultado fechado para
+-- "em andamento".
+select throws_ok(
+  format(
+    $$ select public.save_simulado_session(jsonb_build_object(
+        'id', %L, 'config', jsonb_build_object('name', 'Reabertura'),
+        'started_at', now(), 'total_time_seconds', 1,
+        'questions', '[]'::jsonb, 'answers', '[]'::jsonb
+      )) $$,
+    :'v_sim_id'
+  ),
+  'P0001',
+  'sessao_ja_finalizada: esta sessão de simulado já foi finalizada em outro envio e não pode ser sobrescrita',
+  'tentar reabrir (completed_at nulo) uma sessão já finalizada é rejeitado'
+);
+
+-- Reenviar EXATAMENTE o mesmo completed_at (retry real depois de falha de
+-- rede) continua sendo aceito como no-op seguro — a guarda não pode quebrar
+-- idempotência legítima.
+select lives_ok(
+  format(
+    $$ select public.save_simulado_session(jsonb_build_object(
+        'id', %L, 'name', 'Simulado Teste', 'config', jsonb_build_object('name', 'Simulado Teste'),
+        'started_at', now(), 'completed_at', %L::timestamptz, 'score', 80, 'total_time_seconds', 120,
+        'questions', jsonb_build_array(jsonb_build_object('question_id', %L, 'position', 0)),
+        'answers', jsonb_build_array(jsonb_build_object('question_id', %L, 'selected_option_id', %L, 'time_spent_seconds', 30))
+      )) $$,
+    :'v_sim_id', :'v_completed_at', :'v_question_id', :'v_question_id', :'v_opt_a'
+  ),
+  'reenviar o MESMO completed_at (retry real) continua sendo aceito, mesmo com a sessão já finalizada'
+);
+
+select tests.clear_auth();
+
+-- ----------------------------------------------------------------------------
+-- upsert_note: detecção de conflito (Prompt 07-E2)
+-- ----------------------------------------------------------------------------
+-- Revisão de código encontrou risco real: o upsert "última gravação vence"
+-- do 07-E não detectava NENHUM conflito — duas edições concorrentes da
+-- mesma nota em dois dispositivos apagariam uma silenciosamente. Simula dois
+-- dispositivos que leram a MESMA base (updated_at da nota criada acima) e
+-- depois editaram de forma diferente, offline, sem saber um do outro.
+
+select tests.authenticate_as(:'v_user_a');
+
+select (select updated_at from public.notes where user_id = :'v_user_a' and question_id = :'v_question_id') as v_note_base \gset
+
+-- "Dispositivo 1" grava sem conflito (base bate com o servidor).
+select (public.upsert_note(null, null, :'v_question_id', null, 'edição do dispositivo 1', :'v_note_base')->>'conflict')::boolean as v_conflict_1 \gset
+select is(:'v_conflict_1'::boolean, false, 'dispositivo 1 grava sem conflito (base bate com o servidor)');
+
+-- "Dispositivo 2" tenta gravar com a MESMA base antiga (não sabia da escrita
+-- do dispositivo 1 acima) — precisa ser detectado como conflito, NUNCA
+-- sobrescrever silenciosamente.
+select (public.upsert_note(null, null, :'v_question_id', null, 'edição do dispositivo 2', :'v_note_base')->>'conflict')::boolean as v_conflict_2 \gset
+select is(:'v_conflict_2'::boolean, true, 'dispositivo 2 com base desatualizada é detectado como conflito real');
+
+select is(
+  (select note_text from public.notes where user_id = :'v_user_a' and question_id = :'v_question_id'),
+  'edição do dispositivo 1',
+  'a escrita do dispositivo 2 NÃO foi aplicada silenciosamente — texto do dispositivo 1 preservado'
+);
+
+-- Reenviar com base desconhecida (null — primeira sincronização deste
+-- dispositivo, ou dispositivo que nunca leu a nota) sempre sobrescreve
+-- (mesma semântica "última grava vence" de antes, para quem não tem base).
+select ((public.upsert_note(null, null, :'v_question_id', null, 'sem base conhecida', null))->>'conflict')::boolean as v_conflict_3 \gset
+select is(:'v_conflict_3'::boolean, false, 'sem base conhecida (null), a gravação procede normalmente (comportamento anterior preservado)');
+
+select tests.clear_auth();
 
 select * from finish();

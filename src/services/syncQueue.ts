@@ -360,18 +360,29 @@ async function getActiveSupabaseUserId(): Promise<string | null> {
  * `void flush(userId)` e, em seguida, `enqueueAndTry` chamando `flush`
  * de novo) sempre observem a mesma entrada no Map.
  */
-export function flush(userId: string): Promise<void> {
+// `force`: ignora `nextRetryAt` (o agendamento de backoff) para operações
+// retentáveis pendentes. Usado só por sinais fortes e explícitos de que a
+// causa provável do erro mudou — o evento `online` real e a aba voltando a
+// ficar visível (`visibilitychange`) — nunca pelo heartbeat periódico (esse
+// continua respeitando o backoff normalmente, para não virar um retry
+// agressivo a cada 60s). Sem isso, uma operação que falhou uma vez por
+// `network` pouco antes de a rede cair de vez ficava presa até 15s+ (base do
+// backoff) mesmo depois do navegador avisar que a rede voltou — achado real
+// do Prompt 07-E2 (teste de navegador: nota editada offline, reload, rede
+// restaurada — a operação não convergia dentro do tempo razoável de espera
+// de um evento `online` real).
+export function flush(userId: string, force = false): Promise<void> {
   if (!userId) return Promise.resolve();
   const existing = flushPromises.get(userId);
   if (existing) return existing;
-  const p = runFlush(userId).finally(() => {
+  const p = runFlush(userId, force).finally(() => {
     flushPromises.delete(userId);
   });
   flushPromises.set(userId, p);
   return p;
 }
 
-async function runFlush(userId: string): Promise<void> {
+async function runFlush(userId: string, force = false): Promise<void> {
   // Isolamento entre usuários (bloqueio 2): a fila de `userId` só pode ser
   // enviada enquanto ele for também o usuário autenticado no Supabase AGORA.
   // Isso é reavaliado a cada operação da fila (não só uma vez no início),
@@ -403,7 +414,7 @@ async function runFlush(userId: string): Promise<void> {
     let op = ops[i];
     if (op.state === 'synced') continue;
     if (op.state === 'failed' && !isRetryable(op.lastError?.kind ?? 'unknown')) continue;
-    if (op.nextRetryAt && new Date(op.nextRetryAt).getTime() > now) continue;
+    if (!force && op.nextRetryAt && new Date(op.nextRetryAt).getTime() > now) continue;
 
     const handler = handlers.get(op.category);
     if (!handler) continue; // categoria sem handler registrado nesta sessão (ex.: código antigo) — não trava a fila
@@ -451,7 +462,25 @@ async function runFlush(userId: string): Promise<void> {
       return;
     }
 
-    ops[i] = { ...op, state: 'syncing', updatedAt: new Date().toISOString() };
+    // BUG REAL encontrado no Prompt 07-E2 (teste de navegador — favoritos
+    // com duas operações enfileiradas em sequência rápida, ex.: desmarcar
+    // seguido de marcar de novo antes do primeiro flush concluir): `ops`
+    // foi carregado no TOPO desta função, antes do `await
+    // getActiveSupabaseUserId()` acima — um ponto de suspensão real
+    // (chamada assíncrona do Supabase). Se OUTRO `enqueue()` for chamado
+    // durante essa suspensão, ele grava um array mais novo no
+    // `localStorage` de forma síncrona. Escrever de volta aqui o `ops`
+    // ANTIGO (capturado antes do `await`) apagaria silenciosamente essa
+    // operação recém-enfileirada — perda de dado real, não só teórica
+    // (reproduzida com Playwright: a segunda de duas operações enfileiradas
+    // em sequência desaparecia da fila). Corrigido recarregando a fila REAL
+    // agora e localizando a operação pelo `id` (nunca pelo índice `i`, que
+    // pode não corresponder mais à mesma operação depois do reload) antes
+    // de marcar 'syncing'.
+    ops = loadQueue(userId);
+    const syncingIdx = ops.findIndex((o) => o.id === op.id);
+    if (syncingIdx < 0) continue; // operação sumiu da fila entre o enqueue e aqui (não deveria acontecer) — defensivo, não trava
+    ops[syncingIdx] = { ...ops[syncingIdx], state: 'syncing', updatedAt: new Date().toISOString() };
     changed = true;
     saveQueue(userId, ops);
 
@@ -570,21 +599,27 @@ export function onActiveUserChanged(userId: string | null): void {
  * tocados por estes eventos — a fila deles só é reprocessada quando eles
  * voltarem a fazer login (`onActiveUserChanged`).
  */
-async function flushAllKnown(): Promise<void> {
+async function flushAllKnown(force = false): Promise<void> {
   const activeUserId = await getActiveSupabaseUserId();
   if (!activeUserId || !knownUserIds.has(activeUserId)) return;
-  void flush(activeUserId);
+  void flush(activeUserId, force);
 }
 
 function startPeriodicReconciliation(): void {
   if (periodicTimerStarted || typeof window === 'undefined') return;
   periodicTimerStarted = true;
 
-  window.addEventListener('online', flushAllKnown);
+  // `online` e a aba voltando a ficar visível são sinais fortes e
+  // explícitos de reconexão — ignoram o backoff (force=true) para que uma
+  // operação que falhou por rede pouco antes não fique presa até o timer de
+  // backoff expirar mesmo depois do navegador confirmar que a rede voltou.
+  // O heartbeat (só tempo passando, nenhum sinal novo) continua respeitando
+  // o backoff normalmente.
+  window.addEventListener('online', () => void flushAllKnown(true));
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') flushAllKnown();
+    if (document.visibilityState === 'visible') void flushAllKnown(true);
   });
-  window.setInterval(flushAllKnown, 60_000);
+  window.setInterval(() => void flushAllKnown(false), 60_000);
 }
 
 startPeriodicReconciliation();

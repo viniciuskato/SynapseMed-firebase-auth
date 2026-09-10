@@ -262,6 +262,37 @@ protótipo).
     `set_section_read`), não mais um array calculado no cliente — evita
     também o risco de dois dispositivos marcando seções diferentes se
     sobrescreverem.
+16. **`syncQueue.ts` (`runFlush`) podia perder uma operação enfileirada
+    silenciosamente sob concorrência real** (Prompt 07-E2, encontrado por
+    teste de navegador, não por leitura de código): a função carrega `ops =
+    loadQueue(userId)` UMA VEZ no topo e processa num laço; o primeiro
+    `await` real dentro do laço (`getActiveSupabaseUserId()`) é um ponto de
+    suspensão de verdade. Se outra chamada de `enqueue()` acontecer durante
+    essa suspensão (ex.: usuário clica "desfavoritar" e "favoritar" de novo
+    em sequência rápida, antes do primeiro flush terminar), ela grava um
+    array mais novo no `localStorage` de forma síncrona — mas quando
+    `runFlush` retoma depois do `await` e escreve de volta o `ops` ANTIGO
+    (capturado antes do `await`) para marcar a operação atual como
+    `'syncing'`, isso SOBRESCREVE o array mais novo, apagando a operação
+    recém-enfileirada sem erro nenhum. Reproduzido deterministicamente com
+    Playwright (favoritos: `desired:false` seguido de `desired:true` na
+    mesma sequência síncrona — a segunda operação simplesmente não existia
+    mais na fila depois). Corrigido: antes de marcar `'syncing'`,
+    `runFlush` agora recarrega a fila e localiza a operação pelo `id`
+    (nunca pelo índice `i`, que pode não apontar mais para a mesma operação
+    depois do reload). Esse padrão — escrever de volta um snapshot
+    capturado antes de um `await` — é o mesmo tipo de bug já visto no
+    Problema 4 do Prompt 07-C (clobbering de `clientOpId`); ao editar
+    `runFlush`/qualquer laço que mistura leitura de `localStorage` com
+    `await`, sempre recarregar e localizar por `id` antes de qualquer
+    escrita que siga um ponto de suspensão, nunca reusar um array capturado
+    antes do `await`. Corrigido no mesmo prompt, achado relacionado: o
+    evento `online`/aba voltando a ficar visível não ignorava o backoff
+    exponencial (`nextRetryAt`) — uma operação que tinha falhado por rede
+    pouco antes ficava presa até ~15s+ mesmo depois do navegador confirmar
+    reconexão real. `flush`/`flushAllKnown` ganharam um parâmetro `force`
+    (`true` só para `online`/`visibilitychange`, nunca para o heartbeat de
+    60s) que ignora `nextRetryAt` para operações retentáveis pendentes.
 
 ## Convenções de trabalho
 
@@ -427,6 +458,62 @@ protótipo).
   fora do escopo de uma sessão que só pode alterar o Supabase LOCAL) — ver
   `docs/diretoria/registro.md`, entrada "Concluído — 07-E", para o
   detalhamento e a recomendação.
+- **Em andamento na mesma branch `work/sincronizacao-dados-estudo-07e`
+  (2026-09-09/10, Prompt 07-E2), NÃO mesclada em `main`, migration NÃO
+  aplicada no remoto**: primeira rodada de testes de navegador real
+  (Playwright/Chromium contra Supabase LOCAL) para as categorias 3-7,
+  cobrindo exatamente a lacuna que o 07-E tinha deixado explícita. 25/25
+  asserções passando, cobrindo notas (conflito real entre dois
+  "dispositivos", edições sequenciais do mesmo dispositivo, reload antes de
+  sincronizar + reconexão), favoritos (idempotência, ordem invertida, logout
+  com operação pendente), progresso de leitura (merge entre dois
+  dispositivos sem regressão), caderno de erros (fonte única, idempotência,
+  sem reabertura indevida) e simulados (estado terminal protegido, reenvio
+  idempotente, rascunho sobrevivendo a reload). **Três defeitos REAIS
+  encontrados e corrigidos** (não só pendências de teste):
+  1. **Notas podiam perder texto silenciosamente em edição concorrente**
+     (exatamente o risco que a diretoria proibiu explicitamente no prompt):
+     o upsert "última gravação vence" do 07-E não detectava NENHUM conflito.
+     Corrigido com uma RPC nova (`upsert_note`, migration
+     `20260909140000_sync_reliability_conflict_guards.sql`) que recebe o
+     `updated_at` que o dispositivo conhecia como base
+     (`StorageService.getNoteBaseVersion`) — se o servidor já tiver uma
+     versão mais nova E com texto diferente, a escrita NÃO é aplicada; as
+     duas versões são fundidas (nunca uma escolhida às cegas) com uma
+     marcação visível ao usuário, nunca um editor colaborativo.
+  2. **Simulados podiam ter um resultado já finalizado sobrescrito
+     silenciosamente** por um dispositivo atrasado (rascunho antigo
+     reconectando depois de outro já ter terminado a mesma sessão) —
+     `save_simulado_session` fazia "última gravação vence" incondicional.
+     Corrigido protegendo o estado terminal: uma vez que `completed_at`
+     está preenchido, só o MESMO reenvio (retry idempotente real) é
+     aceito; qualquer `completed_at` diferente é rejeitado com um erro
+     `validation` (permanente, visível na UI, sem retry infinito).
+  3. **Bug real em `syncQueue.ts` (motor compartilhado por TODAS as
+     categorias 1-7, não só 3-7)**: duas operações enfileiradas em
+     sequência rápida (ex.: desfavoritar e favoritar de novo antes do
+     primeiro flush terminar) podiam fazer a SEGUNDA operação desaparecer
+     silenciosamente da fila — `runFlush` escrevia de volta um snapshot de
+     `ops` capturado ANTES de um `await` real (`getActiveSupabaseUserId()`),
+     apagando qualquer operação enfileirada durante essa suspensão.
+     Corrigido recarregando a fila e localizando a operação pelo `id`
+     (nunca pelo índice) logo antes de marcar `'syncing'`. Corrigido também
+     (achado relacionado, mesmo arquivo): o evento `online`/aba voltando a
+     ficar visível não bypassava o backoff exponencial — uma operação que
+     tinha falhado por rede pouco antes ficava presa até ~15s+ mesmo depois
+     do navegador confirmar reconexão; agora esses dois sinais fortes
+     (`force=true`) ignoram `nextRetryAt`, o heartbeat de 60s continua
+     respeitando o backoff normalmente.
+  Migration nova: `20260909140000_sync_reliability_conflict_guards.sql`
+  (`upsert_note` + `save_simulado_session` revisado), testada só em Supabase
+  LOCAL (139/139 pgTAP: 106 de 07-A/07-D + 33 de 07-E/07-E2, 8 novas nesta
+  rodada). `tsc`/`build` limpos, instrumentação de teste (`__syncDebug`
+  ampliada com os 5 repositórios de categorias 3-7 + `StorageService`)
+  confirmada FORA do bundle publicado. Ver `docs/SINCRONIZACAO-CONFIAVEL.md`,
+  seção "Prompt 07-E2", e `docs/diretoria/registro.md`, entrada "Concluído —
+  07-E2", para o detalhamento completo, incluindo um achado FORA de escopo
+  não corrigido (race condition benigna em `AuthContext.tsx` só visível sob
+  login programático muito rápido, não um clique humano real).
 - **Histórico (preparado em 2026-09-07, commitado em 2026-09-08 na branch
   `work/consolidacao-diretoria-2026-09-08`, commit `1e89a2f`)**: correção
   do achado de auditoria "question_references/sources descartados na carga

@@ -10,6 +10,7 @@
 import { supabase } from '../lib/supabaseClient';
 import { registerHandler } from './syncQueue';
 import { supabaseFlashcardsRepository } from '../repositories/SupabaseFlashcardsRepository';
+import { StorageService } from './storage';
 import { QuestionAnswerRecord, ErrorLogItem, SimuladoSessionData } from '../types';
 
 export interface QuestionAttemptOpPayload {
@@ -87,6 +88,33 @@ async function resolveNoteColumn(targetId: string) {
     if (data) return column;
   }
   throw new Error(`nota: não foi possível determinar o tipo de destino para targetId=${targetId}`);
+}
+
+type NoteColumn = 'material_id' | 'material_section_id' | 'question_id' | 'flashcard_id';
+
+function noteRpcArgs(column: NoteColumn, targetId: string) {
+  return {
+    p_material_id: column === 'material_id' ? targetId : null,
+    p_material_section_id: column === 'material_section_id' ? targetId : null,
+    p_question_id: column === 'question_id' ? targetId : null,
+    p_flashcard_id: column === 'flashcard_id' ? targetId : null,
+  };
+}
+
+// Nunca escolhe sozinho qual das duas edições vale quando um conflito real é
+// detectado (Prompt 07-E2 — a diretoria não aceita LWW silencioso apagando
+// texto válido). Preserva as duas versões com uma marcação visível para o
+// usuário revisar/editar manualmente — não é um editor colaborativo, só a
+// proteção mínima contra perda silenciosa.
+function mergeConflictingNoteText(localText: string, serverText: string): string {
+  if (localText === serverText) return localText;
+  const stamp = new Date().toLocaleString('pt-BR');
+  return (
+    `${localText}\n\n---\n` +
+    `[Conflito de sincronização em ${stamp}: outro dispositivo também editou esta nota enquanto ` +
+    `este dispositivo estava com uma edição pendente. Nada foi apagado — a versão do outro ` +
+    `dispositivo foi preservada abaixo; revise e edite como preferir.]\n\n${serverText}`
+  );
 }
 
 let registered = false;
@@ -198,24 +226,47 @@ export function registerSyncHandlers(): void {
     return data;
   });
 
-  // Notas (categoria 4): upsert real (single round-trip, atômico) em vez do
-  // delete+insert anterior — ver índices únicos (sem `where`, de propósito —
-  // compatíveis com onConflict do PostgREST) na mesma migration.
-  // "Última gravação vence" é aceitável aqui pelo mesmo motivo documentado
-  // para o conteúdo do flashcard: o próprio dono editando a própria nota,
-  // sem edição concorrente esperada na prática.
+  // Notas (categoria 4): upsert real (single round-trip, atômico) via RPC
+  // `upsert_note` (migration sync_reliability_conflict_guards, 07-E2) em vez
+  // do delete+insert original E em vez de um upsert cego "última gravação
+  // vence" puro (07-E) — a revisão do 07-E2 confirmou que duas edições
+  // concorrentes da MESMA nota em dois dispositivos apagariam uma das duas
+  // silenciosamente sem NENHUMA detecção. A RPC recebe o `updated_at` que
+  // este dispositivo conhecia como base (StorageService.getNoteBaseVersion)
+  // e só aplica um "última gravação vence" quando não há conflito real
+  // (nenhuma base conhecida, ou o servidor não mudou desde então, ou o texto
+  // já é igual). Quando há conflito, a RPC NÃO escreve — devolve a versão do
+  // servidor, e as duas versões são fundidas (nunca uma escolhida às cegas)
+  // antes de regravar.
   registerHandler('note_upsert', async (payload: NoteUpsertOpPayload) => {
     const column = await resolveNoteColumn(payload.targetId);
-    const { data: userData, error: userErr } = await supabase.auth.getUser();
-    if (userErr) throw userErr;
-    const { error } = await supabase
-      .from('notes')
-      .upsert(
-        { user_id: userData.user?.id, [column]: payload.targetId, note_text: payload.noteText },
-        { onConflict: `user_id,${column}` }
-      );
+    const baseUpdatedAt = StorageService.getNoteBaseVersion(payload.targetId);
+
+    const { data, error } = await supabase.rpc('upsert_note', {
+      ...noteRpcArgs(column, payload.targetId),
+      p_note_text: payload.noteText,
+      p_base_updated_at: baseUpdatedAt,
+    });
     if (error) throw error;
-    return null;
+
+    if (data?.conflict) {
+      const mergedText = mergeConflictingNoteText(payload.noteText, data.server_text as string);
+      const { data: retryData, error: retryErr } = await supabase.rpc('upsert_note', {
+        ...noteRpcArgs(column, payload.targetId),
+        p_note_text: mergedText,
+        p_base_updated_at: data.server_updated_at,
+      });
+      if (retryErr) throw retryErr;
+      // Grava o texto fundido localmente também (nunca deixa este
+      // dispositivo mostrar um texto diferente do que acabou de ser
+      // sincronizado, e nunca perde a edição local que gerou o conflito).
+      StorageService.saveNote(payload.targetId, mergedText);
+      if (retryData?.updated_at) StorageService.setNoteBaseVersion(payload.targetId, retryData.updated_at as string);
+      return retryData;
+    }
+
+    if (data?.updated_at) StorageService.setNoteBaseVersion(payload.targetId, data.updated_at as string);
+    return data;
   });
 
   // Caderno de erros (categoria 3): só atualiza resolved/user_notes por id
