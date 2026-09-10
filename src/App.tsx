@@ -127,6 +127,16 @@ function AuthenticatedApp() {
   const [filterThemeForQuestions, setFilterThemeForQuestions] = useState<string | undefined>(undefined);
   const [filterThemeForFlashcards, setFilterThemeForFlashcards] = useState<string | undefined>(undefined);
   const [focusQuestionId, setFocusQuestionId] = useState<string | undefined>(undefined);
+  // "Treinar Apenas Questões Erradas" (Prompt 10-A): antes, esse botão criava
+  // um SimuladoConfig (isExamMode: false) e abria <SimuladoSession>, que tem
+  // cronômetro incondicional — pressão temporal indevida para o que é, na
+  // prática, revisão de estudo comum, não uma prova. Corrigido para abrir a
+  // MESMA <QuestionsView> usada no banco de questões (sem cronômetro), só
+  // pré-filtrada para status "incorreta". Ver AGENTS.md, armadilha nova
+  // registrada nesta sessão.
+  const [filterStatusForQuestions, setFilterStatusForQuestions] = useState<
+    'all' | 'unanswered' | 'correct' | 'incorrect' | 'bookmarked' | undefined
+  >(undefined);
 
   // Modals
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -278,6 +288,13 @@ function AuthenticatedApp() {
     setActiveView('questions');
   };
 
+  const handleTrainMistakesUntimed = () => {
+    setFilterThemeForQuestions(undefined);
+    setFocusQuestionId(undefined);
+    setFilterStatusForQuestions('incorrect');
+    setActiveView('questions');
+  };
+
   const handleStartSRS = (cards?: Flashcard[]) => {
     const queue = cards && cards.length > 0 ? cards : flashcards.filter((fc) => isCardDueToday(fc));
     setReviewCardsQueue(queue.length > 0 ? queue : flashcards);
@@ -378,6 +395,7 @@ function AuthenticatedApp() {
               onOpenCreateSimulado={() => setIsCreateSimuladoOpen(true)}
               filterThemeId={filterThemeForQuestions}
               focusQuestionId={focusQuestionId}
+              initialStatusFilter={filterStatusForQuestions}
             />
           )}
 
@@ -441,21 +459,7 @@ function AuthenticatedApp() {
               themes={themes}
               onOpenCompendium={handleOpenCompendium}
               onOpenQuestion={handleOpenQuestion}
-              onStartErrorSimulado={() => {
-                const mistakesConfig: SimuladoConfig = {
-                  id: crypto.randomUUID(),
-                  name: 'Simulado de Caderno de Erros',
-                  disciplineIds: disciplines.map((d) => d.id),
-                  themeIds: [],
-                  difficulties: ['facil', 'medio', 'dificil'],
-                  cycles: ['basico', 'clinico', 'internato_residencia'],
-                  onlyMistakes: true,
-                  questionCount: 10,
-                  timeLimitMinutes: 20,
-                  isExamMode: false,
-                };
-                handleStartCustomSimulado(mistakesConfig);
-              }}
+              onStartErrorSimulado={handleTrainMistakesUntimed}
               onUpdate={refreshData}
             />
           )}

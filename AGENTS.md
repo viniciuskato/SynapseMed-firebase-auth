@@ -354,25 +354,81 @@ protótipo).
     só é atualizado quando O PRÓPRIO componente escreve (nunca por uma
     assinatura em tempo real) está sujeita ao mesmo tipo de staleness
     entre abas/dispositivos da mesma conta — não é exclusivo de reações.
-19. **Achado do smoke test do 07-F2 (2026-09-10), não corrigido (fora do
-    escopo mínimo autorizado dessa sessão, registrado para decisão
-    futura)**: `QuestionCard.isSubmitted` é `useState<boolean>(false)`
-    local, nunca reidratado a partir de um `question_attempts` já
-    existente no servidor para aquela questão/usuário ao montar o
-    componente. Na prática isso é compatível com o produto ser um app de
-    PRÁTICA (múltiplas tentativas por questão são legítimas, ver
-    `question_attempts`/armadilha #13) — reabrir a página sempre permite
-    responder de novo, o que é o comportamento desejado para repetição
-    espaçada. O efeito colateral: a área de reação 👍/👎 (que só existe
-    dentro do bloco `isSubmitted && !isExamMode`) também só aparece
-    dentro da MESMA sessão de clique que confirmou a resposta — não há
-    como reagir à explicação de uma questão respondida em uma visita
-    anterior sem respondê-la de novo primeiro. Não confirmado se é
-    intencional (só reagir logo após ver a explicação) ou um efeito
-    colateral não previsto do design de `isSubmitted`. Não é uma
-    regressão do 07-F2 (código de `QuestionCard`/reações não foi tocado
-    nesta sessão) — descoberto ao tentar automatizar reação após reload
-    real em produção durante o smoke test.
+19. **RESOLVIDO no Prompt 10-A (2026-09-10) — correção e retificação do
+    achado do 07-F2.** O achado original descrevia `QuestionCard.isSubmitted`
+    como "nunca reidratado do servidor". Ao reler o código no 10-A, isso
+    era IMPRECISO: um `useEffect` que busca `question_attempts`/reação/
+    favorito e restaura `isSubmitted`/`selectedOption`/`reviewResult` já
+    existia desde 2026-09-06/07 (bem antes do 07-F2), então o bloco de
+    reação 👍/👎 já deveria aparecer depois de um reload normal. A causa
+    real, confirmada só com teste de navegador (não por leitura de
+    código): o efeito buscava as três coisas com `Promise.all` — se
+    QUALQUER uma das três rejeitasse (rede instável, etc.), a rejeição
+    derrubava a Promise inteira e NENHUM `setState` de reidratação rodava,
+    inclusive `isSubmitted`. Um sintoma intermitente, consistente com o
+    smoke test do 07-F2 não ter conseguido reproduzir a reação
+    determinística. **Corrigido**: trocado por `Promise.allSettled`, cada
+    fonte aplica seu próprio resultado independentemente (uma falha em
+    "reação" não apaga mais "já respondida"); `getQuestionReview` (a
+    explicação/gabarito) ganhou seu próprio `try/catch` companheiro pelo
+    mesmo motivo. Também adicionado `answerOrigin` (`'hydrated' |
+    'session' | null`, exposto como `data-answer-origin` no DOM da
+    questão) para distinguir "reidratada de uma tentativa antiga" de
+    "respondida agora nesta sessão" sem ambiguidade — usado pelos testes
+    de navegador do 10-A. **N+1 real e concreto, também achado só
+    testando**: sem paginação, `<QuestionsView>` pode montar até as 393
+    `<QuestionCard>` de uma vez (filtro "Todas"); antes do 10-A, CADA
+    cartão buscava sua própria reação (`getMyReaction` por `questionId`)
+    ao montar — até 393 requisições concorrentes pela mesma informação.
+    Corrigido buscando tudo em lote UMA VEZ em `<QuestionsView>`
+    (`answersRepository.getAnswers()`/`bookmarksRepository.getBookmarks()`
+    já eram bulk; `questionReactionsRepository.getMyReactions()` é novo,
+    mesmo padrão) e passando para baixo via prop `hydrated={{ answer,
+    bookmarked, reaction }}` — `<QuestionCard>` usa esses valores quando
+    presentes e só busca por conta própria quando não (prova/simulado,
+    questão única via busca). Armadilha para quem mexer nisso de novo:
+    esse objeto `hydrated` é recriado a cada render do pai — depender dele
+    DIRETO no array de dependências do `useEffect` reexecutaria a
+    hidratação (inclusive a chamada de rede de `getQuestionReview`) a cada
+    tecla digitada num filtro/busca do pai; por isso o efeito depende de
+    uma `hydratedKey` derivada (string com os valores primitivos), não do
+    objeto em si.
+20. **RESOLVIDO no Prompt 10-A (2026-09-10).** "Treinar Apenas Questões
+    Erradas" (botão no Caderno de Erros, `ErrorNotebookView.onStartErrorSimulado`)
+    construía um `SimuladoConfig` (`isExamMode: false`, mas
+    `timeLimitMinutes: 20` fixo) e abria `<SimuladoSession>` — que roda um
+    cronômetro incondicional (não depende de `isExamMode`, `useEffect`
+    conta regressiva sempre) e ENCERRA a sessão sozinha quando o tempo
+    zera. Pressão temporal indevida para o que o produto apresenta como
+    revisão de estudo comum, não uma prova. **Corrigido**: esse botão
+    agora chama `handleTrainMistakesUntimed` (`App.tsx`), que abre a MESMA
+    `<QuestionsView>` do banco de questões (sem cronômetro) com o pill de
+    filtro "Erros" pré-selecionado (`initialStatusFilter='incorrect'`),
+    em vez de construir um `SimuladoConfig` fake. Os cronômetros
+    LEGÍTIMOS (criados via "Criar Simulado Personalizado" →
+    `<CreateSimuladoModal>`, inclusive o toggle "Treinar Apenas Erros
+    Anteriores" DENTRO desse modal, e os presets rápidos de
+    `<SimuladosView>`) não foram tocados — o usuário decide
+    conscientemente entrar num simulado cronometrado nesses caminhos,
+    diferente do atalho do Caderno de Erros. **Achado incidental do 10-A,
+    RESOLVIDO no Prompt 10-A2 (2026-09-10)**: a rota de navegação
+    `activeView === 'simulados'` (`<SimuladosView>`, com os 3 presets
+    rápidos "Express"/"ENARE"/"Correção de Erros") não tinha NENHUM item de
+    menu/botão que levasse a ela numa navegação nova — o único
+    `setActiveView('simulados')` do código era o `onFinishSession` de
+    `<SimuladoSession>` (volta pra lá depois de finalizar uma prova); na
+    prática essa tela só era alcançável depois de já ter passado por um
+    simulado antes (o caminho alcançável pra criar um simulado do zero
+    continuava sendo "Criar Simulado Personalizado",
+    `<CreateSimuladoModal>`, dentro de `<QuestionsView>`). **Corrigido**:
+    vínculo de navegação simples, sem redesenhar a navegação nem ampliar o
+    módulo — novo botão "Simulados" no painel de ações rápidas do
+    Dashboard (`DashboardView.tsx`, ao lado de "Resolver Questões"/
+    "Revisar Flashcards"), chamando `onSelectView('simulados')` (prop já
+    existente, reaproveitada, nenhuma nova prop). Testado com Playwright
+    real contra Supabase local: clicar no botão abre `<SimuladosView>` com
+    os 3 presets visíveis. Cronômetro dos simulados reais (via "Criar
+    Simulado Personalizado") confirmado intacto no mesmo teste.
 
 ## Convenções de trabalho
 
@@ -695,6 +751,47 @@ protótipo).
   quanto na primeira tentativa real em produção desta mesma sessão).
   Ver `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Prompt 07-F2", para o
   detalhamento completo.
+- **Branch `work/prompt-10a-cronometro-recordacao-reidratacao` (2026-09-10,
+  Prompt 10-A + revisão/publicação 10-A2).** Três problemas confirmados
+  corrigidos: (1)
+  cronômetro indevido em "Treinar Apenas Questões Erradas" (estudo comum
+  reaproveitando `<SimuladoSession>`, que tem contagem regressiva
+  incondicional) — agora abre `<QuestionsView>` filtrada sem cronômetro;
+  simulados de verdade (`<CreateSimuladoModal>`) preservam o cronômetro
+  normalmente; (2) recordação ativa ("Já sei a resposta", renomeado para
+  "Responder antes de ver as alternativas") ganhou um campo de texto livre
+  opcional ANTES de revelar as alternativas — rascunho só de sessão (sem
+  migration, nunca enviado ao servidor/IA, nunca vira gabarito), mostrado
+  para comparação depois de revelar; (3) reidratação de `QuestionCard`
+  tornada robusta (`Promise.allSettled` em vez de `Promise.all` — ver
+  armadilha #19, retificada) e a busca de reação/favorito/resposta
+  deixou de ser uma consulta por cartão (N+1 real com até 393 cartões sem
+  paginação) — `<QuestionsView>` busca tudo em lote uma vez e hidrata os
+  cartões via prop; ver armadilhas #19/#20 para o detalhamento técnico
+  completo de cada um dos três. Nenhuma migration — schema/RPCs
+  inalterados. **Testado só em Supabase LOCAL**: `supabase test db`
+  183/183 (sem regressão, nenhum schema tocado), `tsc --noEmit`/`npm run
+  build` limpos, 40/40 asserções de Playwright/Chromium contra Supabase
+  local (7 cronômetro + 15 recordação ativa incl. viewport mobile 390px e
+  digitação via teclado real + 18 reidratação incl. volume de requisições,
+  múltiplas tentativas mostrando a mais recente, reação
+  adicionar/trocar/remover persistindo após reload, usuário B não
+  herdando estado de A, 0 tentativa/XP extra por reload) — duas contas
+  descartáveis locais (`smoke10a.userA/userB@synapsemed.local`, promovidas
+  via `docker exec -i ... psql -U postgres`, removidas ao final via
+  `admin.auth.admin.deleteUser`, cascade confirmado). **Bloqueado antes de
+  qualquer escrita/leitura remota**: os dois feedbacks relacionados
+  ("cronômetro indevido no modo estudo", "recall aberto sem campo de
+  digitação", já triados pela diretoria em 2026-08/09 — ver
+  `docs/diretoria/registro.md`) precisavam ser identificados por consulta
+  somente-leitura ao Supabase REMOTO e movidos para `em_analise` via
+  `set_feedback_status` ANTES da implementação, como pedido no prompt —
+  mas essa consulta foi bloqueada duas vezes pelo classificador de
+  segurança do Claude Code nesta sessão (tanto via `supabase db query
+  --linked` quanto via script `supabase-js` com a service role key; ver
+  armadilha #3), então a implementação seguiu sem essa etapa e nenhum
+  merge/push/deploy foi feito. Retorno completo do 10-A em
+  `docs/diretoria/registro.md`.
 - **Histórico — em andamento na branch `work/sincronizacao-dados-estudo-07e`
   (2026-09-09, Prompt 07-E), mesclada em `main` no 07-E4 acima**:
   continuação da sincronização confiável para as categorias 3-7 do backlog
