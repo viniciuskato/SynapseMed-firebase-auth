@@ -16,7 +16,68 @@ import confetti from 'canvas-confetti';
 import { Question, SimuladoConfig, Discipline, Theme, SimuladoSessionData, QuestionReviewResult } from '../../types';
 import { answersRepository } from '../../repositories/AnswersRepository';
 import { simuladosRepository } from '../../repositories/SimuladosRepository';
+import { getStorageUser } from '../../services/storage';
 import { QuestionCard } from './QuestionCard';
+
+// ============================================================================
+// Rascunho local de respostas em andamento (Prompt 07-E)
+// ============================================================================
+//
+// Antes desta entrega, `answers` existia só como estado do componente React —
+// fechar a aba, recarregar a página ou uma queda de conexão no meio da prova
+// perdia TODAS as respostas já marcadas (nada era persistido até
+// `handleFinishExam`). Isso é dado real do estudante perdido silenciosamente,
+// exatamente o tipo de risco que este prompt pede para eliminar.
+//
+// Correção aplicada: cada seleção de alternativa grava um rascunho local
+// (localStorage, isolado por usuário) com as respostas já dadas; ao montar o
+// componente, se existir um rascunho para este `config.id`, as respostas são
+// restauradas. O rascunho é só local (nunca sincronizado — é o simulado
+// COMPLETO que sincroniza via `saveSimuladoSession`, ver
+// SimuladosRepository.ts) e é apagado ao finalizar a prova.
+//
+// Deliberadamente FORA de escopo: o cronômetro NÃO é retomado (recomeça do
+// tempo total configurado a cada montagem/reload) — mudar essa semântica é
+// uma decisão de experiência do modo estudo/prova que pertence ao Prompt
+// 10-A, não a uma correção de persistência. Só as respostas já selecionadas
+// são recuperadas.
+// ============================================================================
+
+function draftKey(simuladoId: string): string | null {
+  const uid = getStorageUser();
+  if (!uid) return null;
+  return `synapse_${uid}_simulado_draft_${simuladoId}`;
+}
+
+function loadDraftAnswers(simuladoId: string): Record<string, 'A' | 'B' | 'C' | 'D' | 'E'> {
+  const key = draftKey(simuladoId);
+  if (!key) return {};
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as Record<string, 'A' | 'B' | 'C' | 'D' | 'E'>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveDraftAnswers(simuladoId: string, answers: Record<string, 'A' | 'B' | 'C' | 'D' | 'E'>): void {
+  const key = draftKey(simuladoId);
+  if (!key) return;
+  try {
+    localStorage.setItem(key, JSON.stringify(answers));
+  } catch {
+    // localStorage indisponível/cheio — a resposta ainda está no estado do
+    // componente; só a proteção contra reload é que fica indisponível.
+  }
+}
+
+function clearDraftAnswers(simuladoId: string): void {
+  const key = draftKey(simuladoId);
+  if (!key) return;
+  try {
+    localStorage.removeItem(key);
+  } catch {}
+}
 
 interface SimuladoSessionProps {
   config: SimuladoConfig;
@@ -36,7 +97,7 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
   onOpenCompendium,
 }) => {
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, 'A' | 'B' | 'C' | 'D' | 'E'>>({});
+  const [answers, setAnswers] = useState<Record<string, 'A' | 'B' | 'C' | 'D' | 'E'>>(() => loadDraftAnswers(config.id));
   const [secondsRemaining, setSecondsRemaining] = useState(config.timeLimitMinutes * 60);
   const [isFinished, setIsFinished] = useState(false);
   const [sessionResults, setSessionResults] = useState<{
@@ -66,10 +127,11 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
   const handleSelectAnswer = (letter: 'A' | 'B' | 'C' | 'D' | 'E') => {
     if (isFinished) return;
     const currentQ = questions[currentIdx];
-    setAnswers((prev) => ({
-      ...prev,
-      [currentQ.id]: letter,
-    }));
+    setAnswers((prev) => {
+      const next = { ...prev, [currentQ.id]: letter };
+      saveDraftAnswers(config.id, next);
+      return next;
+    });
   };
 
   const handleFinishExam = async () => {
@@ -125,6 +187,7 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
     };
 
     await simuladosRepository.saveSimuladoSession(sessionData);
+    clearDraftAnswers(config.id);
 
     setSessionResults({
       correctCount: correct,

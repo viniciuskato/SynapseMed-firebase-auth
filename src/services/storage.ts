@@ -34,6 +34,7 @@ export const STORAGE_KEYS = {
   READING_PROGRESS: 'synapse_reading_progress_v1',
   BOOKMARKS: 'synapse_bookmarks_v1',
   NOTES: 'synapse_notes_v1',
+  NOTES_BASE_VERSION: 'synapse_notes_base_version_v1',
   SIMULADOS: 'synapse_simulados_v1',
   USER_PLAN: 'synapse_user_plan_v1',
   ERROR_LOG: 'synapse_error_log_v1',
@@ -343,6 +344,20 @@ export const StorageService = {
     notes[targetId] = noteText;
     setItem(getUserKey(STORAGE_KEYS.NOTES), notes);
   },
+  // "Base version" que este dispositivo conheceu da nota no servidor
+  // (updated_at da última leitura/gravação bem-sucedida) — usada para
+  // detectar conflito real (outro dispositivo editou a mesma nota desde a
+  // última vez que este dispositivo a viu) sem construir um editor
+  // colaborativo. Nunca é a fonte de verdade do texto, só de "o que eu já vi".
+  getNoteBaseVersion(targetId: string): string | null {
+    const map = getItem<Record<string, string>>(getUserKey(STORAGE_KEYS.NOTES_BASE_VERSION), {});
+    return map[targetId] ?? null;
+  },
+  setNoteBaseVersion(targetId: string, updatedAt: string): void {
+    const map = getItem<Record<string, string>>(getUserKey(STORAGE_KEYS.NOTES_BASE_VERSION), {});
+    map[targetId] = updatedAt;
+    setItem(getUserKey(STORAGE_KEYS.NOTES_BASE_VERSION), map);
+  },
 
   // --- Highlights (Isolado por UID) ---
   getHighlights(): Record<string, Array<{ text: string; color: string; timestamp: string }>> {
@@ -489,6 +504,7 @@ export const StorageService = {
         STORAGE_KEYS.READING_PROGRESS,
         STORAGE_KEYS.BOOKMARKS,
         STORAGE_KEYS.NOTES,
+        STORAGE_KEYS.NOTES_BASE_VERSION,
         STORAGE_KEYS.SIMULADOS,
         STORAGE_KEYS.USER_PLAN,
         STORAGE_KEYS.ERROR_LOG,
@@ -600,6 +616,7 @@ export const StorageService = {
         STORAGE_KEYS.READING_PROGRESS,
         STORAGE_KEYS.BOOKMARKS,
         STORAGE_KEYS.NOTES,
+        STORAGE_KEYS.NOTES_BASE_VERSION,
         STORAGE_KEYS.SIMULADOS,
         STORAGE_KEYS.USER_PLAN,
         STORAGE_KEYS.ERROR_LOG,

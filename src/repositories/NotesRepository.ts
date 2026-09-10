@@ -1,6 +1,8 @@
-import { StorageService } from '../services/storage';
+import { StorageService, getStorageUser } from '../services/storage';
 import { SupabaseNotesRepository } from './SupabaseNotesRepository';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { enqueue } from '../services/syncQueue';
+import { NoteUpsertOpPayload } from '../services/syncHandlers';
 
 export interface NotesRepository {
   getNotes(): Promise<Record<string, string>>;
@@ -30,9 +32,18 @@ class ResilientNotesRepository implements NotesRepository {
   }
 
   async saveNote(targetId: string, noteText: string): Promise<void> {
+    // Grava local primeiro. Envio ao Supabase passa pela fila — o handler
+    // (`note_upsert`, src/services/syncHandlers.ts) usa upsert real (single
+    // round-trip) contra os índices únicos parciais da migration
+    // sync_reliability_categorias_3_a_7, em vez do delete+insert anterior
+    // (não atômico, sem constraint — podia deixar 0 ou 2 linhas para o mesmo
+    // alvo). "Última gravação vence" é aceitável aqui: é o próprio dono
+    // editando a própria nota, sem edição concorrente esperada na prática.
     this.local.saveNote(targetId, noteText);
-    if (isSupabaseConfigured) {
-      try { await this.supa.saveNote(targetId, noteText); } catch {}
+    const userId = getStorageUser();
+    if (isSupabaseConfigured && userId) {
+      const payload: NoteUpsertOpPayload = { targetId, noteText };
+      enqueue(userId, 'note_upsert', payload);
     }
   }
 }

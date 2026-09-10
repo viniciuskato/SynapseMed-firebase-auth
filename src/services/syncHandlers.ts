@@ -10,7 +10,8 @@
 import { supabase } from '../lib/supabaseClient';
 import { registerHandler } from './syncQueue';
 import { supabaseFlashcardsRepository } from '../repositories/SupabaseFlashcardsRepository';
-import { QuestionAnswerRecord } from '../types';
+import { StorageService } from './storage';
+import { QuestionAnswerRecord, ErrorLogItem, SimuladoSessionData } from '../types';
 
 export interface QuestionAttemptOpPayload {
   questionId: string;
@@ -38,6 +39,82 @@ export interface FlashcardDeleteOpPayload {
 export interface FlashcardSrsUpsertOpPayload {
   flashcardId: string;
   srs: Parameters<typeof supabaseFlashcardsRepository.updateFlashcardSRS>[1];
+}
+
+export type BookmarkType = 'questions' | 'compendiums' | 'flashcards';
+export interface BookmarkSetOpPayload {
+  type: BookmarkType;
+  id: string;
+  desired: boolean;
+}
+
+export interface ReadingProgressSetOpPayload {
+  compendiumId: string;
+  sectionId: string;
+  isRead: boolean;
+  totalSections: number;
+}
+
+export interface NoteUpsertOpPayload {
+  targetId: string;
+  noteText: string;
+}
+
+export interface ErrorNotebookUpdateOpPayload {
+  errorItem: ErrorLogItem;
+}
+
+export interface SimuladoSaveOpPayload {
+  session: SimuladoSessionData;
+}
+
+const BOOKMARK_COLUMN: Record<BookmarkType, 'question_id' | 'material_id' | 'flashcard_id'> = {
+  questions: 'question_id',
+  compendiums: 'material_id',
+  flashcards: 'flashcard_id',
+};
+
+const NOTE_TARGET_TABLES: Array<{ table: string; column: 'material_id' | 'material_section_id' | 'question_id' | 'flashcard_id' }> = [
+  { table: 'materials', column: 'material_id' },
+  { table: 'material_sections', column: 'material_section_id' },
+  { table: 'questions', column: 'question_id' },
+  { table: 'flashcards', column: 'flashcard_id' },
+];
+
+async function resolveNoteColumn(targetId: string) {
+  for (const { table, column } of NOTE_TARGET_TABLES) {
+    const { data, error } = await supabase.from(table).select('id').eq('id', targetId).maybeSingle();
+    if (error) throw error;
+    if (data) return column;
+  }
+  throw new Error(`nota: não foi possível determinar o tipo de destino para targetId=${targetId}`);
+}
+
+type NoteColumn = 'material_id' | 'material_section_id' | 'question_id' | 'flashcard_id';
+
+function noteRpcArgs(column: NoteColumn, targetId: string) {
+  return {
+    p_material_id: column === 'material_id' ? targetId : null,
+    p_material_section_id: column === 'material_section_id' ? targetId : null,
+    p_question_id: column === 'question_id' ? targetId : null,
+    p_flashcard_id: column === 'flashcard_id' ? targetId : null,
+  };
+}
+
+// Nunca escolhe sozinho qual das duas edições vale quando um conflito real é
+// detectado (Prompt 07-E2 — a diretoria não aceita LWW silencioso apagando
+// texto válido). Preserva as duas versões com uma marcação visível para o
+// usuário revisar/editar manualmente — não é um editor colaborativo, só a
+// proteção mínima contra perda silenciosa.
+function mergeConflictingNoteText(localText: string, serverText: string): string {
+  if (localText === serverText) return localText;
+  const stamp = new Date().toLocaleString('pt-BR');
+  return (
+    `${localText}\n\n---\n` +
+    `[Conflito de sincronização em ${stamp}: outro dispositivo também editou esta nota enquanto ` +
+    `este dispositivo estava com uma edição pendente. Nada foi apagado — a versão do outro ` +
+    `dispositivo foi preservada abaixo; revise e edite como preferir.]\n\n${serverText}`
+  );
 }
 
 let registered = false;
@@ -90,6 +167,205 @@ export function registerSyncHandlers(): void {
 
   registerHandler('flashcard_srs_upsert', async (payload: FlashcardSrsUpsertOpPayload) => {
     await supabaseFlashcardsRepository.updateFlashcardSRS(payload.flashcardId, payload.srs);
+    return null;
+  });
+
+  // Favoritos (categoria 5): contrato mudou de "toggle" (não seguro para
+  // retry — reenviar depois de uma falha de rede podia inverter o estado
+  // errado, ver AGENTS.md armadilha #14) para "set" explícito. O estado
+  // desejado já foi decidido no cliente no momento do clique (antes de
+  // qualquer chamada de rede); reenviar o MESMO `desired` é sempre um no-op
+  // seguro, nunca um segundo toggle.
+  registerHandler('bookmark_set', async (payload: BookmarkSetOpPayload) => {
+    const column = BOOKMARK_COLUMN[payload.type];
+    if (payload.desired) {
+      // `bookmarks` usa índices únicos PARCIAIS (`where <coluna> is not
+      // null`) — o upsert do PostgREST não consegue inferir um índice
+      // parcial como alvo de ON CONFLICT (ver nota na migration de notas),
+      // então garantimos idempotência checando existência antes de inserir,
+      // em vez de upsert. Reenviar `desired: true` quando já existe é um
+      // no-op seguro (nunca duplica: RLS + índice único barram, e o SELECT
+      // prévio já evita a maioria das tentativas de duplicar).
+      const { data: existing, error: selErr } = await supabase
+        .from('bookmarks')
+        .select('id')
+        .eq(column, payload.id)
+        .maybeSingle();
+      if (selErr) throw selErr;
+      if (existing) return null;
+
+      const { data: userData, error: userErr } = await supabase.auth.getUser();
+      if (userErr) throw userErr;
+      const { error } = await supabase.from('bookmarks').insert({ user_id: userData.user?.id, [column]: payload.id });
+      // Corrida real entre duas chamadas concorrentes: a segunda pode
+      // colidir com o índice único mesmo depois do SELECT não encontrar
+      // nada — tratado como sucesso (o estado desejado, "favoritado", já
+      // está satisfeito), nunca propagado como erro de retry.
+      if (error && error.code !== '23505') throw error;
+    } else {
+      const { error } = await supabase.from('bookmarks').delete().eq(column, payload.id);
+      if (error) throw error;
+    }
+    return null;
+  });
+
+  // Progresso de leitura (categoria 6): mesma mudança de contrato de toggle
+  // -> set explícito, mas o merge do array em si acontece no SERVIDOR
+  // (RPC set_section_read, migration sync_reliability_categorias_3_a_7) —
+  // nunca um array calculado no cliente a partir de um estado que pode já
+  // estar desatualizado (dois dispositivos marcando seções diferentes não
+  // podem se sobrescrever, ver docs/SINCRONIZACAO-CONFIAVEL.md).
+  registerHandler('reading_progress_set', async (payload: ReadingProgressSetOpPayload) => {
+    const { data, error } = await supabase.rpc('set_section_read', {
+      p_material_id: payload.compendiumId,
+      p_section_id: payload.sectionId,
+      p_is_read: payload.isRead,
+      p_total_sections: payload.totalSections,
+    });
+    if (error) throw error;
+    return data;
+  });
+
+  // Notas (categoria 4): upsert real (single round-trip, atômico) via RPC
+  // `upsert_note` (migration sync_reliability_conflict_guards, 07-E2;
+  // serialização por advisory lock, conflict_serialization_07e3) em vez do
+  // delete+insert original E em vez de um upsert cego "última gravação
+  // vence" puro (07-E) — a revisão do 07-E2 confirmou que duas edições
+  // concorrentes da MESMA nota em dois dispositivos apagariam uma das duas
+  // silenciosamente sem NENHUMA detecção. A RPC recebe o `updated_at` que
+  // este dispositivo conhecia como base (StorageService.getNoteBaseVersion)
+  // e só aplica um "última gravação vence" quando não há conflito real
+  // (o servidor não mudou desde a base conhecida e o texto já é igual).
+  // Quando há conflito, a RPC NÃO escreve — devolve a versão do servidor, e
+  // as duas versões são fundidas (nunca uma escolhida às cegas) antes de
+  // regravar.
+  //
+  // Bloqueio 07-E3 #3: o código anterior só verificava `conflict` na
+  // PRIMEIRA chamada — se a chamada de RETRY (depois do merge) TAMBÉM
+  // voltasse com `conflict: true` (ex.: um terceiro dispositivo grava entre
+  // a detecção do primeiro conflito e o envio do merge — reproduzido em
+  // scripts/_tmp-07e3-client-bug-repro.ts antes desta correção), o código
+  // tratava a resposta como sucesso incondicionalmente: salvava o texto
+  // fundido localmente e devolvia `retryData` como se o servidor tivesse
+  // aceitado, quando na verdade o servidor tinha REJEITADO e ainda guardava
+  // o texto do terceiro dispositivo. Corrigido com um laço de até
+  // `MAX_NOTE_MERGE_ATTEMPTS` tentativas: cada resposta é verificada da
+  // mesma forma (nunca um "só a primeira conta"); o texto fundido é salvo
+  // localmente a cada rodada (nunca descarta a edição do usuário, mesmo que
+  // a rodada seguinte também conflite); se o limite for atingido sem o
+  // servidor aceitar, a operação é rejeitada com um erro `conflict`
+  // (permanente, nunca retentado num loop apertado — ver
+  // `classifySyncError`/`isRetryable` em syncQueue.ts) em vez de fingir
+  // sucesso. O texto mesclado mais recente permanece salvo localmente e
+  // visível ao usuário; nada é perdido, mas a operação fica marcada como
+  // pendente/conflituosa na fila até o usuário revisar/reenviar.
+  registerHandler('note_upsert', async (payload: NoteUpsertOpPayload) => {
+    const MAX_NOTE_MERGE_ATTEMPTS = 3;
+    const column = await resolveNoteColumn(payload.targetId);
+
+    let textToSend = payload.noteText;
+    let baseUpdatedAt = StorageService.getNoteBaseVersion(payload.targetId);
+
+    for (let attempt = 1; attempt <= MAX_NOTE_MERGE_ATTEMPTS; attempt++) {
+      const { data, error } = await supabase.rpc('upsert_note', {
+        ...noteRpcArgs(column, payload.targetId),
+        p_note_text: textToSend,
+        p_base_updated_at: baseUpdatedAt,
+      });
+      if (error) throw error;
+
+      if (!data?.conflict) {
+        // Aceito pelo servidor — grava exatamente o texto que foi aceito
+        // (pode já incluir fusões de rodadas anteriores deste mesmo laço).
+        StorageService.saveNote(payload.targetId, textToSend);
+        if (data?.updated_at) StorageService.setNoteBaseVersion(payload.targetId, data.updated_at as string);
+        return data;
+      }
+
+      // Conflito (nesta rodada, seja a primeira ou uma de retry): funde e
+      // tenta de novo com a base atualizada — nunca descarta o texto local
+      // nem o do servidor, e já grava o resultado fundido localmente antes
+      // de saber se a PRÓXIMA rodada vai ser aceita (o usuário nunca vê um
+      // texto mais "antigo" que o que já foi fundido nesta chamada).
+      textToSend = mergeConflictingNoteText(textToSend, data.server_text as string);
+      baseUpdatedAt = data.server_updated_at as string;
+      StorageService.saveNote(payload.targetId, textToSend);
+      if (data.server_updated_at) StorageService.setNoteBaseVersion(payload.targetId, data.server_updated_at as string);
+    }
+
+    // Limite de tentativas de merge esgotado: a concorrência persistiu além
+    // do orçamento de retry. Nunca marcar sucesso — a edição do usuário
+    // (já fundida com todas as versões vistas) permanece salva localmente
+    // (linhas acima), mas a operação fica visivelmente pendente/conflituosa
+    // na fila (estado 'failed', kind 'conflict', não retentada
+    // automaticamente em loop) até o usuário revisar e reenviar.
+    const err: Error & { code?: string } = new Error(
+      `nota: conflito de sincronização persistente após ${MAX_NOTE_MERGE_ATTEMPTS} tentativas de fusão`
+    );
+    err.code = 'SYNC_CONFLICT';
+    throw err;
+  });
+
+  // Caderno de erros (categoria 3): só atualiza resolved/user_notes por id
+  // (a linha em si é sempre derivada de submit_question_attempt — nunca
+  // criada pelo cliente). Update por id é idempotente por natureza (reenviar
+  // os mesmos valores tem o mesmo efeito) — só precisava de retry/visibilidade,
+  // não de um `client_op_id` novo.
+  registerHandler('error_notebook_update', async (payload: ErrorNotebookUpdateOpPayload) => {
+    const { error } = await supabase
+      .from('error_notebook')
+      .update({ resolved: payload.errorItem.resolved, user_notes: payload.errorItem.userNotes })
+      .eq('id', payload.errorItem.id);
+    if (error) throw error;
+    return null;
+  });
+
+  // Simulados (categoria 7): RPC transacional (save_simulado_session) — tudo
+  // ou nada, idempotente por construção (substituição total do mesmo
+  // payload sempre chega ao mesmo estado final), ver migration
+  // sync_reliability_categorias_3_a_7.
+  registerHandler('simulado_save', async (payload: SimuladoSaveOpPayload) => {
+    const session = payload.session;
+    const answerEntries = Object.entries(session.answers);
+
+    // O estado local guarda a letra (A-E), a RPC espera o uuid real da
+    // alternativa — resolvido aqui (mesma consulta que
+    // SupabaseSimuladosRepository já fazia antes desta entrega).
+    let optionIdByQuestionAndLetter = new Map<string, string>();
+    if (answerEntries.length > 0) {
+      const questionIds = answerEntries.map(([qid]) => qid);
+      const { data: options, error: optErr } = await supabase
+        .from('question_options')
+        .select('id, question_id, letter')
+        .in('question_id', questionIds);
+      if (optErr) throw optErr;
+      optionIdByQuestionAndLetter = new Map(
+        (options ?? []).map((o) => [`${o.question_id}:${o.letter}`, o.id])
+      );
+    }
+
+    const answers = answerEntries
+      .map(([questionId, ans]) => ({
+        question_id: questionId,
+        selected_option_id: optionIdByQuestionAndLetter.get(`${questionId}:${ans.selectedOption}`),
+        time_spent_seconds: ans.timeSpent,
+      }))
+      .filter((a) => !!a.selected_option_id);
+
+    const { error } = await supabase.rpc('save_simulado_session', {
+      p_session: {
+        id: session.id,
+        name: session.config?.name,
+        config: session.config,
+        started_at: session.startedAt,
+        completed_at: session.completedAt ?? null,
+        score: session.score ?? null,
+        total_time_seconds: session.totalTimeSeconds,
+        questions: session.questionIds.map((qid, i) => ({ question_id: qid, position: i })),
+        answers,
+      },
+    });
+    if (error) throw error;
     return null;
   });
 }
