@@ -1408,3 +1408,137 @@ silenciosa de operação enfileirada em `syncQueue.ts` sob concorrência),
 aplicada no remoto, nenhuma escrita remota realizada. Ver
 `docs/diretoria/registro.md`, entrada "Concluído — 07-E2", para o retorno
 completo.
+
+## Prompt 07-E3 (2026-09-09/10) — serialização real (advisory lock) dos três riscos residuais
+
+A revisão de código do 07-E2 (esta seção, "Achado FORA de escopo"/"não foi
+testado... com navegador real" acima) identificou três riscos que sobreviviam
+mesmo depois das guardas de conflito daquele prompt — todos com a mesma causa
+raiz: uma checagem de estado (existe linha? já está terminal?) feita ANTES de
+existir algo para travar com `select ... for update`.
+
+1. **`upsert_note`**: duas primeiras criações concorrentes da MESMA nota
+   lógica (mesmo usuário + mesmo alvo) não tinham nada em comum para travar —
+   nenhuma linha existia ainda. Pior: o código do 07-E2 tratava
+   `p_base_updated_at is null` como "sempre sobrescreve sem checar", e as
+   DUAS primeiras criações concorrentes SEMPRE têm base nula por definição
+   (nenhum dos dois dispositivos nunca leu uma versão do servidor) — ou seja,
+   o próprio "comportamento anterior preservado" documentado no 07-E2 era o
+   buraco.
+2. **`save_simulado_session`**: a guarda de estado terminal (`completed_at`
+   já preenchido) era lida ANTES do `insert ... on conflict`. O `on conflict
+   do update` serializa a ESCRITA em si, mas nunca reavalia a guarda de
+   negócio que já tinha sido lida antes de chegar lá.
+3. **`note_upsert` (cliente, `src/services/syncHandlers.ts`)**: depois do
+   PRIMEIRO conflito, o código fundia os textos e tentava de novo — mas não
+   verificava se essa segunda chamada TAMBÉM voltava com `conflict: true`
+   (ex.: um terceiro dispositivo grava entre a detecção do conflito e o envio
+   do merge). Tratava a resposta da segunda chamada como sucesso
+   incondicionalmente, mesmo quando o servidor tinha rejeitado o texto
+   enviado.
+
+### Reprodução ANTES da correção
+
+Todos os três foram reproduzidos com chamadas de rede REAIS concorrentes
+(`Promise.all`, duas ou três conexões `supabase-js` distintas autenticadas
+como o mesmo usuário) contra o Supabase local, ANTES de qualquer correção:
+
+- **Notas**: duas chamadas `upsert_note` simultâneas com textos diferentes
+  para o mesmo alvo novo — nenhuma das duas recebeu `conflict: true`; a
+  segunda escrita venceu silenciosamente, o texto da primeira desapareceu
+  sem deixar rastro em lugar nenhum.
+- **Simulados**: duas chamadas `save_simulado_session` simultâneas
+  finalizando a MESMA sessão nova com scores diferentes — as DUAS foram
+  aceitas sem erro; o score da segunda sobrescreveu o da primeira
+  silenciosamente (confirmado lendo `public.simulations` direto via
+  `docker exec ... psql`, não só pela resposta da API).
+- **Cliente (note_upsert)**: sequência real de chamadas RPC mostrando que,
+  quando a chamada de retry pós-merge TAMBÉM volta com `conflict: true`
+  (texto de um terceiro dispositivo C que escreveu entre a detecção do
+  conflito e o merge de A), o código então vigente em `syncHandlers.ts`
+  ignorava esse segundo `conflict` e devolvia a resposta como sucesso — a
+  fila marcaria a operação como sincronizada mesmo o servidor tendo mantido
+  o texto de C, não o merge de A.
+
+### Correção
+
+- **Migration `20260909150000_conflict_serialization_07e3.sql`**:
+  `pg_advisory_xact_lock(hashtextextended(chave_logica, 0))` adquirido como a
+  PRIMEIRA coisa que `upsert_note`/`save_simulado_session` fazem — antes de
+  qualquer leitura de estado. É uma exclusão mútua real do Postgres (não
+  otimista): a segunda chamada concorrente para a MESMA chave lógica
+  (usuário + alvo da nota, ou usuário + id do simulado) bloqueia até a
+  primeira COMMITAR por completo (cada chamada de RPC via PostgREST é sua
+  própria transação), e só então lê o estado real e final que a primeira
+  deixou — nunca uma foto de "antes de qualquer decisão". Consequência
+  deliberada para notas: base nula + texto existente diferente agora TAMBÉM
+  é conflito (mudança de comportamento em relação ao 07-E2, documentada na
+  migration e no pgTAP atualizado).
+- **`src/services/syncHandlers.ts` (`note_upsert`)**: laço de até 3
+  tentativas de merge (`MAX_NOTE_MERGE_ATTEMPTS`). Cada resposta é verificada
+  da mesma forma (nunca "só a primeira conta"); o texto fundido é salvo
+  localmente a cada rodada (nunca descarta a edição do usuário, mesmo que a
+  rodada seguinte também conflite). Se o limite for esgotado sem o servidor
+  aceitar, a operação lança um erro com `code: 'SYNC_CONFLICT'` — nunca
+  finge sucesso, nunca entra em loop infinito, nunca concatena marcadores
+  sem limite.
+- **`src/services/syncQueue.ts`**: novo `SyncErrorKind = 'conflict'`,
+  classificado a partir de `code === 'SYNC_CONFLICT'`, tratado como falha
+  PERMANENTE (não está em `isRetryable`, então nunca é retentado
+  automaticamente em loop) e incluído em `needsSupport` (mesma mensagem
+  tranquilizadora já existente — "continue estudando, progresso local
+  preservado" — em vez de uma mensagem genérica de erro). O usuário pode
+  reenviar manualmente pelo botão "Tentar novamente" já existente no
+  `SyncStatusIndicator`, que dispara uma nova rodada limitada, nunca um laço
+  automático agressivo.
+
+### Testes de concorrência real DEPOIS da correção
+
+22/22 asserções, todas com `Promise.all`/conexões `supabase-js` distintas
+contra o Supabase local (scripts descartáveis, não commitados — evidência
+integral no retorno do Prompt 07-E3):
+
+- Notas: duas primeiras criações diferentes simultâneas (texto final funde
+  as duas, nenhuma perdida); duas edições da mesma base simultâneas (idem);
+  terceiro update entre detecção de conflito e merge — cenário de
+  convergência (interferência para a tempo, handler resolve dentro do
+  limite) e cenário de exaustão (interferência persiste nas 3 tentativas,
+  handler falha explicitamente com `SYNC_CONFLICT`, texto do usuário
+  permanece salvo localmente); replay idêntico (idempotente, sem crescer
+  marcadores); estado local convergindo com o servidor após resolução.
+- Simulados: duas primeiras finalizações diferentes simultâneas (uma vence,
+  a outra recebe `sessao_ja_finalizada`, resultado vencedor confirmado via
+  `psql` direto); rascunho concorrente com finalização (finalização nunca é
+  apagada, em qualquer ordem de commit); duas finalizações a partir do mesmo
+  rascunho (uma vence); replay idêntico simultâneo (aceito nas duas
+  chamadas); envio atrasado depois do estado terminal (rejeitado
+  explicitamente, resultado original preservado, confirmado via `psql`).
+
+Regressão obrigatória por ter alterado `syncQueue.ts`: o cenário "duas
+operações rápidas em sequência" do 07-E2 (favoritos: desfavoritar seguido de
+favoritar de novo antes do primeiro flush terminar) foi repetido importando o
+MÓDULO REAL `syncQueue.ts` (não uma reimplementação) com um polyfill mínimo
+de `localStorage`, autenticado de verdade contra o Supabase local — as duas
+operações continuam presentes na fila e ambas sincronizam, a correção do
+07-E2 permanece intacta.
+
+pgTAP: 146/146 (139 herdados + 1 assertão nova refletindo a mudança de
+comportamento de `upsert_note` com base nula + 6 novas em
+`sync_reliability_07e3_conflict_serialization.test.sql`, que documenta
+explicitamente que pgTAP roda numa sessão só e portanto não exercita a
+corrida real — só a lógica de negócio sequencial; a corrida real está provada
+à parte, acima). `tsc --noEmit` e `npm run build` limpos.
+
+**Limitações conhecidas desta rodada**: não foi repetida a suíte completa de
+Playwright/Chromium (25/25 do 07-E2) — as mudanças desta rodada são
+inteiramente de servidor (SQL) + um handler específico (`note_upsert`), sem
+alterar UI nem o mecanismo de detecção offline/backoff; os fluxos normais
+(nota comum, simulado comum) e offline/reconexão continuam garantidos pela
+cobertura de navegador já existente do 07-C2/07-E2, que exercitava exatamente
+esse mecanismo (não alterado aqui) — não foram re-executados com navegador
+real nesta rodada, só confirmados por leitura de código (nenhuma mudança na
+lógica de backoff/reconexão) e pelos scripts de concorrência acima (que usam
+a MESMA fila real). Isto é uma lacuna de prova, não uma alegação de
+comportamento verificado — uma sessão futura que altere `runFlush`,
+`classifySyncError`'s outras branches, ou a UI de notas/simulados deveria
+repetir o Playwright completo antes de publicar.

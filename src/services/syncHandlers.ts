@@ -227,46 +227,83 @@ export function registerSyncHandlers(): void {
   });
 
   // Notas (categoria 4): upsert real (single round-trip, atômico) via RPC
-  // `upsert_note` (migration sync_reliability_conflict_guards, 07-E2) em vez
-  // do delete+insert original E em vez de um upsert cego "última gravação
+  // `upsert_note` (migration sync_reliability_conflict_guards, 07-E2;
+  // serialização por advisory lock, conflict_serialization_07e3) em vez do
+  // delete+insert original E em vez de um upsert cego "última gravação
   // vence" puro (07-E) — a revisão do 07-E2 confirmou que duas edições
   // concorrentes da MESMA nota em dois dispositivos apagariam uma das duas
   // silenciosamente sem NENHUMA detecção. A RPC recebe o `updated_at` que
   // este dispositivo conhecia como base (StorageService.getNoteBaseVersion)
   // e só aplica um "última gravação vence" quando não há conflito real
-  // (nenhuma base conhecida, ou o servidor não mudou desde então, ou o texto
-  // já é igual). Quando há conflito, a RPC NÃO escreve — devolve a versão do
-  // servidor, e as duas versões são fundidas (nunca uma escolhida às cegas)
-  // antes de regravar.
+  // (o servidor não mudou desde a base conhecida e o texto já é igual).
+  // Quando há conflito, a RPC NÃO escreve — devolve a versão do servidor, e
+  // as duas versões são fundidas (nunca uma escolhida às cegas) antes de
+  // regravar.
+  //
+  // Bloqueio 07-E3 #3: o código anterior só verificava `conflict` na
+  // PRIMEIRA chamada — se a chamada de RETRY (depois do merge) TAMBÉM
+  // voltasse com `conflict: true` (ex.: um terceiro dispositivo grava entre
+  // a detecção do primeiro conflito e o envio do merge — reproduzido em
+  // scripts/_tmp-07e3-client-bug-repro.ts antes desta correção), o código
+  // tratava a resposta como sucesso incondicionalmente: salvava o texto
+  // fundido localmente e devolvia `retryData` como se o servidor tivesse
+  // aceitado, quando na verdade o servidor tinha REJEITADO e ainda guardava
+  // o texto do terceiro dispositivo. Corrigido com um laço de até
+  // `MAX_NOTE_MERGE_ATTEMPTS` tentativas: cada resposta é verificada da
+  // mesma forma (nunca um "só a primeira conta"); o texto fundido é salvo
+  // localmente a cada rodada (nunca descarta a edição do usuário, mesmo que
+  // a rodada seguinte também conflite); se o limite for atingido sem o
+  // servidor aceitar, a operação é rejeitada com um erro `conflict`
+  // (permanente, nunca retentado num loop apertado — ver
+  // `classifySyncError`/`isRetryable` em syncQueue.ts) em vez de fingir
+  // sucesso. O texto mesclado mais recente permanece salvo localmente e
+  // visível ao usuário; nada é perdido, mas a operação fica marcada como
+  // pendente/conflituosa na fila até o usuário revisar/reenviar.
   registerHandler('note_upsert', async (payload: NoteUpsertOpPayload) => {
+    const MAX_NOTE_MERGE_ATTEMPTS = 3;
     const column = await resolveNoteColumn(payload.targetId);
-    const baseUpdatedAt = StorageService.getNoteBaseVersion(payload.targetId);
 
-    const { data, error } = await supabase.rpc('upsert_note', {
-      ...noteRpcArgs(column, payload.targetId),
-      p_note_text: payload.noteText,
-      p_base_updated_at: baseUpdatedAt,
-    });
-    if (error) throw error;
+    let textToSend = payload.noteText;
+    let baseUpdatedAt = StorageService.getNoteBaseVersion(payload.targetId);
 
-    if (data?.conflict) {
-      const mergedText = mergeConflictingNoteText(payload.noteText, data.server_text as string);
-      const { data: retryData, error: retryErr } = await supabase.rpc('upsert_note', {
+    for (let attempt = 1; attempt <= MAX_NOTE_MERGE_ATTEMPTS; attempt++) {
+      const { data, error } = await supabase.rpc('upsert_note', {
         ...noteRpcArgs(column, payload.targetId),
-        p_note_text: mergedText,
-        p_base_updated_at: data.server_updated_at,
+        p_note_text: textToSend,
+        p_base_updated_at: baseUpdatedAt,
       });
-      if (retryErr) throw retryErr;
-      // Grava o texto fundido localmente também (nunca deixa este
-      // dispositivo mostrar um texto diferente do que acabou de ser
-      // sincronizado, e nunca perde a edição local que gerou o conflito).
-      StorageService.saveNote(payload.targetId, mergedText);
-      if (retryData?.updated_at) StorageService.setNoteBaseVersion(payload.targetId, retryData.updated_at as string);
-      return retryData;
+      if (error) throw error;
+
+      if (!data?.conflict) {
+        // Aceito pelo servidor — grava exatamente o texto que foi aceito
+        // (pode já incluir fusões de rodadas anteriores deste mesmo laço).
+        StorageService.saveNote(payload.targetId, textToSend);
+        if (data?.updated_at) StorageService.setNoteBaseVersion(payload.targetId, data.updated_at as string);
+        return data;
+      }
+
+      // Conflito (nesta rodada, seja a primeira ou uma de retry): funde e
+      // tenta de novo com a base atualizada — nunca descarta o texto local
+      // nem o do servidor, e já grava o resultado fundido localmente antes
+      // de saber se a PRÓXIMA rodada vai ser aceita (o usuário nunca vê um
+      // texto mais "antigo" que o que já foi fundido nesta chamada).
+      textToSend = mergeConflictingNoteText(textToSend, data.server_text as string);
+      baseUpdatedAt = data.server_updated_at as string;
+      StorageService.saveNote(payload.targetId, textToSend);
+      if (data.server_updated_at) StorageService.setNoteBaseVersion(payload.targetId, data.server_updated_at as string);
     }
 
-    if (data?.updated_at) StorageService.setNoteBaseVersion(payload.targetId, data.updated_at as string);
-    return data;
+    // Limite de tentativas de merge esgotado: a concorrência persistiu além
+    // do orçamento de retry. Nunca marcar sucesso — a edição do usuário
+    // (já fundida com todas as versões vistas) permanece salva localmente
+    // (linhas acima), mas a operação fica visivelmente pendente/conflituosa
+    // na fila (estado 'failed', kind 'conflict', não retentada
+    // automaticamente em loop) até o usuário revisar e reenviar.
+    const err: Error & { code?: string } = new Error(
+      `nota: conflito de sincronização persistente após ${MAX_NOTE_MERGE_ATTEMPTS} tentativas de fusão`
+    );
+    err.code = 'SYNC_CONFLICT';
+    throw err;
   });
 
   // Caderno de erros (categoria 3): só atualiza resolved/user_notes por id

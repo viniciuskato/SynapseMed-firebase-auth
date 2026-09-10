@@ -14,7 +14,7 @@
 -- corretos, não uma corrida de fato disputando o lock ao mesmo tempo.
 -- ============================================================================
 
-select plan(33);
+select plan(34);
 
 select tests.clear_auth();
 
@@ -397,11 +397,20 @@ select is(
   'a escrita do dispositivo 2 NÃO foi aplicada silenciosamente — texto do dispositivo 1 preservado'
 );
 
--- Reenviar com base desconhecida (null — primeira sincronização deste
--- dispositivo, ou dispositivo que nunca leu a nota) sempre sobrescreve
--- (mesma semântica "última grava vence" de antes, para quem não tem base).
+-- MUDANÇA DE COMPORTAMENTO no Prompt 07-E3 (ver migration
+-- 20260909150000_conflict_serialization_07e3.sql): reenviar com base
+-- desconhecida (null) NÃO sobrescreve mais silenciosamente quando a linha já
+-- existe com texto diferente — esse era exatamente o buraco que permitia
+-- duas primeiras criações concorrentes da mesma nota (ambas com base null,
+-- por definição) apagarem uma à outra sem detecção nenhuma. Agora é tratado
+-- como conflito real, igual ao caso de base desatualizada.
 select ((public.upsert_note(null, null, :'v_question_id', null, 'sem base conhecida', null))->>'conflict')::boolean as v_conflict_3 \gset
-select is(:'v_conflict_3'::boolean, false, 'sem base conhecida (null), a gravação procede normalmente (comportamento anterior preservado)');
+select is(:'v_conflict_3'::boolean, true, 'sem base conhecida (null) e texto existente diferente é detectado como conflito (07-E3) — nunca mais sobrescreve às cegas');
+
+-- Sem base conhecida, mas o texto é IGUAL ao que já está salvo: não é um
+-- conflito real (nada muda), só um no-op idempotente.
+select ((public.upsert_note(null, null, :'v_question_id', null, 'edição do dispositivo 1', null))->>'conflict')::boolean as v_conflict_4 \gset
+select is(:'v_conflict_4'::boolean, false, 'sem base conhecida, mas texto igual ao existente: não é conflito (no-op idempotente)');
 
 select tests.clear_auth();
 

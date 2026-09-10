@@ -514,6 +514,42 @@ protótipo).
   07-E2", para o detalhamento completo, incluindo um achado FORA de escopo
   não corrigido (race condition benigna em `AuthContext.tsx` só visível sob
   login programático muito rápido, não um clique humano real).
+- **Em andamento na mesma branch `work/sincronizacao-dados-estudo-07e`
+  (2026-09-09/10, Prompt 07-E3), NÃO mesclada em `main`, migration NÃO
+  aplicada no remoto**: a revisão do 07-E2 tinha deixado registrado (seção
+  "Prompt 07-E2" de `docs/SINCRONIZACAO-CONFIAVEL.md`) que a corrida real
+  entre duas conexões distintas para `upsert_note`/`save_simulado_session`
+  não tinha sido provada com navegador/concorrência real — só sequencial.
+  Provando isso, apareceram **três riscos residuais reais**, todos com a
+  mesma causa: uma checagem de estado feita ANTES de existir uma linha para
+  travar com `select ... for update`. (1) `upsert_note`: duas primeiras
+  criações concorrentes da MESMA nota (mesmo usuário+alvo, nenhuma linha
+  ainda) não tinham nada em comum pra travar — e o código do 07-E2 tratava
+  base nula (o caso de AMBAS as primeiras criações, por definição) como
+  "sempre sobrescreve sem checar", exatamente o buraco. (2)
+  `save_simulado_session`: guarda de estado terminal lida antes do `insert
+  ... on conflict` — a escrita em si serializava, mas a guarda de negócio
+  não era reavaliada. (3) `note_upsert` (cliente,
+  `src/services/syncHandlers.ts`): depois do primeiro conflito, se a chamada
+  de retry pós-merge TAMBÉM voltasse com conflito (terceiro dispositivo
+  escrevendo no meio), o código tratava como sucesso sem checar. Os três
+  foram reproduzidos ANTES da correção com `Promise.all`/conexões
+  `supabase-js` distintas contra o Supabase local (perda silenciosa real,
+  confirmada lendo o banco direto via `psql`) e corrigidos com
+  `pg_advisory_xact_lock(hashtextextended(chave_lógica, 0))` adquirido como a
+  PRIMEIRA coisa que as duas funções fazem (migration
+  `20260909150000_conflict_serialization_07e3.sql`) + um laço de até 3
+  tentativas de merge em `note_upsert` que nunca finge sucesso quando o
+  servidor rejeita (novo `SyncErrorKind = 'conflict'` em `syncQueue.ts`,
+  falha permanente e visível, nunca retry automático em loop). 22/22
+  asserções de concorrência real (Promise.all) confirmaram a correção depois
+  — ver `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Prompt 07-E3", para o
+  detalhamento completo, incluindo a mudança de comportamento deliberada
+  (base nula + texto existente diferente agora é conflito, não mais
+  sobrescrita cega) e as limitações desta rodada (Playwright completo não
+  repetido — mudanças são só de servidor + um handler, sem tocar UI/backoff;
+  cobertura de navegador anterior do 07-C2/07-E2 continua válida para o que
+  não mudou). pgTAP 146/146, `tsc`/`build` limpos.
 - **Histórico (preparado em 2026-09-07, commitado em 2026-09-08 na branch
   `work/consolidacao-diretoria-2026-09-08`, commit `1e89a2f`)**: correção
   do achado de auditoria "question_references/sources descartados na carga

@@ -35,7 +35,7 @@ import { supabase } from '../lib/supabaseClient';
 
 export type SyncOpState = 'pending' | 'syncing' | 'synced' | 'failed';
 
-export type SyncErrorKind = 'network' | 'auth' | 'permission' | 'validation' | 'schema' | 'crypto_unavailable' | 'unknown';
+export type SyncErrorKind = 'network' | 'auth' | 'permission' | 'validation' | 'schema' | 'crypto_unavailable' | 'conflict' | 'unknown';
 
 export interface SyncOp<TPayload = unknown> {
   id: string; // chave local (dedupe/UI) — ver `clientOpId` para a chave enviada ao servidor
@@ -189,6 +189,15 @@ export function classifySyncError(err: any): SyncErrorKind {
   const msg = String(err?.message || err);
   const code = err?.code || err?.status;
 
+  // Conflito de mesclagem esgotado (Prompt 07-E3, bloqueio 3): o cliente
+  // tentou fundir edições concorrentes até o limite explícito de tentativas
+  // (ver `note_upsert` em syncHandlers.ts) e o servidor continuou rejeitando
+  // — nunca é tratado como sucesso silencioso, nem retentado automaticamente
+  // em loop (não é 'network'/'unknown', então `isRetryable` abaixo o mantém
+  // como falha permanente e visível; o usuário pode reenviar manualmente
+  // pelo botão "Tentar novamente", que dispara uma tentativa nova e limitada
+  // de novo, nunca um laço infinito).
+  if (code === 'SYNC_CONFLICT') return 'conflict';
   if (
     err?.name === 'AuthApiError' ||
     code === 401 ||
@@ -235,7 +244,7 @@ export function needsLogin(op: SyncOp): boolean {
 }
 
 export function needsSupport(op: SyncOp): boolean {
-  return op.state === 'failed' && (op.lastError?.kind === 'permission' || op.lastError?.kind === 'schema');
+  return op.state === 'failed' && (op.lastError?.kind === 'permission' || op.lastError?.kind === 'schema' || op.lastError?.kind === 'conflict');
 }
 
 /**
