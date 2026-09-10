@@ -26,6 +26,7 @@ import {
   Check,
   X,
   Play,
+  Timer,
 } from 'lucide-react';
 import {
   Discipline,
@@ -261,6 +262,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             >
               <Brain className="w-4 h-4 text-teal-600 dark:text-teal-400" />
               <span>Revisar Flashcards ({dueCards.length})</span>
+            </button>
+
+            {/* Prompt 10-A2: único caminho de navegação até <SimuladosView> era
+                voltar de uma prova já finalizada (onFinishSession) — não havia
+                nenhum botão/menu que levasse até lá do zero (ver AGENTS.md,
+                armadilha #20). Vínculo simples de navegação, sem redesenhar a
+                navegação nem ampliar o módulo de simulados. */}
+            <button
+              onClick={() => onSelectView('simulados')}
+              className="px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-800/90 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-100 border border-slate-300 dark:border-slate-700/90 hover:border-teal-500/50 font-bold text-xs elev-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Timer className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span>Simulados</span>
             </button>
 
             <button

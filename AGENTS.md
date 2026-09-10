@@ -410,19 +410,25 @@ protótipo).
     Anteriores" DENTRO desse modal, e os presets rápidos de
     `<SimuladosView>`) não foram tocados — o usuário decide
     conscientemente entrar num simulado cronometrado nesses caminhos,
-    diferente do atalho do Caderno de Erros. **Achado incidental, não
-    corrigido (fora de escopo, registrado para decisão futura)**: a rota
-    de navegação `activeView === 'simulados'` (`<SimuladosView>`, com os 3
-    presets rápidos "Express"/"ENARE"/"Correção de Erros") não tem NENHUM
-    item de menu/botão que leve a ela numa navegação nova — o único
-    `setActiveView('simulados')` do código é o `onFinishSession` de
-    `<SimuladoSession>` (volta pra lá depois de finalizar uma prova). Na
-    prática essa tela só é alcançável depois de já ter passado por um
-    simulado antes; o caminho real e alcançável para criar um simulado do
-    zero é sempre "Criar Simulado Personalizado" (`<CreateSimuladoModal>`).
-    Pode ser código morto/nav quebrado pré-existente, não introduzido
-    nesta sessão — não investigado a fundo por estar fora do escopo
-    autorizado do 10-A.
+    diferente do atalho do Caderno de Erros. **Achado incidental do 10-A,
+    RESOLVIDO no Prompt 10-A2 (2026-09-10)**: a rota de navegação
+    `activeView === 'simulados'` (`<SimuladosView>`, com os 3 presets
+    rápidos "Express"/"ENARE"/"Correção de Erros") não tinha NENHUM item de
+    menu/botão que levasse a ela numa navegação nova — o único
+    `setActiveView('simulados')` do código era o `onFinishSession` de
+    `<SimuladoSession>` (volta pra lá depois de finalizar uma prova); na
+    prática essa tela só era alcançável depois de já ter passado por um
+    simulado antes (o caminho alcançável pra criar um simulado do zero
+    continuava sendo "Criar Simulado Personalizado",
+    `<CreateSimuladoModal>`, dentro de `<QuestionsView>`). **Corrigido**:
+    vínculo de navegação simples, sem redesenhar a navegação nem ampliar o
+    módulo — novo botão "Simulados" no painel de ações rápidas do
+    Dashboard (`DashboardView.tsx`, ao lado de "Resolver Questões"/
+    "Revisar Flashcards"), chamando `onSelectView('simulados')` (prop já
+    existente, reaproveitada, nenhuma nova prop). Testado com Playwright
+    real contra Supabase local: clicar no botão abre `<SimuladosView>` com
+    os 3 presets visíveis. Cronômetro dos simulados reais (via "Criar
+    Simulado Personalizado") confirmado intacto no mesmo teste.
 
 ## Convenções de trabalho
 
@@ -746,8 +752,8 @@ protótipo).
   Ver `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Prompt 07-F2", para o
   detalhamento completo.
 - **Branch `work/prompt-10a-cronometro-recordacao-reidratacao` (2026-09-10,
-  Prompt 10-A) — implementada e testada localmente, NÃO mesclada em
-  `main`, NÃO publicada.** Três problemas confirmados corrigidos: (1)
+  Prompt 10-A + revisão/publicação 10-A2).** Três problemas confirmados
+  corrigidos: (1)
   cronômetro indevido em "Treinar Apenas Questões Erradas" (estudo comum
   reaproveitando `<SimuladoSession>`, que tem contagem regressiva
   incondicional) — agora abre `<QuestionsView>` filtrada sem cronômetro;
