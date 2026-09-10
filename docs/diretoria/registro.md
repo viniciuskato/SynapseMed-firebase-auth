@@ -480,3 +480,27 @@ O usuário confirmou um conjunto de diretrizes estruturais, sem pedir implementa
 10. Modelo de trabalho confirmado: Codex atua como diretoria, Claude como executor preferencial, scripts fazem as verificações mecânicas, e uma segunda IA revisa apenas as tarefas de risco elevado.
 
 Nenhuma mudança de código, banco, produção ou feedback foi feita junto com este registro — é só o assentamento da decisão para orientar prompts futuros.
+
+## Retorno recebido — 07-F, 2026-09-10
+
+Sessão executiva independente implementou sincronização confiável para as categorias 8 (reações 👍/👎) e 9 (feedback de participantes + status editorial), as duas últimas do backlog — categorias 1-7 já publicadas (07-D/07-E4/07-E5). Branch `work/sincronizacao-confiavel-07f`, criada a partir de `origin/main` em `70b3be0` (confirmado sem avanço no início da sessão), NÃO mesclada em `main`.
+
+**Inventário**: nenhuma das duas categorias precisou de mudança de contrato/schema para ficar segura — reações já eram um "set" idempotente (upsert em índice único comum, não parcial), e o envio de feedback já usa `feedback.id` (gerado no cliente antes de qualquer rede) como chave de idempotência de fato, por ser a chave primária da tabela. O problema real era só a ausência de retry: os dois repositórios engoliam falha de rede em `catch {}` sem nenhuma retentativa (mesmo risco já documentado para as categorias 3-9 no `AGENTS.md`). Corrigido enfileirando as duas operações em `src/services/syncQueue.ts` (handlers novos `reaction_set`/`feedback_submit`).
+
+**Status editorial**: a única proteção server-side antes desta correção era RLS + privilégio de coluna — já bloqueava um estudante de verdade, mas de forma silenciosa (update negado por RLS afeta 0 linhas sem erro). Trocado pela RPC `set_feedback_status` (mesmo padrão de `publish_question`: `security definer` + checagem de `app.is_admin_active`, erro explícito, idempotente, nunca sobrescreve texto/vínculo/autor). Migration nova adiciona também `updated_at` a `feedback` (não existia antes).
+
+**Bug real encontrado e corrigido, só por teste de navegador (dois `BrowserContext` da mesma conta)**: `QuestionCard.handleToggleReaction` decidia set vs. remove com base no estado LOCAL `myReaction`, nunca atualizado por uma mudança feita em outro dispositivo/aba da mesma conta (sem assinatura em tempo real). Sequência A(marca positiva)→B(troca para negativa, sem A saber)→A(clica na positiva de novo) resultava em A REMOVENDO a própria reação em vez de reafirmá-la, quebrando a convergência determinística exigida. Corrigido buscando o valor atual do servidor imediatamente antes de decidir, nunca confiando no estado React possivelmente desatualizado. Registrado como armadilha #18 no `AGENTS.md`.
+
+**Privacidade**: nenhuma exposição concreta de dado pessoal encontrada — RLS de `feedback`/`question_reactions` já não tinha policy permissiva demais, nenhum log técnico com texto livre de feedback, `userEmail` capturado no cliente nunca chega ao servidor (gap pré-existente, documentado, não uma exposição a terceiros). Achado fora de escopo, não corrigido: `feedback.question_id`/`material_id` não têm constraint de exclusividade mútua no schema (só convenção de UI).
+
+**Migration**: `20260910120000_sync_reliability_categorias_8_9.sql` (`feedback.updated_at` + trigger, RPC `set_feedback_status`). Testada só em Supabase LOCAL.
+
+**Testes**: `supabase test db` 173/173 (146 anteriores + 27 novas, sem regressão); `tsc --noEmit`/`npm run build` limpos; 18/18 asserções de Playwright/Chromium contra Supabase local (adicionar/trocar/remover reação, convergência determinística A→B→A, perda de resposta pós-servidor via `route.fetch()` real + abort para reação e para feedback, dois relatos distintos com texto igual sem falsa dedupe, status editorial confirmado no banco após ação do admin, offline real com fila sobrevivendo e sincronizando sozinha na reconexão). Não cobertos nesta rodada (limitação, não desconhecimento do risco): concorrência real simultânea (só sequencial), reenvio com backoff exponencial esgotando tentativas, isolamento entre usuários repetido via navegador (provado via pgTAP em vez disso).
+
+**Integração do commit `0f6f9a6`** (branch documental `work/nexusmed-diretrizes-p01`, decisão da diretoria sobre gratuidade/idioma/escopo, ver seção acima): `git cherry-pick 0f6f9a6` aplicado sem conflito na branch `work/sincronizacao-confiavel-07f`, autoria original preservada.
+
+**Commits nesta branch** (local, não enviados): migration; testes pgTAP; frontend (fila de reações/feedback + correção do bug de `handleToggleReaction`); cherry-pick do commit documental 0f6f9a6.
+
+**Documentação atualizada**: `AGENTS.md` (armadilha #18 nova; seção "Estado atual" com a entrada 07-F), `docs/SINCRONIZACAO-CONFIAVEL.md` (seção "Prompt 07-F" completa), este arquivo.
+
+**Recomendação explícita desta sessão**: do ponto de vista técnico — nenhuma migration de contrato necessária, um bug real de UI corrigido com teste determinístico, RLS já adequada, suíte completa verde — a branch está pronta para revisão de merge. Recomendação de decisão humana antes de publicar: revisar o achado de schema fora de escopo (constraint de exclusividade mútua de `feedback.question_id`/`material_id`). Nenhum push, merge, deploy ou escrita/migration remota foi feito nesta sessão.

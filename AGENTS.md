@@ -329,6 +329,32 @@ protótipo).
     --linked` (conecta como `postgres` de verdade no remoto, mesma
     garantia da armadilha #9 — não precisa de senha de Postgres avulsa).
 
+18. **RESOLVIDO no Prompt 07-F (2026-09-10), encontrado por teste de
+    navegador real (dois `BrowserContext` da mesma conta), não por leitura
+    de código.** `QuestionCard.handleToggleReaction` decidia "set" vs.
+    "remove" comparando o clique com o estado LOCAL `myReaction` (um
+    `useState` carregado uma vez no mount) — se OUTRO dispositivo/aba da
+    MESMA conta mudasse a reação nesse meio tempo, este componente nunca
+    ficava sabendo (não há assinatura em tempo real, só leitura ao montar).
+    Sequência real reproduzida: dispositivo A marca 👍 (`up`); dispositivo B,
+    sem A saber, troca para 👎 (`down`) no servidor; A clica em 👍 de novo —
+    como o estado local de A ainda achava que já estava em `up`, o código
+    interpretava o clique como "toggle off" e chamava `removeReaction` em
+    vez de `setReaction('up')`, apagando a reação em vez de reafirmá-la (o
+    valor final no banco ficava `null`, não `up`, quebrando a convergência
+    determinística exigida para um botão like/dislike). Note que isso é
+    diferente do risco já coberto pela armadilha #15 (retry seguro) — aqui
+    o problema é a UI decidir com base numa leitura obsoleta, não o
+    reenvio de uma operação. **Corrigido** buscando o valor atual do
+    SERVIDOR (`questionReactionsRepository.getMyReaction`) imediatamente
+    antes de decidir, em vez de confiar no estado React possivelmente
+    desatualizado — o clique sempre expressa a intenção certa em relação
+    ao estado mais recente conhecido. Padrão a vigiar: qualquer UI que
+    decida "set vs. remove"/"próximo valor" a partir de um `useState` que
+    só é atualizado quando O PRÓPRIO componente escreve (nunca por uma
+    assinatura em tempo real) está sujeita ao mesmo tipo de staleness
+    entre abas/dispositivos da mesma conta — não é exclusivo de reações.
+
 ## Convenções de trabalho
 
 - **Commits vão direto pra `main`** hoje (sem PR obrigatório) porque é
@@ -553,6 +579,42 @@ protótipo).
   conteúdo fabricado que apareceu nesses dois arquivos de documentação
   durante a sessão, sem nenhuma chamada de ferramenta desta sessão por
   trás, removido antes da publicação.
+- **Em andamento na branch `work/sincronizacao-confiavel-07f` (2026-09-10,
+  Prompt 07-F), NÃO mesclada em `main`**: sincronização confiável das
+  categorias 8 (reações 👍/👎) e 9 (feedback de participantes + status
+  editorial pendente/em_analise/resolvido) — as duas últimas do backlog de
+  sincronização (categorias 1-7 já publicadas, ver entradas acima).
+  Inventário concluiu que reações já eram um "set" idempotente desde a
+  criação (upsert em `unique (user_id, question_id)`, índice comum, não
+  parcial — armadilha #14) e que o envio de feedback já usa `feedback.id`
+  (gerado no cliente antes de qualquer tentativa de rede) como chave de
+  idempotência de fato, por ser a PK da tabela — nenhuma migration de
+  contrato foi necessária para nenhuma das duas. O que faltava era só
+  entrar na fila (`syncQueue`) para retry/visibilidade (antes, ambos os
+  repositórios engoliam falha de rede em `catch {}` sem nenhuma
+  retentativa, mesmo risco já documentado para as categorias 3-9 na
+  armadilha #13) e um caminho servidor mais rígido para o status editorial:
+  migration `20260910120000_sync_reliability_categorias_8_9.sql` adiciona
+  `updated_at` + trigger a `public.feedback` e a RPC `set_feedback_status`
+  (mesmo padrão de `publish_question`: `security definer` + checagem
+  explícita de `app.is_admin_active`, erro claro em vez de UPDATE
+  silenciosamente filtrado por RLS, idempotente). Bug real encontrado e
+  corrigido durante teste de navegador — ver armadilha #18 (reações podiam
+  ser removidas em vez de reafirmadas sob leitura local desatualizada em
+  dois dispositivos da mesma conta). Testado só em Supabase LOCAL:
+  `supabase test db` 173/173 (146 anteriores + 27 novas, sem regressão),
+  `tsc --noEmit`/`npm run build` limpos, 18/18 asserções de navegador
+  (Playwright/Chromium contra Supabase local — adicionar/trocar/remover
+  reação, convergência determinística A→B→A, perda de resposta pós-servidor
+  simulada para reação e para feedback via `route.fetch()` real + abort,
+  dois relatos distintos com texto igual não deduplicados por engano,
+  status editorial avançado só após confirmação do servidor, offline real
+  via `context.setOffline` com fila sobrevivendo e sincronizando sozinha na
+  reconexão). Nenhum push, merge, deploy ou migration remota nesta sessão.
+  Ver `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Prompt 07-F", e
+  `docs/diretoria/registro.md`, entrada "Retorno recebido — 07-F", para o
+  detalhamento completo, incluindo limitações (cenários não cobertos por
+  navegador, ex. sequência de retry com backoff exponencial real).
 - **Histórico — em andamento na branch `work/sincronizacao-dados-estudo-07e`
   (2026-09-09, Prompt 07-E), mesclada em `main` no 07-E4 acima**:
   continuação da sincronização confiável para as categorias 3-7 do backlog
