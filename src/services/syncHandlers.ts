@@ -11,7 +11,7 @@ import { supabase } from '../lib/supabaseClient';
 import { registerHandler } from './syncQueue';
 import { supabaseFlashcardsRepository } from '../repositories/SupabaseFlashcardsRepository';
 import { StorageService } from './storage';
-import { QuestionAnswerRecord, ErrorLogItem, SimuladoSessionData } from '../types';
+import { QuestionAnswerRecord, ErrorLogItem, SimuladoSessionData, QuestionReactionValue, UserFeedback } from '../types';
 
 export interface QuestionAttemptOpPayload {
   questionId: string;
@@ -66,6 +66,23 @@ export interface ErrorNotebookUpdateOpPayload {
 
 export interface SimuladoSaveOpPayload {
   session: SimuladoSessionData;
+}
+
+// Reações (categoria 8): estado DESEJADO explícito ('up'/'down'/null para
+// remover), nunca um toggle — ver registerHandler('reaction_set', ...)
+// abaixo e docs/SINCRONIZACAO-CONFIAVEL.md, seção "Prompt 07-F".
+export interface ReactionSetOpPayload {
+  questionId: string;
+  reaction: QuestionReactionValue | null;
+}
+
+// Feedback (categoria 9): `feedback.id` é gerado no cliente (crypto.randomUUID())
+// no momento da criação, antes de qualquer tentativa de rede, e nunca
+// regenerado entre retries do MESMO envio — já cumpre o papel de
+// `client_op_id` (é a chave primária da tabela `feedback`). Ver comentário
+// completo na migration 20260910120000_sync_reliability_categorias_8_9.sql.
+export interface FeedbackSubmitOpPayload {
+  feedback: UserFeedback;
 }
 
 const BOOKMARK_COLUMN: Record<BookmarkType, 'question_id' | 'material_id' | 'flashcard_id'> = {
@@ -366,6 +383,70 @@ export function registerSyncHandlers(): void {
       },
     });
     if (error) throw error;
+    return null;
+  });
+
+  // Reações (categoria 8): estado desejado explícito, sempre um "set" —
+  // `reaction: null` remove. Idempotente por construção: reenviar 'up'/'down'
+  // é sempre um upsert por `unique (user_id, question_id)` (índice ÚNICO
+  // COMUM, não parcial — ver AGENTS.md armadilha #14, por isso o
+  // `onConflict` do PostgREST funciona aqui sem precisar de RPC); reenviar
+  // `null` é sempre um DELETE, que não é erro mesmo quando já não há linha
+  // para remover. Troca determinística (up->down/down->up) e concorrência:
+  // não há mesclagem de texto envolvida (é um único enum por usuário/
+  // questão, não dado colaborativo), então a regra de desempate é a mesma
+  // de um "set" comum — a última escrita a ser efetivamente aplicada no
+  // servidor vence; como cada dispositivo só enfileira o PRÓPRIO clique (o
+  // valor já decidido antes de qualquer chamada de rede, nunca um toggle
+  // calculado a partir de uma leitura desatualizada), isso é seguro mesmo
+  // sob retry/reordenação: nenhum clique é "perdido" silenciosamente, o pior
+  // caso é o valor final refletir o último clique a chegar ao servidor, que
+  // é o comportamento esperado de "última ação vence" para um botão
+  // like/dislike (bem diferente do risco de perda de texto livre em notas).
+  registerHandler('reaction_set', async (payload: ReactionSetOpPayload) => {
+    if (payload.reaction === null) {
+      const { error } = await supabase.from('question_reactions').delete().eq('question_id', payload.questionId);
+      if (error) throw error;
+      return null;
+    }
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr) throw userErr;
+    const { error } = await supabase
+      .from('question_reactions')
+      .upsert(
+        { user_id: userData.user?.id, question_id: payload.questionId, reaction: payload.reaction },
+        { onConflict: 'user_id,question_id' }
+      );
+    if (error) throw error;
+    return null;
+  });
+
+  // Feedback (categoria 9, envio): insert único por `feedback.id` (ver
+  // comentário do tipo `FeedbackSubmitOpPayload` acima e a migration
+  // 20260910120000_sync_reliability_categorias_8_9.sql). Reenviar o MESMO
+  // `client_op_id` (= o mesmo `id`, gerado uma única vez no componente antes
+  // do primeiro envio) após perda de resposta (servidor aplicou, cliente não
+  // recebeu confirmação) resulta em `23505` (unique violation na PK) — nunca
+  // propagado como erro real, tratado como sucesso idempotente. Dois
+  // relatos DELIBERADAMENTE distintos (mesmo com texto igual) sempre têm
+  // `id`s diferentes, então nunca são deduplicados por engano: a
+  // deduplicação é só por `id`, nunca por conteúdo. Nunca loga
+  // `description`/`title` (texto livre do usuário) — só o resultado da
+  // chamada, como todo outro handler deste arquivo.
+  registerHandler('feedback_submit', async (payload: FeedbackSubmitOpPayload) => {
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr) throw userErr;
+
+    const { error } = await supabase.from('feedback').insert({
+      id: payload.feedback.id,
+      user_id: userData.user?.id,
+      type: payload.feedback.type,
+      title: payload.feedback.title,
+      description: payload.feedback.description,
+      question_id: payload.feedback.questionId ?? null,
+      material_id: payload.feedback.materialId ?? null,
+    });
+    if (error && error.code !== '23505') throw error;
     return null;
   });
 }

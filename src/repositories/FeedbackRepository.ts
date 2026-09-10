@@ -1,7 +1,9 @@
 import { UserFeedback } from '../types';
-import { StorageService } from '../services/storage';
+import { StorageService, getStorageUser } from '../services/storage';
 import { SupabaseFeedbackRepository } from './SupabaseFeedbackRepository';
 import { isSupabaseConfigured } from '../lib/supabaseClient';
+import { enqueue } from '../services/syncQueue';
+import { FeedbackSubmitOpPayload } from '../services/syncHandlers';
 
 export interface FeedbackRepository {
   getFeedbacks(): Promise<UserFeedback[]>;
@@ -23,7 +25,10 @@ class LocalStorageFeedbackRepository implements FeedbackRepository {
   async updateFeedbackStatus(id: string, status: UserFeedback['status']): Promise<void> {
     const list = await StorageService.getFeedbacks();
     const item = list.find((f) => f.id === id);
-    if (item) item.status = status;
+    if (item) {
+      item.status = status;
+      item.updatedAt = new Date().toISOString();
+    }
   }
 }
 
@@ -40,10 +45,23 @@ class ResilientFeedbackRepository implements FeedbackRepository {
     }
   }
 
+  // Categoria 9 (feedback, envio) — Prompt 07-F. Antes desta correção, uma
+  // falha de rede era engolida em `catch {}` sem NENHUMA retentativa: o
+  // relato ficava salvo só localmente (`this.local.saveFeedback` acima),
+  // nunca chegando ao Supabase, sem qualquer sinal disso para o usuário ou
+  // para o admin. Corrigido enfileirando com `client_op_id` estável = o
+  // próprio `feedback.id` (gerado uma única vez no componente, antes de
+  // qualquer tentativa de rede — ver ContextualFeedbackPopover.tsx e
+  // FeedbackModal.tsx) — reenviar o MESMO relato depois de uma falha nunca
+  // duplica linha (ver registerHandler('feedback_submit', ...) em
+  // syncHandlers.ts e o comentário completo na migration
+  // 20260910120000_sync_reliability_categorias_8_9.sql).
   async saveFeedback(feedback: UserFeedback): Promise<void> {
     this.local.saveFeedback(feedback);
-    if (isSupabaseConfigured) {
-      try { await this.supa.saveFeedback(feedback); } catch {}
+    const userId = getStorageUser();
+    if (isSupabaseConfigured && userId) {
+      const payload: FeedbackSubmitOpPayload = { feedback };
+      enqueue(userId, 'feedback_submit', payload, feedback.id);
     }
   }
 

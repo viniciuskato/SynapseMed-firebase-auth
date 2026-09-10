@@ -108,8 +108,23 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question.id]);
 
+  // Achado real do Prompt 07-F (reproduzido com Playwright, dois
+  // BrowserContext da mesma conta): `myReaction` só é atualizado localmente
+  // quando ESTE componente é quem chama setReaction/removeReaction — uma
+  // aba/dispositivo que ficou aberto sem recarregar nunca fica sabendo que
+  // OUTRO dispositivo mudou a reação nesse meio tempo. Antes desta correção,
+  // clicar no mesmo botão de novo decidia "remover" com base nesse estado
+  // LOCAL desatualizado (ex.: A marca up, B troca para down no servidor, A
+  // clica em "up" de novo achando que ainda está "up" localmente => A
+  // decide REMOVER em vez de reafirmar "up", apagando a reação em vez de
+  // convergir para o clique real do usuário). Corrigido buscando o valor
+  // atual do SERVIDOR (nunca o estado React possivelmente obsoleto)
+  // imediatamente antes de decidir set vs. remove — o clique do usuário
+  // sempre expressa a intenção correta em relação ao estado mais recente
+  // conhecido, nunca em relação a uma leitura antiga.
   const handleToggleReaction = async (reaction: QuestionReactionValue) => {
-    if (myReaction === reaction) {
+    const current = await questionReactionsRepository.getMyReaction(question.id);
+    if (current === reaction) {
       setMyReaction(null);
       await questionReactionsRepository.removeReaction(question.id);
     } else {
