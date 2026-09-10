@@ -615,6 +615,41 @@ protótipo).
   `docs/diretoria/registro.md`, entrada "Retorno recebido — 07-F", para o
   detalhamento completo, incluindo limitações (cenários não cobertos por
   navegador, ex. sequência de retry com backoff exponencial real).
+- **Mesma branch `work/sincronizacao-confiavel-07f` (2026-09-10, Prompt
+  07-F2)**: fecha os dois bloqueios que o 07-F tinha deixado explícitos.
+  (1) O handler `feedback_submit` tratava QUALQUER `23505` como sucesso,
+  sem checar se a linha existente era do MESMO usuário e MESMO conteúdo —
+  corrigido com uma RPC transacional nova, `submit_feedback`
+  (`security definer`, mesma migration `20260910120000_sync_reliability_
+  categorias_8_9.sql` do 07-F, complementada nesta sessão): tenta o
+  insert, e só se colidir por PK busca a linha existente SEM depender de
+  RLS (evita o caso em que um admin colidindo enxergaria a linha de outra
+  pessoa via `feedback_admin_select_all`) e compara
+  user_id/type/title/description/question_id/material_id — só replay
+  semanticamente idêntico é aceito; qualquer divergência levanta uma
+  exceção comum (`P0001`, classificada `'validation'` por
+  `classifySyncError`, nunca retentada em loop). (2) Adicionada a
+  constraint nomeada `feedback_question_or_material_exclusive`
+  (`num_nonnulls(question_id, material_id) <= 1`) — achado de schema que o
+  07-F tinha registrado como fora de escopo; consulta remota somente
+  leitura confirmou 0 linhas reais violando a regra antes de criar.
+  Testado só em Supabase LOCAL: `supabase test db` 183/183 (173 do 07-F +
+  10 novas — replay idêntico aceito, mesmo id com texto diferente
+  rejeitado, mesmo id sob outro usuário rejeitado sem trocar o dono,
+  feedback geral aceito, vínculo duplo rejeitado via RPC e via insert
+  direto), `tsc --noEmit`/`npm run build` limpos (bundle confirmado sem
+  `__syncDebug`), 15/15 asserções de navegador (Playwright/Chromium contra
+  Supabase local — a ponte `__syncDebug` ganhou
+  `feedbackRepository`/`questionReactionsRepository` para viabilizar o
+  teste sem reescrever a UI, mesmo padrão das categorias 3-7 já expostas
+  ali; replay/mismatch de conteúdo/mismatch de dono/perda de resposta
+  pós-commit via `route.fetch()`+`abort`/conflito visível na
+  `SyncStatusIndicator`/reações regressão/admin avançando status/estudante
+  bloqueado — contagem direta no banco confirmou 0 duplicatas em qualquer
+  cenário, e a limpeza das 3 contas descartáveis removeu tudo via cascade,
+  confirmado por contagem antes/depois). Ver
+  `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Prompt 07-F2", para o
+  detalhamento completo.
 - **Histórico — em andamento na branch `work/sincronizacao-dados-estudo-07e`
   (2026-09-09, Prompt 07-E), mesclada em `main` no 07-E4 acima**:
   continuação da sincronização confiável para as categorias 3-7 do backlog

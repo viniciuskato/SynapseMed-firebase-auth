@@ -2180,3 +2180,140 @@ achado de schema fora de escopo (constraint de exclusividade mútua de
 `feedback.question_id`/`material_id`) para decidir se vale a pena
 corrigir num prompt futuro. Nenhum push, merge, deploy ou escrita remota
 foi feito nesta sessão.
+
+## Prompt 07-F2 — idempotência verificada de `feedback_submit` + exclusividade do vínculo
+
+> Executado na mesma branch `work/sincronizacao-confiavel-07f`, a partir
+> dos 5 commits do 07-F (`origin/main` ainda em `70b3be0` no início da
+> sessão). Fecha os dois achados que o 07-F tinha deixado explicitamente
+> como bloqueio/pendência: o handler `feedback_submit` tratando QUALQUER
+> `23505` como sucesso (sem checar dono/conteúdo) e a ausência de
+> constraint de exclusividade mútua entre `question_id`/`material_id`.
+
+### Bloqueio corrigido: idempotência verificada, não assumida
+
+O handler antigo (`syncHandlers.ts`) fazia `insert` direto na tabela
+`feedback` e tratava `error.code === '23505'` (violação de chave única)
+como sucesso automático — uma colisão de `id` com dono ou conteúdo
+diferente (ex.: dois `crypto.randomUUID()` colidindo entre contas
+distintas, raro mas não impossível) seria declarada "sincronizada" sem
+nenhuma verificação.
+
+Substituído por uma RPC transacional nova, `public.submit_feedback`
+(mesma migration `20260910120000_sync_reliability_categorias_8_9.sql` do
+07-F, complementada nesta sessão — nunca deixou de ser aplicada em
+nenhum ambiente até agora, então editar o mesmo arquivo em vez de criar
+uma migration nova manteve a história coerente):
+
+1. tenta o `insert` normalmente, dentro de um bloco `exception`;
+2. se colidir por PK (`unique_violation`), busca a linha existente pelo
+   mesmo `id` — sem depender de RLS (a função é `security definer`,
+   mesmo padrão de `set_feedback_status`), justamente para não deixar um
+   admin "enxergar" a linha de outra pessoa via
+   `feedback_admin_select_all` e concluir uma coisa errada sobre posse;
+3. se a linha não existir (não deveria acontecer sob `READ COMMITTED`
+   com a mesma PK), levanta exceção — nunca declara sincronizado sem ter
+   visto a linha;
+4. compara `user_id`/`type`/`title`/`description`/`question_id`/
+   `material_id` — só replay semanticamente idêntico (mesmo dono, mesmo
+   conteúdo) é devolvido como sucesso;
+5. qualquer divergência levanta uma exceção comum (`raise exception`,
+   SQLSTATE `P0001` por padrão — nunca um código customizado). Isso é
+   deliberado: `classifySyncError` (`syncQueue.ts`) só retenta
+   automaticamente erros `'network'`/`'unknown'`/`'crypto_unavailable'`;
+   `P0001` cai em `'validation'` — permanente e visível na
+   `SyncStatusIndicator`, nunca um laço de retentativa infinito.
+
+O cliente (`registerHandler('feedback_submit', ...)`) ficou mais simples:
+só chama `supabase.rpc('submit_feedback', {...})` e propaga qualquer erro
+— toda a lógica de decisão fica no servidor, que é quem tem a visão
+confiável do que já existe.
+
+### Exclusividade do vínculo
+
+Constraint nomeada `feedback_question_or_material_exclusive` em
+`public.feedback`: `check (num_nonnulls(question_id, material_id) <= 1)`.
+Antes de criar, consulta somente leitura no Supabase remoto confirmou 0
+linhas reais violando a regra (14 feedbacks reais no remoto, nenhum com
+os dois vínculos preenchidos) — a constraint foi aplicada sem qualquer
+necessidade de tocar em dado real. `submit_feedback` propaga o erro de
+check constraint (`23514`) normalmente quando o cliente tenta enviar os
+dois vínculos ao mesmo tempo (cenário que a UI de hoje não produz, mas
+que agora é impossível também por fora dela, não só por convenção).
+
+### Testes
+
+**pgTAP** (`supabase/tests/database/sync_reliability_categorias_8_9.test.sql`,
+ampliado de 27 para 37 asserções): primeira submissão via
+`submit_feedback`; replay exato (mesmo id/conteúdo/dono) aceito sem
+duplicar; mesmo id com texto diferente rejeitado (`P0001`); mesmo id sob
+outro usuário rejeitado, sem alterar o dono original da linha; feedback
+geral (ambos os vínculos nulos) aceito; envio com os dois vínculos
+preenchidos rejeitado tanto via RPC quanto via `insert` direto na tabela
+(`23514`, prova de que a constraint em si barra, não só a validação da
+RPC). 183/183 no total (146 anteriores a este prompt + 37 desta
+suíte), sem regressão.
+
+**Playwright/Chromium real contra Supabase local** (script ad-hoc,
+descartado ao final — sem infraestrutura de spec permanente neste
+projeto, mesmo padrão dos prompts anteriores): 15/15 asserções, contas
+descartáveis `07f2.a/b/admin@synapsemed.local` (criadas via
+`admin.auth.admin.createUser({ email_confirm: true })`, promovidas a
+`active`/`admin` via `docker exec -i supabase_db_synapsemed psql -U
+postgres`, removidas ao final — cascade real confirmado por contagem
+direta antes/depois). Para viabilizar o teste sem reescrever a UI, a
+ponte de depuração DEV-only (`window.__syncDebug`, já existente desde o
+07-C2) ganhou `feedbackRepository`/`questionReactionsRepository` (mesmo
+padrão das categorias 3-7 já expostas ali) — confirmado ausente do bundle
+de produção (`grep` por `__syncDebug`/`__setTestBackoffOverride` em
+`dist/assets/*.js`, 0 ocorrências, igual às rodadas anteriores). Cobertura:
+
+- Primeira submissão de feedback vinculado a questão sincroniza.
+- Replay idêntico (mesmo id, mesmo conteúdo) aceito como sucesso.
+- Mesmo id com texto diferente termina em `failed`, classificado
+  `'validation'` (permanente) e fica visível na `SyncStatusIndicator`
+  (`aria-label` "Falha ao sincronizar..." presente no DOM) — nunca uma
+  falha silenciosa.
+- Mesmo id sob outro usuário (conta B tentando reenviar o id de A) termina
+  em `failed`; confirmado por leitura direta do banco que o `user_id`
+  original nunca foi trocado.
+- Feedback geral (sem vínculo) e feedback vinculado a compêndio
+  sincronizam.
+- Perda de resposta pós-commit: `route.fetch()` real (aplica no servidor)
+  seguido de `route.abort('failed')` (cliente nunca recebe a confirmação)
+  — com `__setTestBackoffOverride` acelerando o retry, a fila reenvia
+  sozinha e converge para `synced` sem duplicar.
+- Reações — adicionar/trocar/remover (regressão rápida; código inalterado
+  nesta sessão) e duas reações concorrentes de dois `BrowserContext` da
+  mesma conta (`Promise.all`) convergindo para exatamente 1 linha com um
+  valor determinístico (não corrompe, não duplica).
+- Admin consegue avançar status via `set_feedback_status`; estudante comum
+  chamando a mesma RPC diretamente é bloqueado no servidor (autorização já
+  provada por pgTAP com sessão Postgres real — repetida aqui via sessão de
+  navegador autenticada de verdade, para cobrir o caminho de rede real
+  também).
+
+Confirmado por consulta direta ao banco ao final: exatamente 4 linhas de
+`feedback` e 1 linha de `question_reactions` das contas de teste (nenhuma
+duplicata de nenhum dos cenários de replay/retry/conflito acima); cascade
+de `admin.auth.admin.deleteUser`/`delete from auth.users` removeu as 3
+contas e todas as linhas associadas — contagem de `feedback` voltou
+exatamente ao baseline pré-teste (5, todas de seed/fixture pré-existente,
+nenhuma das 07f2.*).
+
+**Não repetido nesta rodada** (já provado antes, sem mudança de código
+que pudesse quebrá-lo): a convergência determinística de reações entre
+dois dispositivos sob leitura desatualizada (armadilha #18, já fixada no
+07-F com o cenário exato que a expôs) e o reenvio com backoff exponencial
+esgotando tentativas (mecanismo genérico de `syncQueue.ts`, inalterado).
+
+### tsc/build
+
+`npx.cmd tsc --noEmit` e `npm run build` limpos antes e depois de cada
+mudança. Bundle de produção confirmado sem `__syncDebug`.
+
+### Estado ao final desta sessão
+
+Ver "Estado atual" em `AGENTS.md` para o resultado da fase de publicação
+(push, migration remota, merge, deploy, smoke test) — preenchido depois
+que a fase de publicação desta sessão terminar.

@@ -1,9 +1,13 @@
 -- ============================================================================
 -- SynapseMed — Testes pgTAP das categorias 8 (reações) e 9 (feedback +
--- status editorial) de sincronização (Prompt 07-F).
+-- status editorial) de sincronização (Prompt 07-F, complementado no 07-F2
+-- com idempotência verificada de `submit_feedback` e a constraint de
+-- exclusividade do vínculo).
 --
 -- Cobre a migration 20260910120000_sync_reliability_categorias_8_9.sql
--- (`updated_at` + trigger em `feedback`, RPC `set_feedback_status`) e o
+-- (`updated_at` + trigger em `feedback`, RPC `set_feedback_status`, RPC
+-- `submit_feedback` e a constraint `feedback_question_or_material_exclusive`
+-- — as duas últimas adicionadas no 07-F2) e o
 -- contrato já existente de `question_reactions` (upsert por índice único
 -- COMUM `unique (user_id, question_id)` — não parcial, ver AGENTS.md
 -- armadilha #14), que esta rodada não precisou alterar no schema. Reusa os
@@ -18,7 +22,7 @@
 -- de navegador (Playwright), não desta suíte.
 -- ============================================================================
 
-select plan(27);
+select plan(37);
 
 select tests.clear_auth();
 
@@ -31,6 +35,9 @@ returning id as v_discipline_id \gset
 
 insert into public.themes (discipline_id, name) values (:'v_discipline_id', 'Tema Sync89 Teste')
 returning id as v_theme_id \gset
+
+insert into public.materials (discipline_id, theme_id, title) values (:'v_discipline_id', :'v_theme_id', 'Compêndio Sync89 Teste')
+returning id as v_material_id \gset
 
 insert into public.questions (discipline_id, theme_id, cycle, difficulty, clinical_vignette, question_stem)
 values (:'v_discipline_id', :'v_theme_id', 'clinico', 'medio', 'Vinheta Sync89', 'Enunciado Sync89')
@@ -185,6 +192,118 @@ select is(
   (select count(*) from public.feedback where description = 'texto igual para o teste de não-dedupe por conteúdo'),
   2::bigint,
   'as duas submissões distintas com texto igual coexistem (2 linhas)'
+);
+
+-- ----------------------------------------------------------------------------
+-- submit_feedback (Prompt 07-F2): idempotência VERIFICADA no servidor, não
+-- mais "qualquer 23505 é sucesso" no cliente. Replay idêntico é aceito;
+-- colisão de id com conteúdo ou dono diferente é conflito permanente.
+-- ----------------------------------------------------------------------------
+
+select gen_random_uuid() as v_fb2_id \gset
+
+select lives_ok(
+  format(
+    $$ select public.submit_feedback(%L, 'problema', 'Título original', 'Descrição original', %L, null) $$,
+    :'v_fb2_id', :'v_question_id'
+  ),
+  'submit_feedback: primeira submissão é aceita e devolve a linha criada'
+);
+
+select is(
+  (select title from public.feedback where id = :'v_fb2_id'),
+  'Título original',
+  'submit_feedback: título gravado corretamente na primeira submissão'
+);
+
+select lives_ok(
+  format(
+    $$ select public.submit_feedback(%L, 'problema', 'Título original', 'Descrição original', %L, null) $$,
+    :'v_fb2_id', :'v_question_id'
+  ),
+  'submit_feedback: replay EXATO do mesmo id/conteúdo/dono é aceito como sucesso idempotente (nunca duplica)'
+);
+
+select is(
+  (select count(*) from public.feedback where id = :'v_fb2_id'),
+  1::bigint,
+  'submit_feedback: replay não duplicou linha (continua 1)'
+);
+
+select throws_ok(
+  format(
+    $$ select public.submit_feedback(%L, 'problema', 'Título DIFERENTE', 'Descrição original', %L, null) $$,
+    :'v_fb2_id', :'v_question_id'
+  ),
+  'P0001',
+  null,
+  'submit_feedback: mesmo id com texto diferente é rejeitado como conflito (P0001, permanente — nunca 23505 solto)'
+);
+
+select tests.clear_auth();
+select tests.authenticate_as(:'v_user_b');
+
+select throws_ok(
+  format(
+    $$ select public.submit_feedback(%L, 'problema', 'Título original', 'Descrição original', %L, null) $$,
+    :'v_fb2_id', :'v_question_id'
+  ),
+  'P0001',
+  null,
+  'submit_feedback: mesmo id sob OUTRO usuário é rejeitado como conflito, mesmo com conteúdo idêntico (dono diferente)'
+);
+
+select tests.clear_auth();
+select tests.authenticate_as(:'v_admin');
+
+select is(
+  (select user_id from public.feedback where id = :'v_fb2_id'),
+  :'v_user_a',
+  'submit_feedback: a tentativa de B (dono diferente, rejeitada) não alterou o dono original da linha de A'
+);
+
+select tests.clear_auth();
+select tests.authenticate_as(:'v_user_a');
+
+-- feedback geral (sem vínculo) via RPC.
+select lives_ok(
+  format(
+    $$ select public.submit_feedback(gen_random_uuid(), 'sugestao', 'Sugestão geral', 'Sem vínculo com questão ou compêndio', null, null) $$
+  ),
+  'submit_feedback: feedback geral (question_id e material_id nulos) é aceito'
+);
+
+-- feedback com questão e material simultaneamente: rejeitado pela RPC
+-- (validação explícita antes do INSERT chegar a violar a constraint —
+-- mensagem mais clara que "check constraint violated").
+select throws_ok(
+  format(
+    $$ select public.submit_feedback(gen_random_uuid(), 'problema', 'Inválido', 'Vínculo duplo', %L, %L) $$,
+    :'v_question_id', :'v_material_id'
+  ),
+  '23514',
+  null,
+  'submit_feedback: question_id e material_id preenchidos simultaneamente é rejeitado (constraint check via RPC)'
+);
+
+select tests.clear_auth();
+
+-- ----------------------------------------------------------------------------
+-- Exclusividade do vínculo (constraint feedback_question_or_material_exclusive):
+-- confirma que a constraint em si barra o INSERT direto (defesa em
+-- profundidade, não só a validação da RPC acima).
+-- ----------------------------------------------------------------------------
+
+select tests.authenticate_as(:'v_user_a');
+
+select throws_ok(
+  format(
+    $$ insert into public.feedback (id, user_id, type, title, description, question_id, material_id) values (gen_random_uuid(), %L, 'problema', 'Inválido', 'Vínculo duplo via insert direto', %L, %L) $$,
+    :'v_user_a', :'v_question_id', :'v_material_id'
+  ),
+  '23514',
+  null,
+  'constraint feedback_question_or_material_exclusive rejeita INSERT direto com os dois vínculos preenchidos'
 );
 
 select tests.clear_auth();

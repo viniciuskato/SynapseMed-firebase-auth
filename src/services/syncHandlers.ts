@@ -421,32 +421,32 @@ export function registerSyncHandlers(): void {
     return null;
   });
 
-  // Feedback (categoria 9, envio): insert único por `feedback.id` (ver
-  // comentário do tipo `FeedbackSubmitOpPayload` acima e a migration
-  // 20260910120000_sync_reliability_categorias_8_9.sql). Reenviar o MESMO
-  // `client_op_id` (= o mesmo `id`, gerado uma única vez no componente antes
-  // do primeiro envio) após perda de resposta (servidor aplicou, cliente não
-  // recebeu confirmação) resulta em `23505` (unique violation na PK) — nunca
-  // propagado como erro real, tratado como sucesso idempotente. Dois
-  // relatos DELIBERADAMENTE distintos (mesmo com texto igual) sempre têm
-  // `id`s diferentes, então nunca são deduplicados por engano: a
-  // deduplicação é só por `id`, nunca por conteúdo. Nunca loga
-  // `description`/`title` (texto livre do usuário) — só o resultado da
-  // chamada, como todo outro handler deste arquivo.
+  // Feedback (categoria 9, envio): RPC transacional `submit_feedback`
+  // (migration 20260910120000_sync_reliability_categorias_8_9.sql, Prompt
+  // 07-F2). Reenviar o MESMO `client_op_id` (= o mesmo `feedback.id`, gerado
+  // uma única vez no componente antes do primeiro envio) após perda de
+  // resposta (servidor aplicou, cliente não recebeu confirmação) é aceito
+  // como replay SÓ quando a linha existente pertence ao mesmo usuário e tem
+  // o mesmo conteúdo — a RPC verifica isso no servidor (nunca no cliente,
+  // que não pode ser confiável para essa decisão) e levanta uma exceção
+  // permanente (SQLSTATE P0001, classificada como 'validation' por
+  // classifySyncError em syncQueue.ts — nunca retentada em loop) se a
+  // colisão de id for de dono ou conteúdo diferente. Dois relatos
+  // DELIBERADAMENTE distintos (mesmo com texto igual) sempre têm `id`s
+  // diferentes, então nunca são deduplicados por engano: a deduplicação é
+  // só por `id`, nunca por conteúdo. Nunca loga `description`/`title`
+  // (texto livre do usuário) — só o resultado da chamada, como todo outro
+  // handler deste arquivo.
   registerHandler('feedback_submit', async (payload: FeedbackSubmitOpPayload) => {
-    const { data: userData, error: userErr } = await supabase.auth.getUser();
-    if (userErr) throw userErr;
-
-    const { error } = await supabase.from('feedback').insert({
-      id: payload.feedback.id,
-      user_id: userData.user?.id,
-      type: payload.feedback.type,
-      title: payload.feedback.title,
-      description: payload.feedback.description,
-      question_id: payload.feedback.questionId ?? null,
-      material_id: payload.feedback.materialId ?? null,
+    const { error } = await supabase.rpc('submit_feedback', {
+      p_id: payload.feedback.id,
+      p_type: payload.feedback.type,
+      p_title: payload.feedback.title,
+      p_description: payload.feedback.description,
+      p_question_id: payload.feedback.questionId ?? null,
+      p_material_id: payload.feedback.materialId ?? null,
     });
-    if (error && error.code !== '23505') throw error;
+    if (error) throw error;
     return null;
   });
 }
