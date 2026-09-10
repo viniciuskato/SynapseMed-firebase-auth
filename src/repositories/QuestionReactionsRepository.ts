@@ -7,6 +7,7 @@ import { ReactionSetOpPayload } from '../services/syncHandlers';
 
 export interface QuestionReactionsRepository {
   getMyReaction(questionId: string): Promise<QuestionReactionValue | null>;
+  getMyReactions(): Promise<Record<string, QuestionReactionValue>>;
   setReaction(questionId: string, reaction: QuestionReactionValue): Promise<void>;
   removeReaction(questionId: string): Promise<void>;
 }
@@ -14,6 +15,9 @@ export interface QuestionReactionsRepository {
 class LocalStorageQuestionReactionsRepository implements QuestionReactionsRepository {
   async getMyReaction(questionId: string): Promise<QuestionReactionValue | null> {
     return StorageService.getQuestionReactions()[questionId] ?? null;
+  }
+  async getMyReactions(): Promise<Record<string, QuestionReactionValue>> {
+    return StorageService.getQuestionReactions();
   }
   async setReaction(questionId: string, reaction: QuestionReactionValue): Promise<void> {
     StorageService.setQuestionReaction(questionId, reaction);
@@ -45,6 +49,15 @@ class ResilientQuestionReactionsRepository implements QuestionReactionsRepositor
       return await this.supa.getMyReaction(questionId);
     } catch {
       return this.local.getMyReaction(questionId);
+    }
+  }
+
+  async getMyReactions(): Promise<Record<string, QuestionReactionValue>> {
+    if (!isSupabaseConfigured) return this.local.getMyReactions();
+    try {
+      return await this.supa.getMyReactions();
+    } catch {
+      return this.local.getMyReactions();
     }
   }
 

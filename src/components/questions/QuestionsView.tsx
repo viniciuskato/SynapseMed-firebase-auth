@@ -11,10 +11,11 @@ import {
   Plus,
   BookOpen,
 } from 'lucide-react';
-import { Question, Discipline, Theme, MedicalCycle, DifficultyLevel, QuestionAnswerRecord } from '../../types';
+import { Question, Discipline, Theme, MedicalCycle, DifficultyLevel, QuestionAnswerRecord, QuestionReactionValue } from '../../types';
 import { StorageService } from '../../services/storage';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
+import { questionReactionsRepository } from '../../repositories/QuestionReactionsRepository';
 import { QuestionCard } from './QuestionCard';
 
 interface QuestionsViewProps {
@@ -25,6 +26,13 @@ interface QuestionsViewProps {
   onOpenCreateSimulado: () => void;
   filterThemeId?: string;
   focusQuestionId?: string;
+  /**
+   * Status inicial dos pills de filtro (ex.: 'incorrect' ao chegar vindo de
+   * "Treinar Apenas Questões Erradas" no Caderno de Erros — ver App.tsx,
+   * Prompt 10-A). Só define o valor INICIAL; o usuário pode trocar depois
+   * normalmente. Undefined mantém o padrão 'all'.
+   */
+  initialStatusFilter?: 'all' | 'unanswered' | 'correct' | 'incorrect' | 'bookmarked';
 }
 
 export const QuestionsView: React.FC<QuestionsViewProps> = ({
@@ -35,11 +43,14 @@ export const QuestionsView: React.FC<QuestionsViewProps> = ({
   onOpenCreateSimulado,
   filterThemeId,
   focusQuestionId,
+  initialStatusFilter,
 }) => {
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
   const [selectedTheme, setSelectedTheme] = useState<string>(filterThemeId || 'all');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<'all' | 'unanswered' | 'correct' | 'incorrect' | 'bookmarked'>('all');
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'unanswered' | 'correct' | 'incorrect' | 'bookmarked'>(
+    initialStatusFilter || 'all'
+  );
   const [searchQuery, setSearchQuery] = useState('');
 
   const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
@@ -48,17 +59,25 @@ export const QuestionsView: React.FC<QuestionsViewProps> = ({
     compendiums: string[];
     flashcards: string[];
   }>({ questions: [], compendiums: [], flashcards: [] });
+  // Reações (👍/👎) de TODAS as questões do usuário, buscadas uma única vez
+  // aqui (Prompt 10-A) — antes, cada <QuestionCard> pedia a própria reação
+  // individualmente ao montar, o que com os filtros "Todas"/"Erros" (até 393
+  // cartões simultâneos, sem paginação) virava centenas de requisições
+  // concorrentes pela mesma informação que cabe numa única consulta.
+  const [reactions, setReactions] = useState<Record<string, QuestionReactionValue>>({});
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [nextAnswers, nextBookmarks] = await Promise.all([
+      const [nextAnswers, nextBookmarks, nextReactions] = await Promise.all([
         answersRepository.getAnswers(),
         bookmarksRepository.getBookmarks(),
+        questionReactionsRepository.getMyReactions(),
       ]);
       if (cancelled) return;
       setAnswers(nextAnswers);
       setBookmarks(nextBookmarks);
+      setReactions(nextReactions);
     })();
     return () => {
       cancelled = true;
@@ -286,6 +305,11 @@ export const QuestionsView: React.FC<QuestionsViewProps> = ({
               discipline={disciplines.find((d) => d.id === q.disciplineId)}
               theme={themes.find((t) => t.id === q.themeId)}
               onOpenCompendium={onOpenCompendium}
+              hydrated={{
+                answer: answers[q.id] ?? null,
+                bookmarked: bookmarks.questions.includes(q.id),
+                reaction: reactions[q.id] ?? null,
+              }}
             />
           ))}
         </div>

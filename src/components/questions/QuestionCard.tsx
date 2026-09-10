@@ -37,6 +37,21 @@ interface QuestionCardProps {
   isExamMode?: boolean;
   selectedOptionInExam?: 'A' | 'B' | 'C' | 'D' | 'E';
   onSelectOptionInExam?: (opt: 'A' | 'B' | 'C' | 'D' | 'E') => void;
+  /**
+   * Resposta/favorito/reação já resolvidos em lote pelo componente pai (ex.:
+   * <QuestionsView>, que busca os três de uma vez para TODOS os cartões
+   * visíveis). Quando presente, evita que este cartão dispare sua própria
+   * consulta individual — com filtros como "Todas"/"Erros" renderizando até
+   * as 393 questões de uma vez (sem paginação), 3 requisições por cartão
+   * viravam centenas de requisições concorrentes pela mesma informação
+   * (Prompt 10-A). Contextos que não passam esta prop (prova/simulado,
+   * questão única) continuam buscando por conta própria, como antes.
+   */
+  hydrated?: {
+    answer: QuestionAnswerRecord | null;
+    bookmarked: boolean;
+    reaction: QuestionReactionValue | null;
+  };
 }
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({
@@ -48,6 +63,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   isExamMode = false,
   selectedOptionInExam,
   onSelectOptionInExam,
+  hydrated,
 }) => {
   // Local state for study mode
   const [selectedOption, setSelectedOption] = useState<'A' | 'B' | 'C' | 'D' | 'E' | null>(
@@ -73,40 +89,113 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   // policy de SELECT direto (ver rls_policies.sql).
   const [reviewResult, setReviewResult] = useState<QuestionReviewResult | null>(null);
   const [myReaction, setMyReaction] = useState<QuestionReactionValue | null>(null);
+  // Rascunho da recordação ativa (Prompt 10-A) — o que o estudante escreveu
+  // ANTES de revelar as alternativas, no modo "recall livre". Existe só
+  // durante a sessão (nunca enviado ao servidor, nunca à IA, nunca vira
+  // gabarito): não há necessidade de sobreviver a reload/dispositivo — é um
+  // rascunho descartável, não um dado de aprendizado que precise persistir
+  // (ver instrução do prompt: não criar migration para isso).
+  const [openRecallDraft, setOpenRecallDraft] = useState<string>('');
+  // Distingue "reidratado de uma tentativa já existente no servidor" de
+  // "respondida agora, nesta sessão" — usado só para não confundir os dois
+  // casos (ex.: nunca disparar confete/toast/XP pela hidratação) e para
+  // testes automatizados conseguirem afirmar qual dos dois aconteceu.
+  const [answerOrigin, setAnswerOrigin] = useState<'hydrated' | 'session' | null>(null);
 
-  // Carrega a resposta/favorito já registrados para esta questão (Supabase)
+  // Chave estável derivada de `hydrated` para a dependência do useEffect
+  // abaixo. `hydrated` é um objeto NOVO a cada render do pai (`<QuestionsView>`
+  // recria o literal `{ answer, bookmarked, reaction }` toda vez) — depender
+  // do objeto em si reexecutaria a hidratação (inclusive a chamada de rede
+  // de `getQuestionReview`) a cada tecla digitada na busca/filtro do pai.
+  // Os valores primitivos abaixo só mudam quando o CONTEÚDO realmente muda.
+  const hydratedKey = hydrated
+    ? `${hydrated.answer?.selectedOption ?? ''}|${hydrated.answer?.isCorrect ?? ''}|${
+        hydrated.answer?.timestamp ?? ''
+      }|${hydrated.bookmarked}|${hydrated.reaction ?? ''}`
+    : null;
+
+  // Carrega a resposta/favorito/reação já registrados para esta questão.
+  // Quando o pai já buscou tudo em lote (`hydrated`, ver <QuestionsView>),
+  // usa esses valores direto — evita uma consulta individual por cartão
+  // (Prompt 10-A). Sem `hydrated` (prova/simulado, questão única via busca),
+  // busca por conta própria, como antes.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const [answers, bookmarks, reaction] = await Promise.all([
-        answersRepository.getAnswers(),
-        bookmarksRepository.getBookmarks(),
-        questionReactionsRepository.getMyReaction(question.id),
-      ]);
-      if (cancelled) return;
 
-      const initialAnswer = answers[question.id];
+    const applyInitialState = (
+      initialAnswer: QuestionAnswerRecord | null,
+      bookmarked: boolean,
+      reaction: QuestionReactionValue | null
+    ) => {
+      if (cancelled) return;
       if (!isExamMode) {
         setSelectedOption(initialAnswer?.selectedOption || selectedOptionInExam || null);
         setIsSubmitted(!!initialAnswer);
-        if (initialAnswer) {
-          const review = await questionsRepository.getQuestionReview(question.id);
-          if (!cancelled) setReviewResult(review);
-        }
+        setAnswerOrigin(initialAnswer ? 'hydrated' : null);
       }
-      setIsBookmarked(bookmarks.questions.includes(question.id));
+      setIsBookmarked(bookmarked);
       setErrorReason(initialAnswer?.errorReason || 'lacuna_teorica');
       setUserNote(initialAnswer?.userNotes || '');
       setAnswerMode(initialAnswer?.answerMode);
       setAlternativesRevealed(isExamMode || !!initialAnswer);
       setAnswerStrategy(initialAnswer?.answerStrategy);
       setMyReaction(reaction);
+    };
+
+    const loadReviewIfAnswered = async (initialAnswer: QuestionAnswerRecord | null) => {
+      if (isExamMode || !initialAnswer) return;
+      try {
+        const review = await questionsRepository.getQuestionReview(question.id);
+        if (!cancelled) setReviewResult(review);
+      } catch {
+        // Justificativa/gabarito não puderam ser recarregados agora (rede
+        // instável, etc.) — isSubmitted/selectedOption já foram restaurados
+        // acima independentemente disso; o estudante ainda vê que já
+        // respondeu, só a explicação detalhada fica indisponível até uma
+        // nova tentativa de carregamento (reload da questão).
+      }
+    };
+
+    setOpenRecallDraft('');
+    setReviewResult(null);
+
+    if (hydrated) {
+      applyInitialState(hydrated.answer, hydrated.bookmarked, hydrated.reaction);
+      loadReviewIfAnswered(hydrated.answer);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // Sem hidratação em lote: cada consulta é isolada (Promise.allSettled,
+    // não Promise.all) para que uma falha isolada (ex.: reação) não apague o
+    // resultado das outras — antes, qualquer rejeição zerava TODO o estado
+    // reidratado desta questão, incluindo isSubmitted/resposta/justificativa.
+    (async () => {
+      const [answersResult, bookmarksResult, reactionResult] = await Promise.allSettled([
+        answersRepository.getAnswers(),
+        bookmarksRepository.getBookmarks(),
+        questionReactionsRepository.getMyReaction(question.id),
+      ]);
+      if (cancelled) return;
+
+      const answers = answersResult.status === 'fulfilled' ? answersResult.value : {};
+      const bookmarks =
+        bookmarksResult.status === 'fulfilled'
+          ? bookmarksResult.value
+          : { questions: [], compendiums: [], flashcards: [] };
+      const reaction = reactionResult.status === 'fulfilled' ? reactionResult.value : null;
+
+      const initialAnswer = answers[question.id] ?? null;
+      applyInitialState(initialAnswer, bookmarks.questions.includes(question.id), reaction);
+      await loadReviewIfAnswered(initialAnswer);
     })();
+
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [question.id]);
+  }, [question.id, hydratedKey]);
 
   // Achado real do Prompt 07-F (reproduzido com Playwright, dois
   // BrowserContext da mesma conta): `myReaction` só é atualizado localmente
@@ -180,6 +269,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     record.errorReason = isCorrect ? undefined : errorReason;
     setReviewResult(review);
     setIsSubmitted(true);
+    setAnswerOrigin('session');
 
     if (onAnswerRecorded) onAnswerRecorded(record);
 
@@ -277,6 +367,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   return (
     <div
       id={`question-${question.id}`}
+      data-answer-origin={answerOrigin ?? 'unanswered'}
       className={`bg-white dark:bg-[#0F172A] rounded-3xl border transition-all p-6 sm:p-8 elev-xs relative ${
         isSubmitted
           ? isCorrect
@@ -343,7 +434,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       {!isExamMode && !isSubmitted && !answerMode && (
         <div className="mb-6 p-4 rounded-2xl bg-slate-50 dark:bg-[#142038] border border-slate-200 dark:border-[#243452] flex flex-col sm:flex-row items-center gap-3">
           <p className="text-xs text-slate-600 dark:text-slate-300 font-medium flex-1">
-            Antes de ver as alternativas: você já sabe a resposta ou prefere reconhecê-la entre as opções?
+            Antes de ver as alternativas: prefere responder com suas próprias palavras primeiro, ou já reconhecer a resposta entre as opções?
           </p>
           <div className="flex gap-2">
             <button
@@ -354,7 +445,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
               }}
               className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white transition-colors cursor-pointer elev-xs"
             >
-              Já sei a resposta
+              Responder antes de ver as alternativas
             </button>
             <button
               type="button"
@@ -370,10 +461,40 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         </div>
       )}
 
-      {/* Recall livre: alternativas ficam ocultas até o aluno revelar */}
+      {/* Recall ativo: campo de texto livre ANTES de revelar as alternativas
+          (Prompt 10-A). O estudante escreve sua resposta com as próprias
+          palavras (recordação ativa); pode revelar as alternativas sem
+          preencher nada — o texto é só um apoio à memória, nunca é
+          classificado automaticamente nem vira gabarito, e a seleção +
+          confirmação de uma alternativa continua sendo o único mecanismo
+          oficial de correção. Nunca enviado ao servidor nem a nenhuma IA —
+          existe só neste componente, durante esta sessão. */}
       {!isExamMode && !isSubmitted && answerMode === 'open_recall' && !alternativesRevealed && (
-        <div className="mb-6 p-6 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center gap-3 text-center">
-          <div className="space-y-2 select-none blur-sm pointer-events-none opacity-60 w-full">
+        <div className="mb-6 p-6 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center gap-4 text-center">
+          <div className="w-full text-left space-y-1.5">
+            <label
+              htmlFor={`open-recall-draft-${question.id}`}
+              className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              Escreva sua resposta antes de ver as alternativas (opcional)
+            </label>
+            <textarea
+              id={`open-recall-draft-${question.id}`}
+              value={openRecallDraft}
+              onChange={(e) => setOpenRecallDraft(e.target.value)}
+              placeholder="Ex.: eu responderia que é... porque..."
+              rows={3}
+              inputMode="text"
+              aria-describedby={`open-recall-draft-help-${question.id}`}
+              className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200 dark:border-[#243452] bg-white dark:bg-[#0B1220] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-teal-500"
+            />
+            <p id={`open-recall-draft-help-${question.id}`} className="text-[11px] text-slate-400 dark:text-slate-500">
+              Este texto não é enviado a ninguém, não é analisado automaticamente e não substitui marcar uma alternativa — é só para você comparar depois de ver as opções. Pode continuar sem escrever nada.
+            </p>
+          </div>
+
+          <div className="space-y-2 select-none blur-sm pointer-events-none opacity-60 w-full" aria-hidden="true">
             {question.options.map((opt) => (
               <div
                 key={opt.letter}
@@ -390,6 +511,20 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           >
             Revelar alternativas para marcar minha resposta
           </button>
+        </div>
+      )}
+
+      {/* Comparação: mostra o que foi escrito antes de revelar (recordação
+          ativa), lado a lado com as alternativas agora visíveis. Some quando
+          a questão é trocada (reset no useEffect) — não fica sobrando de uma
+          questão anterior. */}
+      {!isExamMode && answerMode === 'open_recall' && alternativesRevealed && openRecallDraft.trim() && (
+        <div className="mb-4 p-3.5 rounded-2xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/60 text-xs">
+          <span className="font-bold flex items-center gap-1.5 text-teal-900 dark:text-teal-300 mb-1">
+            <Sparkles className="w-3.5 h-3.5" />
+            O que você escreveu antes de ver as alternativas:
+          </span>
+          <p className="text-teal-950/90 dark:text-teal-200/90 leading-relaxed whitespace-pre-wrap">{openRecallDraft}</p>
         </div>
       )}
 
