@@ -11,7 +11,7 @@ import {
   Plus,
   BookOpen,
 } from 'lucide-react';
-import { Question, Discipline, Theme, MedicalCycle, DifficultyLevel, QuestionAnswerRecord, QuestionReactionValue } from '../../types';
+import { Question, Discipline, Theme, MedicalCycle, DifficultyLevel, QuestionAnswerRecord, QuestionReactionValue, Compendium } from '../../types';
 import { StorageService } from '../../services/storage';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
@@ -22,7 +22,8 @@ interface QuestionsViewProps {
   questions: Question[];
   disciplines: Discipline[];
   themes: Theme[];
-  onOpenCompendium: (compendiumId: string, sectionId?: string) => void;
+  compendiums?: Compendium[];
+  onOpenCompendium: (compendiumId?: string, sectionId?: string, originQuestionId?: string) => void;
   onOpenCreateSimulado: () => void;
   filterThemeId?: string;
   focusQuestionId?: string;
@@ -39,6 +40,7 @@ export const QuestionsView: React.FC<QuestionsViewProps> = ({
   questions,
   disciplines,
   themes,
+  compendiums,
   onOpenCompendium,
   onOpenCreateSimulado,
   filterThemeId,
@@ -304,6 +306,7 @@ export const QuestionsView: React.FC<QuestionsViewProps> = ({
               question={q}
               discipline={disciplines.find((d) => d.id === q.disciplineId)}
               theme={themes.find((t) => t.id === q.themeId)}
+              compendiums={compendiums}
               onOpenCompendium={onOpenCompendium}
               hydrated={{
                 answer: answers[q.id] ?? null,

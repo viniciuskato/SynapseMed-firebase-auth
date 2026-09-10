@@ -23,6 +23,7 @@ import {
   FileCheck2,
   RefreshCw,
   AlertCircle,
+  ArrowLeft,
 } from 'lucide-react';
 import { Compendium, Discipline, Theme, StudyLens, EditorialStatus } from '../../types';
 import { StorageService } from '../../services/storage';
@@ -37,6 +38,12 @@ interface CompendiumViewProps {
   onOpenCompendium: (compendiumId: string, sectionId?: string) => void;
   onOpenQuestionsForTheme: (themeId: string) => void;
   initialDisciplineId?: string;
+  returnToQuestionsContext?: {
+    view: string;
+    questionId?: string;
+    label?: string;
+  } | null;
+  onReturnToQuestions?: () => void;
 }
 
 export const STUDY_LENSES: { id: StudyLens; label: string; description: string; icon: any }[] = [
@@ -79,6 +86,8 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
   onOpenCompendium,
   onOpenQuestionsForTheme,
   initialDisciplineId,
+  returnToQuestionsContext,
+  onReturnToQuestions,
 }) => {
   // Navigation State: Especialidade -> Lente de Estudo -> Material
   const [selectedDisciplineId, setSelectedDisciplineId] = useState<string>(
@@ -199,6 +208,33 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
 
   return (
     <div className="space-y-6 w-full max-w-[1600px] mx-auto">
+      {/* ── Retorno contextual às questões ─────────────────────── */}
+      {returnToQuestionsContext && onReturnToQuestions && (
+        <div className="p-4 rounded-2xl bg-teal-50/90 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 elev-xs">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-[#0F766E] dark:bg-[#14B8A6] text-white dark:text-[#0B1220] flex items-center justify-center shrink-0">
+              <BookOpen className="w-4 h-4" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-[#0F766E] dark:text-[#14B8A6]">
+                Navegação Originada de Questões
+              </p>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                Você abriu a biblioteca para consulta de material. Você pode retornar à resolução a qualquer instante.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onReturnToQuestions}
+            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-colors elev-xs cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>{returnToQuestionsContext.label || 'Retornar às Questões'}</span>
+          </button>
+        </div>
+      )}
+
       {/* ── Page Header: Biblioteca Médica ────────────────────────── */}
       <div className="border-b border-slate-200 dark:border-slate-800 pb-5">
         <div className="flex flex-wrap items-center justify-between gap-3">

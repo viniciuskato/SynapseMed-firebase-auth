@@ -10,7 +10,7 @@ import {
   HelpCircle,
   Flame,
 } from 'lucide-react';
-import { Question, Discipline, Theme, QuestionAnswerRecord } from '../../types';
+import { Question, Discipline, Theme, QuestionAnswerRecord, Compendium } from '../../types';
 import { StorageService } from '../../services/storage';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
@@ -20,6 +20,7 @@ interface CadernoErrosViewProps {
   questions: Question[];
   disciplines: Discipline[];
   themes: Theme[];
+  compendiums?: Compendium[];
   onOpenCompendium: (compendiumId: string, sectionId?: string) => void;
   onOpenCreateSimulado: () => void;
 }
@@ -28,6 +29,7 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
   questions,
   disciplines,
   themes,
+  compendiums,
   onOpenCompendium,
   onOpenCreateSimulado,
 }) => {
@@ -90,7 +92,7 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
       )}
 
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-slate-950 rounded-3xl p-6 sm:p-8 text-white elev-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-rose-950 via-slate-900 to-slate-950 rounded-3xl p-6 sm:p-8 text-white elev-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-rose-900/30">
         <div className="max-w-2xl space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 text-xs font-semibold border border-rose-400/30">
             <AlertCircle className="w-3.5 h-3.5" />
@@ -108,7 +110,7 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
           {mistakeQuestions.length > 0 && (
             <button
               onClick={handleGenerateAllFlashcards}
-              className="px-5 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-2xl elev-md transition-colors flex items-center justify-center gap-2"
+              className="px-5 py-3 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-2xl elev-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
             >
               <Layers className="w-4 h-4" />
               <span>Gerar SRS para Todos</span>
@@ -117,7 +119,7 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
 
           <button
             onClick={onOpenCreateSimulado}
-            className="px-5 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-2xl elev-md transition-colors flex items-center justify-center gap-2"
+            className="px-5 py-3 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-2xl elev-md transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <Timer className="w-4 h-4" />
             <span>Simulado Só de Erros</span>
@@ -128,20 +130,20 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
       {/* Error Breakdown Pills */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { id: 'all', label: 'Todos os Erros', count: mistakeRecords.length, color: 'bg-slate-900 text-white' },
-          { id: 'lacuna_teorica', label: 'Lacuna Teórica', count: reasonStats.lacuna_teorica, color: 'bg-rose-50 text-rose-900 border-rose-200' },
-          { id: 'pegadinha', label: 'Pegadinha / Distrator', count: reasonStats.pegadinha, color: 'bg-amber-50 text-amber-900 border-amber-200' },
-          { id: 'falta_atencao', label: 'Falta de Atenção', count: reasonStats.falta_atencao, color: 'bg-blue-50 text-blue-900 border-blue-200' },
+          { id: 'all', label: 'Todos os Erros', count: mistakeRecords.length },
+          { id: 'lacuna_teorica', label: 'Lacuna Teórica', count: reasonStats.lacuna_teorica },
+          { id: 'pegadinha', label: 'Pegadinha / Distrator', count: reasonStats.pegadinha },
+          { id: 'falta_atencao', label: 'Falta de Atenção', count: reasonStats.falta_atencao },
         ].map((item) => {
           const isSelected = selectedReasonFilter === item.id;
           return (
             <button
               key={item.id}
               onClick={() => setSelectedReasonFilter(item.id)}
-              className={`p-3.5 rounded-2xl border text-left transition-all ${
+              className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-slate-900 text-white border-slate-900 elev-sm'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                  ? 'bg-slate-900 dark:bg-rose-950/80 text-white border-slate-900 dark:border-rose-700 elev-sm ring-2 ring-rose-500/30'
+                  : 'bg-white dark:bg-[#0F172A] border-slate-200 dark:border-[#243452] text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
               }`}
             >
               <span className="text-[11px] font-bold block mb-1">{item.label}</span>
@@ -153,18 +155,18 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
 
       {/* Mistakes List */}
       {mistakeQuestions.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center text-slate-500 space-y-2">
+        <div className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] p-12 text-center text-slate-500 dark:text-slate-400 space-y-2">
           <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-500" />
-          <p className="font-bold text-base text-slate-800">
+          <p className="font-bold text-base text-slate-800 dark:text-slate-200">
             Nenhuma questão no caderno de erros com este filtro!
           </p>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             Seus erros são registrados automaticamente sempre que você responde uma questão incorretamente no Banco de Questões ou Simulados.
           </p>
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="text-xs font-semibold text-slate-500 px-2">
+          <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 px-2">
             Mostrando <strong>{mistakeQuestions.length} questões erradas</strong> para treino deliberado:
           </div>
 
@@ -174,6 +176,7 @@ export const CadernoErrosView: React.FC<CadernoErrosViewProps> = ({
               question={q}
               discipline={disciplines.find((d) => d.id === q.disciplineId)}
               theme={themes.find((t) => t.id === q.themeId)}
+              compendiums={compendiums}
               onOpenCompendium={onOpenCompendium}
             />
           ))}

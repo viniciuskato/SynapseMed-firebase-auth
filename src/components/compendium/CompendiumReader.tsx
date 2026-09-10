@@ -1,4 +1,4 @@
-import { sourceVerificationLabel } from '../../utils/bibliographicSources';
+import { sourceVerificationLabel, resolveOpenAccessReferenceLink } from '../../utils/bibliographicSources';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
@@ -16,6 +16,7 @@ import {
   ChevronRight,
   BookOpen,
   Link2,
+  ExternalLink,
   MoreHorizontal,
 } from 'lucide-react';
 import { Compendium, CompendiumSection, Discipline, Theme } from '../../types';
@@ -35,6 +36,12 @@ interface CompendiumReaderProps {
   onOpenQuestionsForTheme: (themeId: string) => void;
   onOpenFlashcardsForTheme: (themeId: string) => void;
   targetSectionId?: string;
+  returnToQuestionsContext?: {
+    view: string;
+    questionId?: string;
+    label?: string;
+  } | null;
+  onReturnToQuestions?: () => void;
 }
 
 export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
@@ -45,6 +52,8 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
   onOpenQuestionsForTheme,
   onOpenFlashcardsForTheme,
   targetSectionId,
+  returnToQuestionsContext,
+  onReturnToQuestions,
 }) => {
   const discipline = disciplines.find((d) => d.id === compendium.disciplineId);
   const theme = themes.find((t) => t.id === compendium.themeId);
@@ -213,10 +222,10 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
           {/* Back & Breadcrumb — always the first line, shrinks to make room */}
           <div className="order-1 flex items-center gap-2.5 min-w-0 flex-1 sm:flex-initial">
             <button
-              onClick={onBack}
+              onClick={onReturnToQuestions || onBack}
               className="w-11 h-11 sm:w-auto sm:h-auto sm:p-1.5 flex items-center justify-center rounded-lg border border-[#E2E8F0] dark:border-[#263244] hover:bg-slate-50 dark:hover:bg-[#182235] text-[#64748B] dark:text-[#94A3B8] transition-colors shrink-0 cursor-pointer"
-              title="Voltar"
-              aria-label="Voltar"
+              title={returnToQuestionsContext?.label || 'Voltar'}
+              aria-label={returnToQuestionsContext?.label || 'Voltar'}
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
@@ -230,14 +239,25 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
             </div>
           </div>
 
-          {/* Resolver questões — shares the first line with back/breadcrumb on mobile; on desktop it rejoins the action group at the far right */}
-          <button
-            onClick={() => onOpenQuestionsForTheme(compendium.themeId)}
-            className="order-2 sm:order-3 shrink-0 min-h-11 sm:min-h-0 px-3.5 py-2 sm:px-3 sm:py-1.5 rounded-lg bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>Resolver questões</span>
-          </button>
+          {/* Botão Retornar às Questões se veio de questões, ou Resolver questões */}
+          {onReturnToQuestions && returnToQuestionsContext ? (
+            <button
+              onClick={onReturnToQuestions}
+              className="order-2 sm:order-3 shrink-0 min-h-11 sm:min-h-0 px-3.5 py-2 sm:px-3 sm:py-1.5 rounded-lg bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ring-2 ring-teal-500/20"
+              title={returnToQuestionsContext.label || 'Retornar às Questões'}
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>{returnToQuestionsContext.label || 'Retornar às Questões'}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => onOpenQuestionsForTheme(compendium.themeId)}
+              className="order-2 sm:order-3 shrink-0 min-h-11 sm:min-h-0 px-3.5 py-2 sm:px-3 sm:py-1.5 rounded-lg bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Resolver questões</span>
+            </button>
+          )}
 
           {/* Secondary actions — wrap onto their own line on mobile; inline (pushed right) on desktop */}
           <div className="order-3 sm:order-2 basis-full sm:basis-auto sm:shrink-0 sm:ml-auto flex items-center justify-between sm:justify-normal gap-2 pt-1.5 mt-0.5 border-t border-[#E2E8F0] dark:border-[#263244] sm:pt-0 sm:mt-0 sm:border-t-0">
@@ -457,6 +477,33 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
 
       {/* ── Central Editorial Article (max-width between 760 and 820px) ───── */}
       <main className="max-w-[780px] w-full mx-auto px-4 sm:px-8 py-8 sm:py-12">
+        {/* Banner contextual de retorno às questões */}
+        {onReturnToQuestions && returnToQuestionsContext && (
+          <div className="mb-6 p-4 rounded-2xl bg-teal-50/90 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 elev-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#0F766E] dark:bg-[#14B8A6] text-white dark:text-[#0B1220] flex items-center justify-center shrink-0">
+                <BookOpen className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-[#0F766E] dark:text-[#14B8A6]">
+                  Fundamentação Teórica da Questão
+                </p>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300">
+                  Você abriu este compêndio para revisar a teoria da questão. Ao concluir a leitura, retorne diretamente.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onReturnToQuestions}
+              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-colors elev-xs cursor-pointer"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>{returnToQuestionsContext.label || 'Retornar às Questões'}</span>
+            </button>
+          </div>
+        )}
+
         {/* Anotações Pessoais Panel */}
         {showNoteDrawer && (
           <div className="mb-8 p-4 sm:p-5 rounded-xl border border-[#E2E8F0] dark:border-[#263244] bg-white dark:bg-[#111827] elev-xs">
@@ -663,53 +710,96 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
               <span>Flashcards</span>
             </button>
 
-            <button
-              onClick={() => onOpenQuestionsForTheme(compendium.themeId)}
-              className="px-3 py-1.5 rounded-lg bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <HelpCircle className="w-3.5 h-3.5" />
-              <span>Resolver questões</span>
-            </button>
+            {onReturnToQuestions && returnToQuestionsContext ? (
+              <button
+                onClick={onReturnToQuestions}
+                className="px-3.5 py-1.5 rounded-lg bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-xs"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>{returnToQuestionsContext.label || 'Retornar às Questões'}</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => onOpenQuestionsForTheme(compendium.themeId)}
+                className="px-3 py-1.5 rounded-lg bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <HelpCircle className="w-3.5 h-3.5" />
+                <span>Resolver questões</span>
+              </button>
+            )}
           </div>
         </div>
 
         {/* ── References ───────────────────────────────────────────── */}
         {compendium.references && compendium.references.length > 0 && (
-          <footer className="pt-6 border-t border-[#E2E8F0] dark:border-[#263244]">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[#64748B] dark:text-[#94A3B8] mb-3">
-              Referências Bibliográficas & Diretrizes
-            </h4>
-            <p className="mb-2 text-xs">Bibliografia geral do compêndio, sem vínculo com afirmações específicas.</p>
-            <ul className="space-y-1.5 text-xs text-[#64748B] dark:text-[#94A3B8]">
+          <footer className="pt-8 border-t border-[#E2E8F0] dark:border-[#263244] mt-12">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <BookOpen className="w-4 h-4 text-[#0F766E] dark:text-[#14B8A6]" />
+                  <h4 className="text-sm font-semibold text-[#0F172A] dark:text-[#F8FAFC]">
+                    Referências Bibliográficas & Diretrizes Oficiais
+                  </h4>
+                </div>
+                <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
+                  Trabalhamos exclusivamente com fontes de acesso aberto (artigos científicos e diretrizes). Clique na referência para acessar o material original na íntegra.
+                </p>
+              </div>
+              <span className="self-start sm:self-auto inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60 shrink-0">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                <span>Acesso Aberto Garantido</span>
+              </span>
+            </div>
+
+            <div className="space-y-3">
               {compendium.references.map((ref, rIdx) => {
-                // Bibliografia geral por padrão (lista do compêndio como um
-                // todo). Só vira "vínculo verificável" — link clicável — quando
-                // a fonte tem source_id curado E um identificador real
-                // (doi/pmid/url); hoje isso é raro (nenhum dos 33 compêndios
-                // carregados tem source_id curado, ver AGENTS.md) — a maioria
-                // continua honestamente como texto simples.
                 const linkInfo = compendium.referenceSources?.[rIdx];
+                const openAccess = resolveOpenAccessReferenceLink(ref, linkInfo?.url);
+
                 return (
-                  <li key={rIdx} className="flex flex-wrap items-start gap-2 break-words">
-                    <span className="font-mono text-[10px] text-[#94A3B8]">[{rIdx + 1}]</span>
-                    {linkInfo?.linked && linkInfo.url ? (
-                      <a
-                        href={linkInfo.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#0F766E] dark:text-[#14B8A6] hover:underline flex items-start gap-1"
-                      >
-                        <Link2 className="w-3 h-3 shrink-0 mt-0.5" />
-                        <span>{ref}</span>
-                      </a>
-                    ) : (
-                      <span>{ref}</span>
-                    )}
-                    <span className="block basis-full text-[11px]">{linkInfo?.linked ? sourceVerificationLabel(linkInfo.verificacao) : 'Bibliografia textual; sem fonte estruturada vinculada'}</span>
-                  </li>
+                  <a
+                    key={rIdx}
+                    href={openAccess.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group block p-3.5 rounded-xl border border-[#E2E8F0] dark:border-[#263244] bg-[#F8FAFC] dark:bg-[#1E293B]/60 hover:bg-[#F1F5F9] dark:hover:bg-[#1E293B] hover:border-[#0F766E]/50 dark:hover:border-[#14B8A6]/50 transition-all shadow-xs"
+                    title="Clique para acessar o material original na íntegra em nova aba"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                        <span className="font-mono text-xs font-bold text-[#0F766E] dark:text-[#14B8A6] bg-[#0F766E]/10 dark:bg-[#14B8A6]/15 px-1.5 py-0.5 rounded shrink-0 mt-0.5">
+                          [{rIdx + 1}]
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-[#1E293B] dark:text-[#E2E8F0] font-medium leading-relaxed group-hover:text-[#0F766E] dark:group-hover:text-[#14B8A6] transition-colors">
+                            {ref}
+                          </p>
+                          <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 px-2 py-0.5 rounded border border-teal-200/80 dark:border-teal-800/50">
+                              <BookOpen className="w-2.5 h-2.5" />
+                              {openAccess.badgeLabel}
+                            </span>
+                            <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">
+                              {openAccess.documentType}
+                            </span>
+                            {linkInfo?.verificacao && (
+                              <span className="text-[10px] text-[#64748B] dark:text-[#94A3B8] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                {sourceVerificationLabel(linkInfo.verificacao)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-1.5 text-xs font-medium text-[#0F766E] dark:text-[#14B8A6] bg-white dark:bg-[#0F172A] border border-[#CBD5E1] dark:border-[#334155] group-hover:border-[#0F766E] dark:group-hover:border-[#14B8A6] px-3 py-1.5 rounded-lg group-hover:shadow-xs transition-all self-end sm:self-center">
+                        <span>Acessar na íntegra</span>
+                        <ExternalLink className="w-3.5 h-3.5 ml-0.5" />
+                      </div>
+                    </div>
+                  </a>
                 );
               })}
-            </ul>
+            </div>
           </footer>
         )}
       </main>

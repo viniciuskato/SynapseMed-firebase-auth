@@ -19,7 +19,7 @@ import {
   ThumbsDown,
   Link2,
 } from 'lucide-react';
-import { Question, QuestionAnswerRecord, QuestionReviewResult, Discipline, Theme, QuestionReactionValue } from '../../types';
+import { Question, QuestionAnswerRecord, QuestionReviewResult, Discipline, Theme, QuestionReactionValue, Compendium } from '../../types';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
@@ -32,7 +32,8 @@ interface QuestionCardProps {
   question: Question;
   discipline?: Discipline;
   theme?: Theme;
-  onOpenCompendium: (compendiumId: string, sectionId?: string) => void;
+  compendiums?: Compendium[];
+  onOpenCompendium: (compendiumId?: string, sectionId?: string, originQuestionId?: string) => void;
   onAnswerRecorded?: (record: QuestionAnswerRecord) => void;
   isExamMode?: boolean;
   selectedOptionInExam?: 'A' | 'B' | 'C' | 'D' | 'E';
@@ -58,6 +59,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   question,
   discipline,
   theme,
+  compendiums,
   onOpenCompendium,
   onAnswerRecorded,
   isExamMode = false,
@@ -73,14 +75,6 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
   const [errorReason, setErrorReason] = useState<QuestionAnswerRecord['errorReason']>('lacuna_teorica');
-  // Modo de resposta (recall livre vs. múltipla escolha): escolhido antes de
-  // ver as alternativas, em modo de estudo, e travado até a questão ser
-  // respondida ou trocada (ver useEffect abaixo, que reseta por question.id).
-  const [answerMode, setAnswerMode] = useState<QuestionAnswerRecord['answerMode']>(undefined);
-  const [alternativesRevealed, setAlternativesRevealed] = useState<boolean>(false);
-  const [answerStrategy, setAnswerStrategy] = useState<QuestionAnswerRecord['answerStrategy']>(undefined);
-  const [userNote, setUserNote] = useState<string>('');
-  const [isNoteSaved, setIsNoteSaved] = useState(false);
   const [showErrorTagger, setShowErrorTagger] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   // Gabarito (quem está correta, explicação por alternativa) obtido via RPC —
@@ -89,18 +83,20 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   // policy de SELECT direto (ver rls_policies.sql).
   const [reviewResult, setReviewResult] = useState<QuestionReviewResult | null>(null);
   const [myReaction, setMyReaction] = useState<QuestionReactionValue | null>(null);
-  // Rascunho da recordação ativa (Prompt 10-A) — o que o estudante escreveu
-  // ANTES de revelar as alternativas, no modo "recall livre". Existe só
-  // durante a sessão (nunca enviado ao servidor, nunca à IA, nunca vira
-  // gabarito): não há necessidade de sobreviver a reload/dispositivo — é um
-  // rascunho descartável, não um dado de aprendizado que precise persistir
-  // (ver instrução do prompt: não criar migration para isso).
-  const [openRecallDraft, setOpenRecallDraft] = useState<string>('');
   // Distingue "reidratado de uma tentativa já existente no servidor" de
   // "respondida agora, nesta sessão" — usado só para não confundir os dois
   // casos (ex.: nunca disparar confete/toast/XP pela hidratação) e para
   // testes automatizados conseguirem afirmar qual dos dois aconteceu.
   const [answerOrigin, setAnswerOrigin] = useState<'hydrated' | 'session' | null>(null);
+
+  // Material da biblioteca associado
+  const matchedCompendium = compendiums?.find((c) => c.id === question.compendiumRefId);
+  const compendiumIdToOpen = matchedCompendium?.id || question.compendiumRefId;
+  const hasValidMaterial = Boolean(
+    question.compendiumRefId &&
+    question.compendiumRefId.trim() !== '' &&
+    (!compendiums || compendiums.length === 0 || matchedCompendium)
+  );
 
   // Chave estável derivada de `hydrated` para a dependência do useEffect
   // abaixo. `hydrated` é um objeto NOVO a cada render do pai (`<QuestionsView>`
@@ -115,10 +111,6 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     : null;
 
   // Carrega a resposta/favorito/reação já registrados para esta questão.
-  // Quando o pai já buscou tudo em lote (`hydrated`, ver <QuestionsView>),
-  // usa esses valores direto — evita uma consulta individual por cartão
-  // (Prompt 10-A). Sem `hydrated` (prova/simulado, questão única via busca),
-  // busca por conta própria, como antes.
   useEffect(() => {
     let cancelled = false;
 
@@ -135,10 +127,6 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       }
       setIsBookmarked(bookmarked);
       setErrorReason(initialAnswer?.errorReason || 'lacuna_teorica');
-      setUserNote(initialAnswer?.userNotes || '');
-      setAnswerMode(initialAnswer?.answerMode);
-      setAlternativesRevealed(isExamMode || !!initialAnswer);
-      setAnswerStrategy(initialAnswer?.answerStrategy);
       setMyReaction(reaction);
     };
 
@@ -148,15 +136,10 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         const review = await questionsRepository.getQuestionReview(question.id);
         if (!cancelled) setReviewResult(review);
       } catch {
-        // Justificativa/gabarito não puderam ser recarregados agora (rede
-        // instável, etc.) — isSubmitted/selectedOption já foram restaurados
-        // acima independentemente disso; o estudante ainda vê que já
-        // respondeu, só a explicação detalhada fica indisponível até uma
-        // nova tentativa de carregamento (reload da questão).
+        // Justificativa/gabarito não puderam ser recarregados agora (rede instável)
       }
     };
 
-    setOpenRecallDraft('');
     setReviewResult(null);
 
     if (hydrated) {
@@ -167,10 +150,6 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       };
     }
 
-    // Sem hidratação em lote: cada consulta é isolada (Promise.allSettled,
-    // não Promise.all) para que uma falha isolada (ex.: reação) não apague o
-    // resultado das outras — antes, qualquer rejeição zerava TODO o estado
-    // reidratado desta questão, incluindo isSubmitted/resposta/justificativa.
     (async () => {
       const [answersResult, bookmarksResult, reactionResult] = await Promise.allSettled([
         answersRepository.getAnswers(),
@@ -197,58 +176,6 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [question.id, hydratedKey]);
 
-  // Achado real do Prompt 07-F (reproduzido com Playwright, dois
-  // BrowserContext da mesma conta): `myReaction` só é atualizado localmente
-  // quando ESTE componente é quem chama setReaction/removeReaction — uma
-  // aba/dispositivo que ficou aberto sem recarregar nunca fica sabendo que
-  // OUTRO dispositivo mudou a reação nesse meio tempo. Antes desta correção,
-  // clicar no mesmo botão de novo decidia "remover" com base nesse estado
-  // LOCAL desatualizado (ex.: A marca up, B troca para down no servidor, A
-  // clica em "up" de novo achando que ainda está "up" localmente => A
-  // decide REMOVER em vez de reafirmar "up", apagando a reação em vez de
-  // convergir para o clique real do usuário). Corrigido buscando o valor
-  // atual do SERVIDOR (nunca o estado React possivelmente obsoleto)
-  // imediatamente antes de decidir set vs. remove — o clique do usuário
-  // sempre expressa a intenção correta em relação ao estado mais recente
-  // conhecido, nunca em relação a uma leitura antiga.
-  const handleToggleReaction = async (reaction: QuestionReactionValue) => {
-    const current = await questionReactionsRepository.getMyReaction(question.id);
-    if (current === reaction) {
-      setMyReaction(null);
-      await questionReactionsRepository.removeReaction(question.id);
-    } else {
-      setMyReaction(reaction);
-      await questionReactionsRepository.setReaction(question.id, reaction);
-    }
-  };
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
-
-  const handleSaveNote = async () => {
-    const existing = (await answersRepository.getAnswers())[question.id];
-    if (existing) {
-      existing.userNotes = userNote;
-      await answersRepository.recordAnswer(existing);
-      setIsNoteSaved(true);
-      showToast('Anotação pessoal vinculada ao erro salva com sucesso!');
-      setTimeout(() => setIsNoteSaved(false), 2000);
-    }
-  };
-
-  const handleSelectOption = (letter: 'A' | 'B' | 'C' | 'D' | 'E') => {
-    if (isExamMode) {
-      if (onSelectOptionInExam) onSelectOptionInExam(letter);
-      setSelectedOption(letter);
-      return;
-    }
-
-    if (isSubmitted) return; // already answered in study mode
-    setSelectedOption(letter);
-  };
-
   const handleConfirmAnswer = async () => {
     if (!selectedOption) return;
 
@@ -260,7 +187,6 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       isCorrect: false,
       timestamp: new Date().toISOString(),
       timeSpentSeconds: 45,
-      answerMode,
     };
 
     const review = await answersRepository.recordAnswer(record);
@@ -275,7 +201,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 
     if (!isCorrect) {
       setShowErrorTagger(true);
-      showToast('Resposta incorreta. O elo de revisão foi ativado!');
+      // Cria automaticamente flashcard SRS relacionado ao erro do usuário para revisão periódica
+      try {
+        await flashcardsRepository.createFlashcardFromQuestion(question);
+      } catch {
+        // Falha silenciosa se já existir ou erro de rede pontual
+      }
+      showToast('Resposta incorreta. Questão catalogada automaticamente no seu Caderno de Erros!');
     } else {
       showToast('Resposta correta! Excelente raciocínio clínico.');
       await checkStreakCelebration();
@@ -308,6 +240,34 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     }
   };
 
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  const handleSelectOption = (letter: 'A' | 'B' | 'C' | 'D' | 'E') => {
+    if (isSubmitted) return;
+    if (isExamMode) {
+      if (onSelectOptionInExam) onSelectOptionInExam(letter);
+      return;
+    }
+    setSelectedOption(letter);
+  };
+
+  const handleToggleReaction = async (val: 'up' | 'down') => {
+    const nextVal = myReaction === val ? null : val;
+    setMyReaction(nextVal);
+    try {
+      if (nextVal) {
+        await questionReactionsRepository.setReaction(question.id, nextVal);
+      } else {
+        await questionReactionsRepository.removeReaction(question.id);
+      }
+    } catch {
+      // Falha silenciosa de rede com fila resiliente
+    }
+  };
+
   const handleToggleEliminate = (e: React.MouseEvent, letter: string) => {
     e.stopPropagation();
     if (eliminatedOptions.includes(letter)) {
@@ -322,40 +282,6 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     setIsBookmarked(bookmarked);
     showToast(bookmarked ? 'Questão adicionada aos seus favoritos' : 'Removida dos favoritos');
   };
-
-  const handleAddFlashcard = async () => {
-    await flashcardsRepository.createFlashcardFromQuestion(question);
-    showToast('Flashcard adicionado à sua rotina de Revisão Espaçada (SRS)!');
-  };
-
-  const handleUpdateErrorReason = async (reason: QuestionAnswerRecord['errorReason']) => {
-    setErrorReason(reason);
-    const existing = (await answersRepository.getAnswers())[question.id];
-    if (existing) {
-      existing.errorReason = reason;
-      await answersRepository.recordAnswer(existing);
-      showToast('Motivo do erro atualizado no seu Caderno de Erros.');
-    }
-  };
-
-  const handleUpdateAnswerStrategy = async (strategy: QuestionAnswerRecord['answerStrategy']) => {
-    setAnswerStrategy(strategy);
-    const existing = (await answersRepository.getAnswers())[question.id];
-    if (existing) {
-      existing.answerStrategy = strategy;
-      await answersRepository.recordAnswer(existing);
-      showToast('Estratégia de resposta registrada.');
-    }
-  };
-
-  // Alternativas só ficam totalmente visíveis em modo de prova, depois de
-  // responder, quando o modo escolhido é "ver alternativas", ou quando o
-  // aluno já revelou as alternativas no modo de recall livre.
-  const showOptionsFully =
-    isExamMode ||
-    isSubmitted ||
-    answerMode === 'multiple_choice' ||
-    (answerMode === 'open_recall' && alternativesRevealed);
 
   const isCorrect = isSubmitted && !!reviewResult?.isCorrect;
   const isIncorrect = isSubmitted && !!reviewResult && !isCorrect;
@@ -399,6 +325,27 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase">
             {question.difficulty}
           </span>
+
+          {/* Vínculo com material da biblioteca */}
+          {hasValidMaterial ? (
+            <button
+              type="button"
+              onClick={() => onOpenCompendium(compendiumIdToOpen, question.compendiumSectionId, question.id)}
+              className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-200/60 dark:border-teal-800/60 hover:bg-teal-100 dark:hover:bg-teal-900/60 transition-colors inline-flex items-center gap-1.5 cursor-pointer"
+              title="Abrir compêndio referenciado na biblioteca"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+              <span>Biblioteca: {matchedCompendium?.title || 'Material Vinculado'}</span>
+            </button>
+          ) : (
+            <span
+              className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200/60 dark:border-amber-800/60 inline-flex items-center gap-1.5"
+              title="Material teórico ainda pendente de catalogação na biblioteca"
+            >
+              <AlertCircle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              <span>Material: Pendente</span>
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -429,107 +376,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
         </p>
       </div>
 
-      {/* Escolha do modo de resposta (recall livre vs. múltipla escolha) —
-          só em modo de estudo, antes de responder, e travada após escolhida. */}
-      {!isExamMode && !isSubmitted && !answerMode && (
-        <div className="mb-6 p-4 rounded-2xl bg-slate-50 dark:bg-[#142038] border border-slate-200 dark:border-[#243452] flex flex-col sm:flex-row items-center gap-3">
-          <p className="text-xs text-slate-600 dark:text-slate-300 font-medium flex-1">
-            Antes de ver as alternativas: prefere responder com suas próprias palavras primeiro, ou já reconhecer a resposta entre as opções?
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setAnswerMode('open_recall');
-                setAlternativesRevealed(false);
-              }}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white transition-colors cursor-pointer elev-xs"
-            >
-              Responder antes de ver as alternativas
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAnswerMode('multiple_choice');
-                setAlternativesRevealed(true);
-              }}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-            >
-              Ver alternativas
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Recall ativo: campo de texto livre ANTES de revelar as alternativas
-          (Prompt 10-A). O estudante escreve sua resposta com as próprias
-          palavras (recordação ativa); pode revelar as alternativas sem
-          preencher nada — o texto é só um apoio à memória, nunca é
-          classificado automaticamente nem vira gabarito, e a seleção +
-          confirmação de uma alternativa continua sendo o único mecanismo
-          oficial de correção. Nunca enviado ao servidor nem a nenhuma IA —
-          existe só neste componente, durante esta sessão. */}
-      {!isExamMode && !isSubmitted && answerMode === 'open_recall' && !alternativesRevealed && (
-        <div className="mb-6 p-6 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center gap-4 text-center">
-          <div className="w-full text-left space-y-1.5">
-            <label
-              htmlFor={`open-recall-draft-${question.id}`}
-              className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-              Escreva sua resposta antes de ver as alternativas (opcional)
-            </label>
-            <textarea
-              id={`open-recall-draft-${question.id}`}
-              value={openRecallDraft}
-              onChange={(e) => setOpenRecallDraft(e.target.value)}
-              placeholder="Ex.: eu responderia que é... porque..."
-              rows={3}
-              inputMode="text"
-              aria-describedby={`open-recall-draft-help-${question.id}`}
-              className="w-full text-xs sm:text-sm p-3 rounded-xl border border-slate-200 dark:border-[#243452] bg-white dark:bg-[#0B1220] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-teal-500"
-            />
-            <p id={`open-recall-draft-help-${question.id}`} className="text-[11px] text-slate-400 dark:text-slate-500">
-              Este texto não é enviado a ninguém, não é analisado automaticamente e não substitui marcar uma alternativa — é só para você comparar depois de ver as opções. Pode continuar sem escrever nada.
-            </p>
-          </div>
-
-          <div className="space-y-2 select-none blur-sm pointer-events-none opacity-60 w-full" aria-hidden="true">
-            {question.options.map((opt) => (
-              <div
-                key={opt.letter}
-                className="rounded-xl border border-slate-200 dark:border-[#243452] p-3 text-xs text-slate-500 dark:text-slate-400 text-left"
-              >
-                {opt.letter}) {opt.text}
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setAlternativesRevealed(true)}
-            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-teal-700 hover:bg-teal-800 dark:bg-teal-600 dark:hover:bg-teal-500 text-white transition-colors cursor-pointer elev-xs"
-          >
-            Revelar alternativas para marcar minha resposta
-          </button>
-        </div>
-      )}
-
-      {/* Comparação: mostra o que foi escrito antes de revelar (recordação
-          ativa), lado a lado com as alternativas agora visíveis. Some quando
-          a questão é trocada (reset no useEffect) — não fica sobrando de uma
-          questão anterior. */}
-      {!isExamMode && answerMode === 'open_recall' && alternativesRevealed && openRecallDraft.trim() && (
-        <div className="mb-4 p-3.5 rounded-2xl bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/60 text-xs">
-          <span className="font-bold flex items-center gap-1.5 text-teal-900 dark:text-teal-300 mb-1">
-            <Sparkles className="w-3.5 h-3.5" />
-            O que você escreveu antes de ver as alternativas:
-          </span>
-          <p className="text-teal-950/90 dark:text-teal-200/90 leading-relaxed whitespace-pre-wrap">{openRecallDraft}</p>
-        </div>
-      )}
-
       {/* Options List */}
-      {showOptionsFully && (
       <div className="space-y-3 mb-6">
         {question.options.map((opt) => {
           const isSelected = selectedOption === opt.letter;
@@ -621,10 +468,9 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           );
         })}
       </div>
-      )}
 
       {/* Action / Submit Area (Study Mode) */}
-      {!isExamMode && !isSubmitted && showOptionsFully && (
+      {!isExamMode && !isSubmitted && (
         <div className="flex items-center justify-between pt-2">
           <p className="text-xs text-slate-400 dark:text-slate-500">
             {selectedOption
@@ -687,10 +533,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <p className="leading-relaxed font-medium text-teal-950/90 dark:text-teal-200/90">{reviewResult?.highYieldSummary}</p>
           </div>
 
-          {/* Fontes vinculadas a esta questão (question_references -> sources).
-              Só aparece quando existe vínculo estruturado real — questões sem
-              essa recuperação/carga não mostram nada aqui (não é bibliografia
-              geral do compêndio, é citação específica desta questão). */}
+          {/* Fontes vinculadas a esta questão */}
           {reviewResult?.references && reviewResult.references.length > 0 && (
             <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#111827] border border-slate-200 dark:border-[#243452] text-xs">
               <span className="font-bold flex items-center gap-1.5 text-slate-600 dark:text-slate-300 mb-1.5">
@@ -749,137 +592,36 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             </button>
           </div>
 
-          {/* Estratégia de Resposta (toda resposta, certa ou errada) —
-              taxonomia separada de errorReason, que só se aplica a erro. */}
-          <div className="p-3.5 bg-slate-50 dark:bg-[#142038] border border-slate-200 dark:border-[#243452] rounded-2xl text-xs space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <HelpCircle className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                Como você chegou a essa escolha?
-              </span>
-              <span className="text-[10px] text-slate-400">Autoavaliação metacognitiva</span>
-            </div>
-            <div className="grid grid-cols-2 gap-1.5">
-              {[
-                { id: 'recognition', label: 'Reconheci a alternativa certa' },
-                { id: 'elimination', label: 'Usei exclusão' },
-                { id: 'false_confidence', label: 'Achei que sabia — confiança equivocada' },
-                { id: 'guess', label: 'Chutei' },
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleUpdateAnswerStrategy(item.id as any)}
-                  className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
-                    answerStrategy === item.id
-                      ? 'bg-teal-100 text-teal-900 border-teal-300 dark:bg-teal-950/60 dark:text-teal-200 dark:border-teal-800'
-                      : 'bg-white dark:bg-[#0B1220] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-[#243452] hover:bg-slate-100 dark:hover:bg-[#1A2845]'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Próximos Passos Claros (Fisiopatologia, Caderno de Erros, Flashcard) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-            {/* 1. Revisar Fisiopatologia */}
-            <button
-              onClick={() =>
-                onOpenCompendium(question.compendiumRefId, question.compendiumSectionId)
-              }
-              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold flex items-center justify-center gap-2 elev-xs transition-colors cursor-pointer"
-            >
-              <BookOpen className="w-4 h-4" />
-              <span>Revisar Fisiopatologia</span>
-            </button>
-
-            {/* 2. Adicionar / Mapear no Caderno de Erros */}
-            <button
-              onClick={async () => {
-                const existing = (await answersRepository.getAnswers())[question.id];
-                if (existing) {
-                  existing.errorReason = errorReason;
-                  await answersRepository.recordAnswer(existing);
-                  showToast('Questão catalogada no Caderno de Erros!');
+          {/* Vínculo de Conteúdo Teórico da Biblioteca */}
+          <div>
+            {hasValidMaterial ? (
+              <button
+                type="button"
+                onClick={() =>
+                  onOpenCompendium(compendiumIdToOpen, question.compendiumSectionId, question.id)
                 }
-              }}
-              className="p-3 rounded-xl bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold flex items-center justify-center gap-2 elev-xs transition-colors cursor-pointer"
-            >
-              <Tag className="w-4 h-4 text-rose-200" />
-              <span>{isIncorrect ? 'Catalogar no Caderno de Erros' : 'Salvar no Caderno'}</span>
-            </button>
-
-            {/* 3. Gerar Flashcard */}
-            <button
-              onClick={handleAddFlashcard}
-              className="p-3 rounded-xl bg-teal-700 hover:bg-teal-800 dark:bg-slate-900 dark:hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-2 elev-xs transition-colors cursor-pointer"
-            >
-              <Layers className="w-4 h-4 text-teal-200 dark:text-teal-400" />
-              <span>Gerar Flashcard SRS</span>
-            </button>
+                className="w-full p-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold flex items-center justify-center gap-2 elev-xs transition-colors cursor-pointer"
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>
+                  Revisar Conteúdo na Biblioteca: {matchedCompendium?.title || 'Abrir Compêndio'}
+                </span>
+              </button>
+            ) : (
+              <div className="w-full p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-xs font-medium flex items-center justify-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <span>Material da Biblioteca: Pendente de Associação</span>
+              </div>
+            )}
           </div>
 
-          {/* Anotação Pessoal Vinculada ao Erro */}
+          {/* Aviso automático de catalogação quando errou */}
           {isIncorrect && (
-            <div className="p-3.5 bg-slate-50 dark:bg-[#142038] border border-slate-200 dark:border-[#243452] rounded-2xl text-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-rose-500" />
-                  Mapear Motivo do Erro:
-                </span>
-                <span className="text-[10px] text-slate-400">Por que errei (categoria separada da estratégia acima)</span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                {[
-                  { id: 'lacuna_teorica', label: 'Lacuna Teórica' },
-                  { id: 'pegadinha', label: 'Pegadinha / Distrator' },
-                  { id: 'falta_atencao', label: 'Falta de Atenção' },
-                  { id: 'raciocinio_clinico', label: 'Raciocínio Clínico' },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleUpdateErrorReason(item.id as any)}
-                    className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
-                      errorReason === item.id
-                        ? 'bg-rose-100 text-rose-900 border-rose-300 dark:bg-rose-950/60 dark:text-rose-200 dark:border-rose-800'
-                        : 'bg-white dark:bg-[#0B1220] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-[#243452] hover:bg-slate-100 dark:hover:bg-[#1A2845]'
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Personal notes textarea */}
-              <div className="pt-2 border-t border-slate-200 dark:border-[#243452] space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                    Anotação Pessoal Vinculada ao Erro:
-                  </label>
-                  {isNoteSaved && (
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> Salvo!
-                    </span>
-                  )}
-                </div>
-                <textarea
-                  value={userNote}
-                  onChange={(e) => setUserNote(e.target.value)}
-                  placeholder="Registre o que você aprendeu com este erro, a pegadinha da banca ou uma correlação rápida..."
-                  rows={2}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-[#243452] bg-white dark:bg-[#0B1220] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-hidden focus:ring-1 focus:ring-teal-500"
-                />
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={handleSaveNote}
-                    className="px-3 py-1.5 rounded-xl bg-slate-800 dark:bg-teal-600 hover:bg-slate-700 dark:hover:bg-teal-500 text-white text-[11px] font-semibold transition-colors cursor-pointer elev-xs"
-                  >
-                    Salvar Anotação Pessoal
-                  </button>
-                </div>
-              </div>
+            <div className="p-3 rounded-xl bg-rose-50/80 dark:bg-rose-950/40 border border-rose-200/80 dark:border-rose-800/60 text-xs text-rose-900 dark:text-rose-200 flex items-center gap-2.5">
+              <Tag className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+              <span>
+                Esta questão foi catalogada automaticamente no seu <strong>Caderno de Erros</strong> e os flashcards de revisão periódica (SRS) já foram agendados.
+              </span>
             </div>
           )}
         </div>

@@ -12,8 +12,6 @@ import {
   Play,
   Filter,
   Search,
-  FileEdit,
-  Save,
   RotateCcw,
 } from 'lucide-react';
 import { Question, Discipline, Theme, QuestionAnswerRecord, QuestionReviewResult, ErrorLogItem } from '../../types';
@@ -26,7 +24,7 @@ interface ErrorNotebookViewProps {
   questions: Question[];
   disciplines: Discipline[];
   themes: Theme[];
-  onOpenCompendium: (compendiumId: string, sectionId?: string) => void;
+  onOpenCompendium: (compendiumId?: string, sectionId?: string, originQuestionId?: string) => void;
   onOpenQuestion: (questionId: string) => void;
   onStartErrorSimulado: () => void;
   onUpdate: () => void;
@@ -44,18 +42,16 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   const [selectedReason, setSelectedReason] = useState<string>('all');
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [noteDraft, setNoteDraft] = useState<string>('');
 
   const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
   // Gabarito por questão, obtido via RPC (question_option_keys/
   // question_answer_keys não têm policy de SELECT direto para estudante).
   const [reviews, setReviews] = useState<Record<string, QuestionReviewResult>>({});
   // Entradas do caderno de erros propriamente ditas (error_notebook), fonte
-  // de verdade para `resolved`/`userNotes` desta tela (Prompt 07-E5) — ver
-  // handleToggleResolved/handleSaveNote abaixo. `answers` continua sendo a
+  // de verdade para `resolved` desta tela (Prompt 07-E5) — ver
+  // handleToggleResolved abaixo. `answers` continua sendo a
   // fonte de "isCorrect"/qual foi a última tentativa, mas resolver um erro
-  // ou anotar uma nota NUNCA mais grava uma nova question_attempts; passa
+  // NUNCA mais grava uma nova question_attempts; passa
   // pelo caminho confiável já publicado (errorNotebookRepository.updateErrorLog).
   const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
 
@@ -188,16 +184,6 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   const handleCreateFlashcard = async (q: Question) => {
     await flashcardsRepository.createFlashcardFromQuestion(q);
     alert('Flashcard adicionado à sua rotina de repetição espaçada!');
-  };
-
-  const handleSaveNote = async (questionId: string) => {
-    const log = errorLogsByQuestion[questionId];
-    if (!log) return;
-    const updated: ErrorLogItem = { ...log, userNotes: noteDraft };
-    await errorNotebookRepository.updateErrorLog(updated);
-    applyErrorLogUpdate(updated);
-    setEditingNoteId(null);
-    onUpdate();
   };
 
   return (
@@ -447,9 +433,9 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() =>
-                        onOpenCompendium(question.compendiumRefId, question.compendiumSectionId)
+                        onOpenCompendium(question.compendiumRefId, question.compendiumSectionId, question.id)
                       }
-                      className="px-3 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold flex items-center gap-1.5 transition-colors elev-xs"
+                      className="px-3 py-1.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-bold flex items-center gap-1.5 transition-colors elev-xs cursor-pointer"
                     >
                       <BookOpen className="w-3.5 h-3.5" />
                       <span>Revisar no Compêndio</span>

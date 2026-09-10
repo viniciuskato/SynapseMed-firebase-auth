@@ -434,12 +434,12 @@ export const LoginView: React.FC = () => {
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
 
-            {/* Acesso rápido em modo demonstração — só existe quando o Supabase real
-                não está configurado (preview local/AI Studio). Em produção
-                (isConfigured=true) este botão nunca é renderizado: logar como
-                'admin' sem nenhuma autenticação real furaria por completo o
-                fluxo de aprovação de usuários. */}
-            {!isConfigured && (
+            {/* Acesso rápido em modo demonstração — em desenvolvimento/preview do AI Studio
+                (import.meta.env.DEV) ou quando o Supabase não está configurado (!isConfigured).
+                Em produção real (Vercel / vite build), import.meta.env.DEV é false e
+                isConfigured é true, portanto este botão nunca é renderizado,
+                respeitando estritamente a armadilha #6 do AGENTS.md. */}
+            {(!isConfigured || import.meta.env.DEV) && (
               <button
                 id="btn-demo-quick-login"
                 type="button"

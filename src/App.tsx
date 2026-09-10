@@ -138,6 +138,13 @@ function AuthenticatedApp() {
     'all' | 'unanswered' | 'correct' | 'incorrect' | 'bookmarked' | undefined
   >(undefined);
 
+  // Contexto de retorno ao revisar materiais na biblioteca
+  const [libraryOrigin, setLibraryOrigin] = useState<{
+    view: string;
+    questionId?: string;
+    label?: string;
+  } | null>(null);
+
   // Modals
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
@@ -266,10 +273,40 @@ function AuthenticatedApp() {
   };
 
   // Navigators
-  const handleOpenCompendium = (compendiumId: string, sectionId?: string) => {
+  const handleOpenCompendium = (compendiumId?: string, sectionId?: string, originQuestionId?: string) => {
+    if (activeView === 'questions' || activeView === 'errors' || activeView === 'simulado-session') {
+      setLibraryOrigin({
+        view: activeView,
+        questionId: originQuestionId,
+        label:
+          activeView === 'errors'
+            ? 'Retornar ao Caderno de Erros'
+            : activeView === 'simulado-session'
+            ? 'Retornar ao Simulado'
+            : 'Retornar às Questões',
+      });
+    }
+
+    if (!compendiumId) {
+      setActiveView('compendiums');
+      return;
+    }
     setSelectedCompendiumId(compendiumId);
     setSelectedSectionId(sectionId);
     setActiveView('compendium-reader');
+  };
+
+  const handleReturnToQuestions = () => {
+    if (libraryOrigin) {
+      const targetView = libraryOrigin.view;
+      if (libraryOrigin.questionId) {
+        setFocusQuestionId(libraryOrigin.questionId);
+      }
+      setLibraryOrigin(null);
+      setActiveView(targetView);
+    } else {
+      setActiveView('questions');
+    }
   };
 
   const handleOpenQuestionsForTheme = (themeId: string) => {
@@ -371,6 +408,8 @@ function AuthenticatedApp() {
               themes={themes}
               onOpenCompendium={handleOpenCompendium}
               onOpenQuestionsForTheme={handleOpenQuestionsForTheme}
+              returnToQuestionsContext={libraryOrigin}
+              onReturnToQuestions={libraryOrigin ? handleReturnToQuestions : undefined}
             />
           )}
 
@@ -379,10 +418,18 @@ function AuthenticatedApp() {
               compendium={activeCompendium}
               disciplines={disciplines}
               themes={themes}
-              onBack={() => setActiveView('compendiums')}
+              onBack={() => {
+                if (libraryOrigin) {
+                  handleReturnToQuestions();
+                } else {
+                  setActiveView('compendiums');
+                }
+              }}
               onOpenQuestionsForTheme={handleOpenQuestionsForTheme}
               onOpenFlashcardsForTheme={handleOpenFlashcardsForTheme}
               targetSectionId={selectedSectionId}
+              returnToQuestionsContext={libraryOrigin}
+              onReturnToQuestions={libraryOrigin ? handleReturnToQuestions : undefined}
             />
           )}
 
@@ -391,6 +438,7 @@ function AuthenticatedApp() {
               questions={questions}
               disciplines={disciplines}
               themes={themes}
+              compendiums={compendiums}
               onOpenCompendium={handleOpenCompendium}
               onOpenCreateSimulado={() => setIsCreateSimuladoOpen(true)}
               filterThemeId={filterThemeForQuestions}
@@ -443,6 +491,7 @@ function AuthenticatedApp() {
               requestedCount={activeSimuladoSelection.requestedCount}
               disciplines={disciplines}
               themes={themes}
+              compendiums={compendiums}
               onFinishSession={() => {
                 refreshData();
                 setActiveSimuladoSelection(null);

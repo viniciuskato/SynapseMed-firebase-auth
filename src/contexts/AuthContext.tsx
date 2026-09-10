@@ -149,7 +149,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!mounted) return;
       try {
-        await applySession(session?.user ?? null);
+        if (session?.user) {
+          await applySession(session.user);
+        } else if (import.meta.env.DEV) {
+          // Em ambiente de desenvolvimento / preview do AI Studio, caso não haja
+          // sessão ativa no Supabase remoto, inicializa o usuário de demonstração
+          // para que a interface completa do sistema seja renderizada no preview.
+          const savedUserJson = localStorage.getItem('synapse_local_user');
+          if (savedUserJson) {
+            try {
+              const parsed = JSON.parse(savedUserJson);
+              setUser(parsed.user);
+              setProfile(parsed.profile);
+              setIsEmailVerified(true);
+              StorageService.setActiveUser(parsed.user.id);
+              return;
+            } catch {
+              // segue para fallback padrão de demonstração
+            }
+          }
+
+          const defaultDemoUser = {
+            id: 'local-demo-user',
+            app_metadata: {},
+            user_metadata: { display_name: 'Dr. Estudante NexusMed' },
+            aud: 'authenticated',
+            created_at: new Date().toISOString(),
+            email: 'estudante@synapsemed.com',
+            email_confirmed_at: new Date().toISOString(),
+          } as unknown as User;
+
+          const defaultDemoProfile: UserProfile = {
+            uid: 'local-demo-user',
+            email: 'estudante@synapsemed.com',
+            displayName: 'Dr. Estudante NexusMed',
+            photoURL: null,
+            role: 'student',
+            plan: 'free',
+            status: 'active',
+            createdAt: new Date().toISOString(),
+          };
+
+          setUser(defaultDemoUser);
+          setProfile(defaultDemoProfile);
+          setIsEmailVerified(true);
+          StorageService.setActiveUser(defaultDemoUser.id);
+          localStorage.setItem(
+            'synapse_local_user',
+            JSON.stringify({ user: defaultDemoUser, profile: defaultDemoProfile })
+          );
+        } else {
+          await applySession(null);
+        }
       } catch (err: any) {
         console.error('Erro ao processar sessão inicial:', err);
         setLoginError(getSupabaseAuthErrorMessage(err));
@@ -162,7 +213,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       try {
-        await applySession(session?.user ?? null);
+        if (session?.user) {
+          await applySession(session.user);
+        } else if (!import.meta.env.DEV) {
+          await applySession(null);
+        }
       } catch (err: any) {
         console.error('Erro ao processar alteração de autenticação:', err);
         setLoginError(getSupabaseAuthErrorMessage(err));
