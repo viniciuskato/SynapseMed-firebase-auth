@@ -929,3 +929,194 @@ Estado final: **categorias 1 e 2 publicadas e verificadas em produção**.
 Categorias 3-9 continuam pendentes, fora de escopo. Ver
 `docs/diretoria/registro.md`, entrada "Concluído — 07-D", para o retorno
 completo com todas as contagens e comandos de verificação.
+
+## Prompt 07-E — Categorias 3-7 (caderno de erros, notas, favoritos,
+## progresso de leitura, simulados)
+
+> Executado em `C:\Users\vinic\dev\NexusMed\firebase-auth`, branch
+> `work/sincronizacao-dados-estudo-07e` (criada a partir de `origin/main` em
+> `b7a31f7`). Continuação do Prompt 07 depois da publicação das categorias 1
+> e 2 (07-D). Reações e feedback (8/9) permanecem explicitamente fora de
+> escopo, por instrução do prompt.
+
+### Etapa 1 — Inventário por categoria
+
+| # | Categoria | Fonte de verdade | Tipo (classificação do prompt) | Problema real encontrado |
+|---|---|---|---|---|
+| 3 | Caderno de erros | `error_notebook` (criado só por `submit_question_attempt`; cliente só faz UPDATE de `resolved`/`user_notes`) | Estado mutável, mas update por id já é idempotente por natureza (2 colunas, reenviar os mesmos valores tem o mesmo efeito) | Nenhum de duplicação/sobrescrita — só falta de retry/visibilidade (`catch{}` silencioso) |
+| 4 | Notas | `notes` (upsert lógico por alvo) | Estado mutável, dono único, LWW aceitável | **Real**: `saveNote` fazia `delete` + `insert` em duas viagens separadas, SEM constraint de unicidade no schema — uma falha entre as duas etapas (ou uma corrida real entre dois dispositivos) podia deixar 0 ou 2 linhas para o mesmo alvo |
+| 5 | Favoritos | `bookmarks` (unique por `(user_id, coluna)`) | Evento append-only? Não — é um **toggle**, precisa virar "set" antes de qualquer retry automático (já identificado no 07-A, não implementado até agora) | **Real, confirmado**: `toggleBookmark` reenviado depois de falha inverteria o estado errado |
+| 6 | Progresso de leitura | `reading_progress` (array de seções lidas por compêndio) | Mesmo problema do favorito (toggle), MAIS um risco de sobrescrita entre dispositivos (array calculado no cliente) | **Real, dois problemas**: toggle inseguro para retry + `toggleSectionRead` calculava o array novo no CLIENTE e regravava por inteiro — dois dispositivos marcando seções diferentes quase ao mesmo tempo podiam um sobrescrever o progresso do outro |
+| 7 | Simulados | `simulations`+`simulation_questions`+`simulation_answers` (substituição total a cada save) | Estado mutável mas por substituição total (mesma classe de "conteúdo de card de flashcard") — não precisa de client_op_id, precisa de ATOMICIDADE | **Real, dois problemas**: (a) gravação final em 4 operações separadas sem transação — falha entre elas deixava o simulado sem perguntas/respostas no servidor, sem retry; (b) **nenhuma persistência durante a prova** — `answers` existia só como estado React (`useState`), fechar a aba/reload antes de "Finalizar Prova" perdia TODAS as respostas já marcadas, sem exceção |
+
+Uso real na interface confirmado para as 5 categorias (não há nenhuma
+"funcionalidade sem persistência real" nesta lista — a única lacuna real de
+persistência era o rascunho do simulado em progresso, corrigida abaixo).
+RLS e ownership já estavam corretos nas 5 tabelas antes desta entrega
+(`*_owner_all`/`*_owner_select`/`*_owner_update`, ver
+`supabase/migrations/20260903120100_rls_policies.sql`) — nenhuma mudança de
+RLS foi necessária, só de contrato/atomicidade no lado do cliente e servidor.
+
+Comportamento de logout/troca de conta: idêntico ao já documentado para as
+categorias 1/2 — a fila (`syncQueue`) é isolada por UID e `runFlush` confere
+a sessão ativa do Supabase antes de cada operação (nenhuma mudança nova
+necessária, a infraestrutura já cobria as categorias novas automaticamente
+ao registrar os handlers).
+
+### Etapa 2 — Decisões por categoria
+
+- **Caderno de erros**: `updateErrorLog` passou a usar `enqueue` (fila) em
+  vez de `catch{}` — mesmo update idempotente por id de antes, agora com
+  retry/backoff/estado visível. Nenhuma migration.
+- **Notas**: migration acrescenta 4 índices únicos em `public.notes`
+  (`(user_id, material_id)`, `(user_id, material_section_id)`,
+  `(user_id, question_id)`, `(user_id, flashcard_id)`) — **sem** `where`,
+  ao contrário de `bookmarks` (ver AGENTS.md armadilha #14: o upsert do
+  PostgREST não consegue usar um índice parcial como alvo de `ON CONFLICT`;
+  um índice único comum tem o mesmo efeito prático aqui porque `NULL` nunca
+  colide com `NULL`). `SupabaseNotesRepository.saveNote` e o handler
+  `note_upsert` (`syncHandlers.ts`) passaram a fazer um único `.upsert(...,
+  { onConflict })` em vez de `delete` + `insert`. "Última gravação vence" é
+  aceito deliberadamente (mesmo raciocínio já usado para conteúdo de
+  flashcard: dono único, sem edição concorrente esperada).
+- **Favoritos**: `toggleBookmark` continua com a mesma assinatura pública
+  (a UI não muda), mas agora o toggle acontece SÓ localmente — o resultado
+  (`desired`, o novo estado já decidido) é o que vira a operação enfileirada
+  (`bookmark_set`), nunca um toggle enviado ao servidor. O handler não usa
+  upsert (índices de `bookmarks` continuam parciais, ver armadilha #14) — faz
+  select-then-insert para marcar (idempotente: já existe → no-op; corrida
+  real → violação de unicidade tratada como sucesso, nunca como erro de
+  retry) e delete direto para desmarcar (idempotente: deletar 0 linhas não é
+  erro).
+- **Progresso de leitura**: mesma mudança de contrato (toggle → set
+  explícito, decidido no cliente ANTES da chamada de rede), MAIS uma RPC
+  nova `set_section_read(material_id, section_id, is_read, total_sections)`
+  que faz o merge do array de seções lidas ATOMICAMENTE no servidor
+  (`select ... for update` serializa duas chamadas concorrentes para o
+  mesmo (usuário, compêndio) — a segunda sempre parte do array real mais
+  recente, nunca de um array que o cliente já não tem mais). `percent` é
+  recalculado no servidor a partir do tamanho real do array, nunca enviado
+  pelo cliente.
+- **Simulados**: RPC nova `save_simulado_session(p_session jsonb)` substitui
+  a sessão inteira (simulations + simulation_questions + simulation_answers)
+  numa ÚNICA transação — tudo ou nada. Idempotente por construção (é sempre
+  uma substituição total do mesmo payload, não um evento incremental) —
+  não precisou de `client_op_id`. Resposta com alternativa que não pertence
+  à questão é descartada sem abortar a sessão inteira (mesma tolerância que
+  o cliente já tinha antes). Regra de conflito: não há — é sempre "o cliente
+  que salvou por último manda", aceitável porque um simulado pertence a uma
+  sessão de estudo específica, não a um estado compartilhado editado de dois
+  lugares ao mesmo tempo.
+
+### Etapa 3 — Simulados (detalhamento)
+
+Achado que não estava no escopo original do 07-A/07-D: **não existia
+NENHUMA persistência das respostas em andamento** durante um simulado —
+`SimuladoSession.tsx` guardava `answers` só como `useState`, nunca gravado
+em lugar nenhum até `handleFinishExam`. Fechar a aba, recarregar a página ou
+uma queda de conexão durante a prova perdia todas as respostas já marcadas,
+silenciosamente. Isso cobre diretamente os itens "respostas parciais",
+"retomada" e "interrupção antes da conclusão" pedidos na Etapa 3 do prompt.
+
+Correção aplicada, deliberadamente pequena: um rascunho local
+(`localStorage`, isolado por usuário, `synapse_<uid>_simulado_draft_<id>`)
+grava as respostas a cada seleção e é restaurado ao montar o componente;
+apagado ao finalizar a prova. **O cronômetro NÃO é retomado** (recomeça do
+tempo total configurado a cada montagem) — mudar essa semântica é uma
+decisão de experiência do modo estudo/prova que pertence ao Prompt 10-A, não
+a uma correção de persistência; só as respostas já selecionadas são
+recuperadas. Criação da sessão, finalização e resultado continuam
+acontecendo só no fim (`saveSimuladoSession`), agora via a RPC transacional
++ fila em vez de 4 escritas separadas sem transação. Reenvio/retomada entre
+dispositivos: como a gravação final é sempre uma substituição total
+idempotente, reenviar depois de uma falha (rede caiu depois do primeiro
+envio) nunca duplica nem perde perguntas/respostas — confirmado por pgTAP
+(ver Etapa 5).
+
+Separação simulado vs. estudo comum: intacta, não tocada — o cronômetro em
+si (contagem regressiva, comportamento ao chegar a zero) não foi alterado,
+só a persistência das respostas.
+
+### Etapa 4 — Conta residual `fase3-validation-*`
+
+Investigação somente leitura contra o Supabase remoto (`supabase db query
+--linked`), sem nenhuma escrita:
+
+- Uma única conta encontrada: `fase3-validation-<epoch-ms>@synapsemed.local`,
+  criada em 2026-09-04 13:43:48 (mesmo dia da criação do projeto Supabase),
+  com login único registrado no mesmo instante da criação (nunca usada
+  depois).
+- Padrão de e-mail confirmado como o template EXATO de
+  `scripts/validate-supabase-repos.ts` (linha 92:
+  `` `fase3-validation-${Date.now()}@synapsemed.local` `` ) — um script de
+  validação da migração Firebase→Supabase que cria um usuário descartável,
+  roda testes e chama `cleanup()` (que deleta o próprio usuário) ao final,
+  inclusive num `catch` de emergência. A sobrevivência desta conta indica
+  que o processo morreu antes de qualquer um dos dois pontos de cleanup
+  (crash duro, não um bug de lógica do script).
+- `profiles.status = 'blocked'` (alterado em 2026-09-07, 3 dias depois da
+  criação — uma sessão anterior já a neutralizou, sem apagar).
+- Zero linhas em TODAS as tabelas de dado pessoal verificadas:
+  `question_attempts`, `error_notebook`, `flashcards`, `notes`, `bookmarks`,
+  `reading_progress`, `simulations`, `feedback`, `question_reactions`.
+
+**Avaliação**: evidência forte e específica (padrão de e-mail batendo
+exatamente com um script conhecido, zero uso real, já bloqueada por uma
+sessão anterior) de que é uma fixture de teste inerte, não uma conta de
+participante real. **Recomendação: remover** (`auth.admin.deleteUser`, que
+faz cascade em `profiles` via FK). **Não removida nesta sessão** — é uma
+escrita remota destrutiva, e o escopo desta sessão está limitado ao Supabase
+LOCAL (nenhuma escrita remota autorizada no prompt 07-E). Ver
+`docs/diretoria/registro.md` para o registro formal e a recomendação para a
+próxima sessão/decisão do usuário.
+
+### Etapa 5 — Testes
+
+- `npx tsc --noEmit`: sem erros.
+- `npm run build`: limpo (mesmo aviso pré-existente de chunk >500kB).
+- `supabase test db` (pgTAP) contra Supabase LOCAL, com `supabase db reset`
+  antes: **131/131** (106 já existentes de 07-A/07-D + 25 novas em
+  `supabase/tests/database/sync_reliability_categorias_3_a_7.test.sql`),
+  cobrindo diretamente nas RPCs/constraints (não só leitura de código):
+  - Notas: segunda nota para o mesmo alvo viola o índice único (prova que a
+    constraint barra a duplicação que o delete+insert antigo permitia);
+    upsert real funciona e reflete o valor mais recente.
+  - `set_section_read`: merge preserva seções marcadas por chamadas
+    anteriores (não sobrescreve); reenviar a mesma seção é idempotente
+    (não duplica no array); `percent` recalculado corretamente no servidor;
+    desmarcar remove só a seção pedida; desmarcar uma seção nunca lida é
+    um no-op seguro; `total_sections <= 0` é rejeitado; isolamento entre
+    dois usuários no mesmo compêndio (progresso de um não vaza pro outro).
+  - `save_simulado_session`: primeira gravação cria sessão + pergunta +
+    resposta; reenviar o MESMO payload não duplica nada (idempotência por
+    substituição total); resposta com alternativa de outra questão é
+    descartada sem abortar a gravação da pergunta; usuário B não consegue
+    sobrescrever a sessão do usuário A (ownership), sessão de A permanece
+    intacta após a tentativa.
+
+**Limitação explícita, não contornada**: esta entrega NÃO inclui testes de
+navegador real (Playwright) para os fluxos client-side novos (fila
+processando `bookmark_set`/`reading_progress_set`/`note_upsert`/
+`simulado_save` de ponta a ponta, retry após falha de rede real, indicador
+de sincronização para as categorias novas, rascunho de simulado sobrevivendo
+a um reload real). A cobertura desta entrega é: (1) as RPCs/constraints
+novas provadas diretamente por pgTAP (idempotência, isolamento, ownership,
+merge atômico — o que importa para corretude do servidor), e (2) revisão de
+código dos handlers/repositórios seguindo o MESMO padrão já validado em
+navegador real para as categorias 1/2 no 07-B/07-C/07-C2 (fila
+`syncQueue`/`enqueue`, isolamento por sessão ativa, backoff). Diferente das
+categorias 1/2, os cenários client-side específicos destas 5 categorias
+(ex.: duas abas marcando seções diferentes ao mesmo tempo, retry de
+favorito depois de queda de rede) não foram reproduzidos com navegador
+real nesta sessão — decisão de escopo diante do orçamento disponível,
+registrada aqui explicitamente em vez de omitida. Recomenda-se uma rodada
+de testes de navegador dedicada (mesmo padrão Playwright/Chromium contra
+Supabase local do 07-B em diante) antes de publicar esta branch em
+produção.
+
+Estado final: **categorias 3-7 implementadas e verificadas localmente
+(pgTAP + tsc + build)**, branch `work/sincronizacao-dados-estudo-07e` NÃO
+mesclada em `main`, migration NÃO aplicada no remoto, nada em produção.
+Categorias 8/9 (reações, feedback) permanecem fora de escopo. Ver
+`docs/diretoria/registro.md`, entrada "Retorno recebido — 07-E", para o
+retorno completo.

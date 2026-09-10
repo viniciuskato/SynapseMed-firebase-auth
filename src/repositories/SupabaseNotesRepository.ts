@@ -81,17 +81,20 @@ export class SupabaseNotesRepository implements NotesRepository {
     const { data: userData, error: userErr } = await supabase.auth.getUser();
     if (userErr) throw userErr;
 
-    // Substitui a nota existente para este alvo (mesma semântica de
-    // "última nota vale" do LocalStorageNotesRepository, que sobrescreve
-    // notes[targetId] a cada chamada).
-    const { error: delErr } = await supabase.from('notes').delete().eq(column, targetId);
-    if (delErr) throw delErr;
-
-    const { error } = await supabase.from('notes').insert({
-      user_id: userData.user?.id,
-      [column]: targetId,
-      note_text: noteText,
-    });
+    // Upsert real (single round-trip, atômico) contra o índice único parcial
+    // (user_id, <coluna>) — ver migration sync_reliability_categorias_3_a_7.
+    // Antes disto era delete+insert em duas viagens separadas: sem
+    // constraint de unicidade e sem transação, uma falha entre as duas
+    // (ou uma corrida real entre dois dispositivos) podia deixar 0 ou 2
+    // linhas para o mesmo alvo. "Última nota vale" continua sendo a
+    // semântica pretendida (mesma do LocalStorageNotesRepository) — só a
+    // forma de aplicá-la deixou de ser insegura.
+    const { error } = await supabase
+      .from('notes')
+      .upsert(
+        { user_id: userData.user?.id, [column]: targetId, note_text: noteText },
+        { onConflict: `user_id,${column}` }
+      );
     if (error) throw error;
   }
 }

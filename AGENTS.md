@@ -227,7 +227,24 @@ protótipo).
     mutação dentro do mesmo laço, para que os `spread`s seguintes sempre
     partam da versão mais recente. Ver `docs/SINCRONIZACAO-CONFIAVEL.md`,
     seção "Correções do Prompt 07-C", para o detalhamento completo.
-14. **`toggleBookmark`/`toggleSectionRead` não são operações idempotentes** —
+14. **`.upsert(..., { onConflict })` do PostgREST/supabase-js não consegue
+    usar um índice único PARCIAL (`where <coluna> is not null`) como alvo de
+    `ON CONFLICT`** — o cliente JS só permite listar colunas em `onConflict`,
+    nunca repetir o `WHERE` do índice, e o Postgres exige que o predicado
+    bata exatamente para inferir um índice parcial como arbiter (erro
+    `42P10: there is no unique or exclusion constraint matching the ON
+    CONFLICT specification`). Descoberto no Prompt 07-E ao tentar trocar o
+    delete+insert de `notes` por um upsert real: `bookmarks` usa índices
+    únicos parciais desde o schema inicial (correto para aquele caso, que
+    nunca usou upsert — só select+insert/delete manual), mas os índices
+    novos de `notes` foram criados SEM `where` de propósito (NULL nunca
+    colide com NULL num índice único comum, então o efeito prático de
+    "só um alvo não-nulo por usuário" é o mesmo) exatamente para que
+    `.upsert(..., { onConflict: 'user_id,question_id' })` funcionasse. Ao
+    adicionar um upsert via cliente contra uma tabela com "colunas de alvo
+    mutuamente exclusivas nullable", preferir índice único comum (sem
+    `where`) a menos que haja um motivo concreto para o índice ser parcial.
+15. **`toggleBookmark`/`toggleSectionRead` não são operações idempotentes** —
     são um "liga/desliga", não um "define este valor". Colocá-las numa fila
     de retry automático sem antes trocar o contrato para `setBookmark(id,
     bool)`/`setSectionRead(id, bool)` introduziria um bug novo: reenviar a
@@ -235,6 +252,16 @@ protótipo).
     Por isso ficaram deliberadamente fora da correção de sincronização do
     Prompt 07-A (ver `docs/SINCRONIZACAO-CONFIAVEL.md`, Etapa 1/4) — não é
     esquecimento, é uma dependência real de redesenho antes de automatizar.
+    **RESOLVIDO no Prompt 07-E**: o redesenho pedido aqui foi feito — o
+    toggle continua existindo só na interface (`toggleBookmark`/
+    `toggleSectionRead` mantêm a mesma assinatura pública), mas o que entra
+    na fila é sempre um "set" explícito com o estado já decidido no cliente
+    ANTES de qualquer chamada de rede (`bookmark_set`/`reading_progress_set`
+    em `src/services/syncHandlers.ts`). Progresso de leitura foi além: o
+    merge do array de seções lidas passou a acontecer no SERVIDOR (RPC
+    `set_section_read`), não mais um array calculado no cliente — evita
+    também o risco de dois dispositivos marcando seções diferentes se
+    sobrescreverem.
 
 ## Convenções de trabalho
 
@@ -363,6 +390,43 @@ protótipo).
   `docs/diretoria/registro.md` para o retorno completo do 07-D.
   Categorias 3-9 do backlog de sincronização permanecem pendentes, fora
   de escopo desta publicação.
+- **Em andamento na branch `work/sincronizacao-dados-estudo-07e` (2026-09-09,
+  Prompt 07-E), NÃO mesclada em `main`, migration NÃO aplicada no remoto**:
+  continuação da sincronização confiável para as categorias 3-7 do backlog
+  (caderno de erros, notas, favoritos, progresso de leitura, simulados) —
+  categorias 1/2 já estavam publicadas (07-D) e 8/9 (reações/feedback)
+  continuam fora de escopo. Inventário por categoria, decisões e testes
+  completos em `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Prompt 07-E". Resumo:
+  caderno de erros só precisou entrar na fila (`syncQueue`) para retry/
+  visibilidade — já era idempotente por natureza (update de 2 colunas por
+  id); notas tinham um bug real de duplicação (delete+insert em duas viagens
+  sem constraint de unicidade) corrigido com índices únicos novos + upsert
+  atômico; favoritos e progresso de leitura tinham o problema de contrato já
+  identificado no 07-A (toggle não é seguro para retry) — corrigido mudando
+  o contrato interno para "set" explícito (a UI continua chamando
+  `toggleBookmark`/`toggleSectionRead`, mas o que entra na fila é o estado
+  já decidido, nunca um toggle cego); progresso de leitura ganhou uma RPC
+  nova (`set_section_read`) que faz merge atômico por seção no SERVIDOR
+  (nunca um array calculado no cliente que pode sobrescrever progresso de
+  outro dispositivo); simulados tinham uma gravação final em 4 operações
+  separadas sem transação (upsert + delete + insert + insert) — substituída
+  por uma RPC transacional única (`save_simulado_session`, tudo ou nada) +
+  fila, e ganhou persistência local de rascunho das respostas em andamento
+  (não existia NENHUMA persistência durante a prova antes desta entrega —
+  fechar a aba no meio perdia tudo; cronômetro deliberadamente não é
+  retomado, isso pertence ao Prompt 10-A). Migration
+  `20260909130000_sync_reliability_categorias_3_a_7.sql` testada só em
+  Supabase LOCAL (131/131 pgTAP, 106 já existentes + 25 novos); nada disso
+  está em produção. Achado de auditoria: uma conta residual
+  `fase3-validation-*@synapsemed.local` (criada 2026-09-04 pelo script
+  `scripts/validate-supabase-repos.ts`, que gera esse padrão de e-mail para
+  testes descartáveis) foi encontrada no remoto já com `status='blocked'`
+  (alterado por sessão anterior em 2026-09-07) e zero linhas em qualquer
+  tabela de dado pessoal — evidência forte de fixture de teste inerte, mas
+  a remoção em si não foi executada nesta sessão (escrita remota destrutiva
+  fora do escopo de uma sessão que só pode alterar o Supabase LOCAL) — ver
+  `docs/diretoria/registro.md`, entrada "Concluído — 07-E", para o
+  detalhamento e a recomendação.
 - **Histórico (preparado em 2026-09-07, commitado em 2026-09-08 na branch
   `work/consolidacao-diretoria-2026-09-08`, commit `1e89a2f`)**: correção
   do achado de auditoria "question_references/sources descartados na carga
