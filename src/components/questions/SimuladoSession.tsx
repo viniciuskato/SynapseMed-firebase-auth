@@ -82,6 +82,14 @@ function clearDraftAnswers(simuladoId: string): void {
 interface SimuladoSessionProps {
   config: SimuladoConfig;
   questions: Question[];
+  /**
+   * Quantas questões elegíveis existiam (após filtros, antes do corte por
+   * quantidade) e quantas foram pedidas na configuração — usado só para
+   * avisar o usuário quando o banco tem menos questões elegíveis do que o
+   * pedido (Prompt 07-E5). Opcionais para não quebrar chamadores antigos.
+   */
+  eligibleCount?: number;
+  requestedCount?: number;
   disciplines: Discipline[];
   themes: Theme[];
   onFinishSession: () => void;
@@ -91,6 +99,8 @@ interface SimuladoSessionProps {
 export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
   config,
   questions,
+  eligibleCount,
+  requestedCount,
   disciplines,
   themes,
   onFinishSession,
@@ -262,6 +272,25 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Aviso de quantidade indisponível (Prompt 07-E5) — o Criador de
+          Simulados & Listas pode pedir mais questões do que existem
+          elegíveis para os filtros escolhidos; em vez de travar o fluxo,
+          a sessão roda com as disponíveis e avisa isso claramente aqui. */}
+      {typeof requestedCount === 'number' &&
+        typeof eligibleCount === 'number' &&
+        questions.length < requestedCount && (
+          <div className="max-w-6xl mx-auto px-4 lg:px-0">
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-semibold flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <span>
+                {eligibleCount === 0
+                  ? 'Nenhuma questão elegível foi encontrada para os filtros escolhidos. Ajuste os filtros do Criador de Simulados e tente novamente.'
+                  : `Você pediu ${requestedCount} questões, mas só ${eligibleCount} são elegíveis para os filtros escolhidos. A sessão foi montada com as ${questions.length} disponíveis.`}
+              </span>
+            </div>
+          </div>
+        )}
 
       {/* Main Container */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 pt-4">

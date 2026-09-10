@@ -14,11 +14,13 @@ import {
   Search,
   FileEdit,
   Save,
+  RotateCcw,
 } from 'lucide-react';
-import { Question, Discipline, Theme, QuestionAnswerRecord, QuestionReviewResult } from '../../types';
+import { Question, Discipline, Theme, QuestionAnswerRecord, QuestionReviewResult, ErrorLogItem } from '../../types';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
 import { questionsRepository } from '../../repositories/QuestionsRepository';
+import { errorNotebookRepository } from '../../repositories/ErrorNotebookRepository';
 
 interface ErrorNotebookViewProps {
   questions: Question[];
@@ -49,14 +51,41 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   // Gabarito por questão, obtido via RPC (question_option_keys/
   // question_answer_keys não têm policy de SELECT direto para estudante).
   const [reviews, setReviews] = useState<Record<string, QuestionReviewResult>>({});
+  // Entradas do caderno de erros propriamente ditas (error_notebook), fonte
+  // de verdade para `resolved`/`userNotes` desta tela (Prompt 07-E5) — ver
+  // handleToggleResolved/handleSaveNote abaixo. `answers` continua sendo a
+  // fonte de "isCorrect"/qual foi a última tentativa, mas resolver um erro
+  // ou anotar uma nota NUNCA mais grava uma nova question_attempts; passa
+  // pelo caminho confiável já publicado (errorNotebookRepository.updateErrorLog).
+  const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
 
   const reloadAnswers = () => {
     answersRepository.getAnswers().then(setAnswers);
   };
 
+  const reloadErrorLogs = () => {
+    errorNotebookRepository.getErrorLogs().then(setErrorLogs);
+  };
+
   useEffect(() => {
     reloadAnswers();
+    reloadErrorLogs();
   }, []);
+
+  // Mapa questionId -> entrada de error_notebook mais recente. Uma questão
+  // pode ter mais de uma linha em error_notebook ao longo do tempo (cada
+  // resposta incorreta gera uma nova linha, por design da categoria 1 —
+  // ver AGENTS.md); `getErrorLogs()` já devolve ordenado por created_at
+  // desc (SupabaseErrorNotebookRepository), então a primeira ocorrência por
+  // questionId é sempre a mais recente — mesma convenção de "última que
+  // vale" usada por `answersRepository.getAnswers()`.
+  const errorLogsByQuestion = useMemo(() => {
+    const map: Record<string, ErrorLogItem> = {};
+    for (const log of errorLogs) {
+      if (!map[log.questionId]) map[log.questionId] = log;
+    }
+    return map;
+  }, [errorLogs]);
 
   useEffect(() => {
     const mistakeIds = Object.keys(answers).filter((qid) => !answers[qid].isCorrect && !reviews[qid]);
@@ -91,6 +120,15 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
       })
       .filter((item): item is { answer: QuestionAnswerRecord; question: Question } => !!item.question)
       .filter(({ answer, question }) => {
+        // Nota: itens marcados como "Dominada" (error_notebook.resolved)
+        // continuam aparecendo aqui — a lista é derivada da última tentativa
+        // (answers[id].isCorrect), igual antes desta correção; "resolved" só
+        // controla o rótulo/estado do botão (Reabrir vs. Marcar como
+        // Dominada) e o badge "Dominada", nunca esconde o item. Esconder
+        // exigiria uma decisão de produto nova (o que fazer quando o
+        // estudante responder errado de novo?) fora do escopo desta
+        // correção — só trocar o caminho de gravação para o confiável já
+        // publicado.
         if (selectedReason !== 'all' && (answer.errorReason || 'lacuna_teorica') !== selectedReason) {
           return false;
         }
@@ -116,14 +154,35 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
     tempo_esgotado: { label: 'Tempo Esgotado', color: 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' },
   };
 
-  const handleResolveError = async (questionId: string) => {
-    const existing = (await answersRepository.getAnswers())[questionId];
-    if (existing) {
-      existing.isCorrect = true; // Mark as mastered
-      await answersRepository.recordAnswer(existing);
-      reloadAnswers();
-      onUpdate();
-    }
+  // Marcar como dominada / reabrir e salvar anotação usam o caminho
+  // confiável já publicado no Prompt 07-E (errorNotebookRepository.
+  // updateErrorLog -> fila syncQueue -> UPDATE de 2 colunas por id,
+  // idempotente por natureza). Antes desta correção (07-E5), estes dois
+  // botões chamavam answersRepository.recordAnswer — categoria 1, evento
+  // IMUTÁVEL de tentativa de questão — o que gerava uma nova linha em
+  // question_attempts/error_notebook a cada clique em vez de atualizar a
+  // entrada existente (ver AGENTS.md, achado de smoke test do 07-E4).
+  // Atualiza o estado local de `errorLogs` OTIMISTICAMENTE com o item já
+  // conhecido, em vez de rechamar getErrorLogs() logo em seguida. Isso
+  // importa de verdade: `updateErrorLog` grava local e enfileira o envio ao
+  // Supabase em segundo plano (fire-and-forget, ver syncQueue.enqueue) —
+  // reler getErrorLogs() imediatamente correria contra esse envio e, quando
+  // configurado para Supabase, leria o servidor ANTES do flush terminar,
+  // mostrando o estado antigo por engano (only ficaria certo depois de outro
+  // gatilho de reload). Atualizar o estado com o item que ACABAMOS de gravar
+  // localmente dá feedback imediato e correto, online ou offline, sem
+  // esperar a rede.
+  const applyErrorLogUpdate = (updated: ErrorLogItem) => {
+    setErrorLogs((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+  };
+
+  const handleToggleResolved = async (questionId: string, resolved: boolean) => {
+    const log = errorLogsByQuestion[questionId];
+    if (!log) return; // sem entrada em error_notebook ainda (ex.: sincronizando) — nada a atualizar
+    const updated: ErrorLogItem = { ...log, resolved };
+    await errorNotebookRepository.updateErrorLog(updated);
+    applyErrorLogUpdate(updated);
+    onUpdate();
   };
 
   const handleCreateFlashcard = async (q: Question) => {
@@ -132,14 +191,13 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   };
 
   const handleSaveNote = async (questionId: string) => {
-    const existing = (await answersRepository.getAnswers())[questionId];
-    if (existing) {
-      existing.userNotes = noteDraft;
-      await answersRepository.recordAnswer(existing);
-      setEditingNoteId(null);
-      reloadAnswers();
-      onUpdate();
-    }
+    const log = errorLogsByQuestion[questionId];
+    if (!log) return;
+    const updated: ErrorLogItem = { ...log, userNotes: noteDraft };
+    await errorNotebookRepository.updateErrorLog(updated);
+    applyErrorLogUpdate(updated);
+    setEditingNoteId(null);
+    onUpdate();
   };
 
   return (
@@ -237,11 +295,17 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
               explanation: reviewSelectedOpt?.explanation,
             };
             const reasonConfig = reasonLabels[answer.errorReason || 'lacuna_teorica'];
+            const errorLog = errorLogsByQuestion[question.id];
+            const isResolved = errorLog?.resolved ?? false;
 
             return (
               <div
                 key={question.id}
-                className="bg-white dark:bg-[#0F172A] rounded-3xl border border-slate-200 dark:border-[#243452] p-6 elev-xs hover:border-rose-300 dark:hover:border-rose-800 transition-all space-y-4"
+                className={`bg-white dark:bg-[#0F172A] rounded-3xl border p-6 elev-xs transition-all space-y-4 ${
+                  isResolved
+                    ? 'border-emerald-200 dark:border-emerald-900/60'
+                    : 'border-slate-200 dark:border-[#243452] hover:border-rose-300 dark:hover:border-rose-800'
+                }`}
               >
                 {/* Header */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -258,6 +322,12 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${reasonConfig.color}`}>
                       {reasonConfig.label}
                     </span>
+                    {isResolved && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md border bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Dominada
+                      </span>
+                    )}
                   </div>
 
                   <span className="text-xs text-slate-400 dark:text-slate-500">
@@ -324,11 +394,12 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
                       <button
                         onClick={() => {
                           setEditingNoteId(question.id);
-                          setNoteDraft(answer.userNotes || '');
+                          setNoteDraft(errorLog?.userNotes || '');
                         }}
-                        className="text-[11px] text-teal-700 hover:text-teal-800 font-semibold cursor-pointer"
+                        disabled={!errorLog}
+                        className="text-[11px] text-teal-700 hover:text-teal-800 font-semibold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        {answer.userNotes ? 'Editar anotação' : '+ Adicionar anotação'}
+                        {errorLog?.userNotes ? 'Editar anotação' : '+ Adicionar anotação'}
                       </button>
                     )}
                   </div>
@@ -360,9 +431,9 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
                         </button>
                       </div>
                     </div>
-                  ) : answer.userNotes ? (
+                  ) : errorLog?.userNotes ? (
                     <p className="text-slate-700 dark:text-slate-300 italic bg-white dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200/60 dark:border-slate-700/60 leading-relaxed">
-                      "{answer.userNotes}"
+                      "{errorLog.userNotes}"
                     </p>
                   ) : (
                     <p className="text-slate-400 dark:text-slate-500 text-[11px] italic">
@@ -393,13 +464,25 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
                     </button>
                   </div>
 
-                  <button
-                    onClick={() => handleResolveError(question.id)}
-                    className="px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                    <span>Marcar como Dominada</span>
-                  </button>
+                  {isResolved ? (
+                    <button
+                      onClick={() => handleToggleResolved(question.id, false)}
+                      disabled={!errorLog}
+                      className="px-3 py-1.5 rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      <span>Reabrir</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleToggleResolved(question.id, true)}
+                      disabled={!errorLog}
+                      className="px-3 py-1.5 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 font-bold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>Marcar como Dominada</span>
+                    </button>
+                  )}
                 </div>
               </div>
             );

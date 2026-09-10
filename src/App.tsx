@@ -39,6 +39,7 @@ import { bookmarksRepository } from './repositories/BookmarksRepository';
 import { readingProgressRepository } from './repositories/ReadingProgressRepository';
 import { errorNotebookRepository } from './repositories/ErrorNotebookRepository';
 import { simuladosRepository } from './repositories/SimuladosRepository';
+import { buildSimuladoSelection, SimuladoSelectionResult } from './services/simuladoSelection';
 
 registerSyncHandlers();
 
@@ -108,6 +109,14 @@ function AuthenticatedApp() {
   const [selectedCompendiumId, setSelectedCompendiumId] = useState<string | null>(null);
   const [selectedSectionId, setSelectedSectionId] = useState<string | undefined>(undefined);
   const [activeSimuladoConfig, setActiveSimuladoConfig] = useState<SimuladoConfig | null>(null);
+  // Questões já filtradas/sorteadas/cortadas por config (Prompt 07-E5 — ver
+  // src/services/simuladoSelection.ts). Resolvida UMA VEZ em
+  // handleStartCustomSimulado, nunca recalculada a cada render, para que a
+  // MESMA sessão nunca re-sorteie (ver comentário da função para a garantia
+  // de estabilidade). `activeSimuladoSelection` guarda também quantas
+  // questões elegíveis existiam, para a UI avisar quando pedir mais do que
+  // o banco tem disponível.
+  const [activeSimuladoSelection, setActiveSimuladoSelection] = useState<SimuladoSelectionResult | null>(null);
   const [reviewCardsQueue, setReviewCardsQueue] = useState<Flashcard[]>([]);
   const [filterThemeForQuestions, setFilterThemeForQuestions] = useState<string | undefined>(undefined);
   const [filterThemeForFlashcards, setFilterThemeForFlashcards] = useState<string | undefined>(undefined);
@@ -270,7 +279,16 @@ function AuthenticatedApp() {
   };
 
   const handleStartCustomSimulado = (config: SimuladoConfig) => {
+    // Corrige a armadilha #17 (AGENTS.md): antes, a config era gravada mas
+    // as questões passadas para <SimuladoSession> eram o array cheio do
+    // banco, sem nenhum filtro. `buildSimuladoSelection` aplica disciplina/
+    // tema/dificuldade/ciclo/apenas-erros e corta por questionCount uma
+    // única vez aqui — o resultado fica em estado (não recalculado a cada
+    // render), preservando a mesma seleção/ordem enquanto esta sessão
+    // permanecer montada.
+    const selection = buildSimuladoSelection(questions, config, answers);
     setActiveSimuladoConfig(config);
+    setActiveSimuladoSelection(selection);
     setIsCreateSimuladoOpen(false);
     setActiveView('simulado-session');
   };
@@ -393,14 +411,17 @@ function AuthenticatedApp() {
             />
           )}
 
-          {activeView === 'simulado-session' && activeSimuladoConfig && (
+          {activeView === 'simulado-session' && activeSimuladoConfig && activeSimuladoSelection && (
             <SimuladoSession
               config={activeSimuladoConfig}
-              questions={questions}
+              questions={activeSimuladoSelection.selected}
+              eligibleCount={activeSimuladoSelection.eligibleCount}
+              requestedCount={activeSimuladoSelection.requestedCount}
               disciplines={disciplines}
               themes={themes}
               onFinishSession={() => {
                 refreshData();
+                setActiveSimuladoSelection(null);
                 setActiveView('simulados');
               }}
               onOpenCompendium={handleOpenCompendium}
