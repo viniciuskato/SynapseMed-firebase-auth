@@ -13,6 +13,8 @@ import {
   Filter,
   Search,
   RotateCcw,
+  FileEdit,
+  Save,
 } from 'lucide-react';
 import { Question, Discipline, Theme, QuestionAnswerRecord, QuestionReviewResult, ErrorLogItem } from '../../types';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
@@ -42,6 +44,8 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
   const [selectedReason, setSelectedReason] = useState<string>('all');
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [noteDraft, setNoteDraft] = useState<string>('');
 
   const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
   // Gabarito por questão, obtido via RPC (question_option_keys/
@@ -178,6 +182,17 @@ export const ErrorNotebookView: React.FC<ErrorNotebookViewProps> = ({
     const updated: ErrorLogItem = { ...log, resolved };
     await errorNotebookRepository.updateErrorLog(updated);
     applyErrorLogUpdate(updated);
+    onUpdate();
+  };
+
+  const handleSaveNote = async (questionId: string) => {
+    const log = errorLogsByQuestion[questionId];
+    if (!log) return;
+    const updated: ErrorLogItem = { ...log, userNotes: noteDraft.trim() };
+    await errorNotebookRepository.updateErrorLog(updated);
+    applyErrorLogUpdate(updated);
+    setEditingNoteId(null);
+    setNoteDraft('');
     onUpdate();
   };
 

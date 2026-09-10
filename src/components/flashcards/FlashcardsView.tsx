@@ -13,7 +13,7 @@ import {
   Brain,
   Trash2,
 } from 'lucide-react';
-import { Flashcard, Discipline, Theme } from '../../types';
+import { Flashcard, Discipline, Theme, Compendium } from '../../types';
 import { isCardDueToday } from '../../services/srsAlgorithm';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 
@@ -21,6 +21,7 @@ interface FlashcardsViewProps {
   flashcards: Flashcard[];
   disciplines: Discipline[];
   themes: Theme[];
+  compendiums?: Compendium[];
   onStartReview: (cardsToReview: Flashcard[]) => void;
   onOpenCreateModal: () => void;
   onOpenCompendium: (compendiumId: string) => void;
@@ -32,6 +33,7 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
   flashcards,
   disciplines,
   themes,
+  compendiums = [],
   onStartReview,
   onOpenCreateModal,
   onOpenCompendium,
@@ -233,6 +235,10 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
             const disc = disciplines.find((d) => d.id === card.disciplineId);
             const th = themes.find((t) => t.id === card.themeId);
             const isDue = isCardDueToday(card);
+            const matchingComp = compendiums.find(
+              (c) => c.id === card.compendiumRefId || c.themeId === card.themeId || c.disciplineId === card.disciplineId
+            );
+            const compendiumId = card.compendiumRefId || matchingComp?.id;
 
             return (
               <div
@@ -293,6 +299,19 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
                           <div className="p-2 bg-teal-50 dark:bg-teal-950/60 rounded-xl text-[11px] text-teal-900 dark:text-teal-200 border border-teal-200/60 dark:border-teal-800/60">
                             <strong>Destaque:</strong> {card.mechanismHighlight}
                           </div>
+                        )}
+                        {compendiumId && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenCompendium(compendiumId);
+                            }}
+                            className="mt-2.5 w-full p-2 rounded-xl bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 dark:hover:bg-teal-900/80 text-teal-800 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800/60 text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <BookOpen className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                            <span>Ver Teoria na Biblioteca</span>
+                          </button>
                         )}
                       </div>
                     )}

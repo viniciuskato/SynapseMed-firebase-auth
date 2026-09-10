@@ -1,4 +1,4 @@
-import { sourceVerificationLabel } from '../../utils/bibliographicSources';
+import { sourceVerificationLabel, formatToAbntCitation } from '../../utils/bibliographicSources';
 import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
@@ -18,6 +18,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   Link2,
+  ExternalLink,
 } from 'lucide-react';
 import { Question, QuestionAnswerRecord, QuestionReviewResult, Discipline, Theme, QuestionReactionValue, Compendium } from '../../types';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
@@ -533,33 +534,54 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <p className="leading-relaxed font-medium text-teal-950/90 dark:text-teal-200/90">{reviewResult?.highYieldSummary}</p>
           </div>
 
-          {/* Fontes vinculadas a esta questão */}
+          {/* Fontes vinculadas a esta questão - Padronizadas em ABNT NBR 6023 com link clicável */}
           {reviewResult?.references && reviewResult.references.length > 0 && (
-            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-[#111827] border border-slate-200 dark:border-[#243452] text-xs">
-              <span className="font-bold flex items-center gap-1.5 text-slate-600 dark:text-slate-300 mb-1.5">
-                <Link2 className="w-3.5 h-3.5" />
-                Bibliografia da questão:
-              </span>
-              <p className="mb-2">Referências gerais da questão; não há vínculo individual com cada alternativa.</p>
-              <ul className="space-y-1">
-                {reviewResult.references.map((ref) => (
-                  <li key={ref.sourceId} className="text-slate-500 dark:text-slate-400 leading-relaxed break-words">
-                    {ref.url ? (
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#111827] border border-slate-200 dark:border-[#243452] text-xs space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                  <BookOpen className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                  Bibliografia & Diretrizes da Questão (ABNT NBR 6023):
+                </span>
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 border border-teal-200/70 dark:border-teal-800/50">
+                  Links Oficiais
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Referências científicas e diretrizes que fundamentam o gabarito. Clique para ler na íntegra na fonte original.
+              </p>
+              <div className="space-y-2 pt-1">
+                {reviewResult.references.map((ref) => {
+                  const abnt = formatToAbntCitation(ref.citationText, ref.url);
+                  return (
+                    <div
+                      key={ref.sourceId}
+                      className="p-3 rounded-xl bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs shadow-2xs"
+                    >
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        <p className="font-bold text-[11px] text-slate-900 dark:text-slate-100 uppercase tracking-wide">
+                          {abnt.author}
+                        </p>
+                        <p className="font-medium text-slate-700 dark:text-slate-300">
+                          {abnt.title}.
+                        </p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                          {abnt.publicationDetails}
+                        </p>
+                      </div>
                       <a
-                        href={ref.url}
+                        href={abnt.accessUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-teal-700 dark:text-teal-400 hover:underline"
+                        className="self-end sm:self-center shrink-0 px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 dark:hover:bg-teal-900/80 text-teal-800 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800/60 font-semibold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
+                        title="Acessar material na íntegra em nova aba"
                       >
-                        {ref.citationText}
+                        <span>Acessar Fonte</span>
+                        <ExternalLink className="w-3 h-3" />
                       </a>
-                    ) : (
-                      <span>{ref.citationText}</span>
-                    )}
-                    <span className="block text-[11px]">{sourceVerificationLabel(ref.verificacao)}</span>
-                  </li>
-                ))}
-              </ul>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 

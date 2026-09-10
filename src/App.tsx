@@ -138,6 +138,21 @@ function AuthenticatedApp() {
     'all' | 'unanswered' | 'correct' | 'incorrect' | 'bookmarked' | undefined
   >(undefined);
 
+  // Tab interna da visão Início: Visão Geral vs Caderno de Erros integrado
+  const [dashboardTab, setDashboardTab] = useState<'overview' | 'errors'>('overview');
+
+  const handleSelectView = (view: string) => {
+    if (view === 'errors') {
+      setDashboardTab('errors');
+      setActiveView('dashboard');
+      return;
+    }
+    if (view === 'dashboard') {
+      setDashboardTab('overview');
+    }
+    setActiveView(view);
+  };
+
   // Contexto de retorno ao revisar materiais na biblioteca
   const [libraryOrigin, setLibraryOrigin] = useState<{
     view: string;
@@ -368,9 +383,7 @@ function AuthenticatedApp() {
         dueCardsCount={dueCardsCount}
         errorLogCount={errorCount}
         activeView={activeView}
-        onSelectView={(v) => {
-          setActiveView(v);
-        }}
+        onSelectView={handleSelectView}
         theme={theme}
         onToggleTheme={handleToggleTheme}
         onOpenFeedback={() => setIsFeedbackOpen(true)}
@@ -394,10 +407,14 @@ function AuthenticatedApp() {
               questions={questions}
               compendiums={compendiums}
               flashcards={flashcards}
-              onSelectView={setActiveView}
+              onSelectView={handleSelectView}
               onOpenCompendium={handleOpenCompendium}
               onOpenQuestion={handleOpenQuestion}
               onStartSRS={handleStartSRS}
+              initialTab={dashboardTab}
+              onTabChange={setDashboardTab}
+              onStartErrorSimulado={handleTrainMistakesUntimed}
+              onUpdate={refreshData}
             />
           )}
 
@@ -452,6 +469,7 @@ function AuthenticatedApp() {
               flashcards={flashcards}
               disciplines={disciplines}
               themes={themes}
+              compendiums={compendiums}
               onStartReview={(cards) => handleStartSRS(cards)}
               onOpenCreateModal={() => setIsCreateFlashcardOpen(true)}
               onOpenCompendium={handleOpenCompendium}
@@ -465,6 +483,7 @@ function AuthenticatedApp() {
               cards={reviewCardsQueue}
               disciplines={disciplines}
               themes={themes}
+              compendiums={compendiums}
               onFinishSession={() => {
                 refreshData();
                 setActiveView('flashcards');
@@ -502,12 +521,21 @@ function AuthenticatedApp() {
           )}
 
           {activeView === 'errors' && (
-            <ErrorNotebookView
-              questions={questions}
+            <DashboardView
               disciplines={disciplines}
               themes={themes}
+              questions={questions}
+              compendiums={compendiums}
+              flashcards={flashcards}
+              onSelectView={handleSelectView}
               onOpenCompendium={handleOpenCompendium}
               onOpenQuestion={handleOpenQuestion}
+              onStartSRS={handleStartSRS}
+              initialTab="errors"
+              onTabChange={(tab) => {
+                if (tab === 'overview') setActiveView('dashboard');
+                setDashboardTab(tab);
+              }}
               onStartErrorSimulado={handleTrainMistakesUntimed}
               onUpdate={refreshData}
             />
@@ -554,7 +582,7 @@ function AuthenticatedApp() {
       {/* Mobile Floating Thumb Dock */}
       <MobileBottomNav
         activeView={activeView}
-        onSelectView={setActiveView}
+        onSelectView={handleSelectView}
         dueCardsCount={dueCardsCount}
         errorLogCount={errorCount}
       />

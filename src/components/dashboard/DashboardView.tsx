@@ -46,6 +46,7 @@ import {
   Achievement,
   DailyQuest,
 } from '../../services/gamification';
+import { IntegratedCadernoErros } from './IntegratedCadernoErros';
 
 interface DashboardViewProps {
   disciplines: Discipline[];
@@ -57,6 +58,10 @@ interface DashboardViewProps {
   onOpenCompendium: (compendiumId: string, sectionId?: string) => void;
   onOpenQuestion: (questionId: string) => void;
   onStartSRS: () => void;
+  initialTab?: 'overview' | 'errors';
+  onTabChange?: (tab: 'overview' | 'errors') => void;
+  onStartErrorSimulado?: () => void;
+  onUpdate?: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -69,9 +74,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenCompendium,
   onOpenQuestion,
   onStartSRS,
+  initialTab = 'overview',
+  onTabChange,
+  onStartErrorSimulado,
+  onUpdate,
 }) => {
   const { user, profile } = useAuth();
   const userName = profile?.displayName || user?.user_metadata?.display_name || 'Colega';
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'errors'>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  const handleSwitchTab = (tab: 'overview' | 'errors') => {
+    setActiveTab(tab);
+    if (onTabChange) {
+      onTabChange(tab);
+    }
+  };
 
   // Persistence data
   const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
@@ -80,6 +104,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   >({});
   const [errorLogs, setErrorLogs] = useState<ErrorLogItem[]>([]);
   const [showAchievementsModal, setShowAchievementsModal] = useState(false);
+
+  const reloadData = async () => {
+    const [nextAnswers, nextProgress, nextErrorLogs] = await Promise.all([
+      answersRepository.getAnswers(),
+      readingProgressRepository.getReadingProgress(),
+      errorNotebookRepository.getErrorLogs(),
+    ]);
+    setAnswers(nextAnswers);
+    setReadingProgress(nextProgress);
+    setErrorLogs(nextErrorLogs);
+    if (onUpdate) onUpdate();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -322,8 +358,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <button
               type="button"
-              onClick={() => onSelectView('errors')}
-              className="px-4 py-2.5 rounded-2xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer"
+              onClick={() => handleSwitchTab('errors')}
+              className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                activeTab === 'errors'
+                  ? 'bg-rose-500 text-white border-rose-500 elev-sm'
+                  : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/30'
+              }`}
             >
               <AlertTriangle className="w-4 h-4 text-rose-400" />
               <span>Caderno de Erros ({errorLogs.length})</span>
@@ -332,6 +372,81 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      {/* ── Seletor de Modo de Dados Pessoais: Visão Geral vs Caderno de Erros ── */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-slate-200/80 dark:border-[#243452] pb-3">
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-[#142038] border border-slate-200/80 dark:border-[#243452] self-start">
+          <button
+            type="button"
+            onClick={() => handleSwitchTab('overview')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'overview'
+                ? 'bg-white dark:bg-[#0F172A] text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <Activity className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+            <span>Visão Geral & Desempenho</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleSwitchTab('errors')}
+            className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer flex items-center gap-2 ${
+              activeTab === 'errors'
+                ? 'bg-white dark:bg-[#0F172A] text-rose-600 dark:text-rose-400 shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+            }`}
+          >
+            <BookMarked className="w-4 h-4 text-rose-500" />
+            <span>Caderno de Erros & Metacognição</span>
+            {errorLogs.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white">
+                {errorLogs.length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+          <span className="font-semibold text-slate-400 dark:text-slate-500">Materiais de Estudo:</span>
+          <button
+            type="button"
+            onClick={() => onSelectView('compendiums')}
+            className="px-2.5 py-1 rounded-lg bg-teal-50/80 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-bold hover:bg-teal-100 transition-colors cursor-pointer"
+          >
+            Biblioteca Teórica
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectView('questions')}
+            className="px-2.5 py-1 rounded-lg bg-teal-50/80 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-bold hover:bg-teal-100 transition-colors cursor-pointer"
+          >
+            Questões
+          </button>
+          <button
+            type="button"
+            onClick={() => onSelectView('flashcards')}
+            className="px-2.5 py-1 rounded-lg bg-teal-50/80 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-bold hover:bg-teal-100 transition-colors cursor-pointer"
+          >
+            Flashcards
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'errors' ? (
+        <IntegratedCadernoErros
+          questions={questions}
+          disciplines={disciplines}
+          themes={themes}
+          compendiums={compendiums}
+          onOpenCompendium={onOpenCompendium}
+          onOpenQuestion={onOpenQuestion}
+          onStartErrorSimulado={onStartErrorSimulado || (() => onSelectView('simulados'))}
+          onUpdate={reloadData}
+          onSwitchToOverview={() => handleSwitchTab('overview')}
+        />
+      ) : (
+        <>
       {/* ── 2. Cards Vitais de Desempenho Pessoal (KPIs) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1: Acurácia Geral */}
@@ -472,7 +587,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <span className="text-slate-500 dark:text-slate-400">Reforço programado</span>
             <button
               type="button"
-              onClick={() => onSelectView('errors')}
+              onClick={() => handleSwitchTab('errors')}
               className="text-rose-600 dark:text-rose-400 font-bold hover:underline cursor-pointer"
             >
               Abrir Caderno →
@@ -625,7 +740,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
               <button
                 type="button"
-                onClick={() => onSelectView('errors')}
+                onClick={() => handleSwitchTab('errors')}
                 className="text-xs font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
               >
                 Ver Caderno ({errorLogs.length})
@@ -663,7 +778,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
                     <button
                       type="button"
-                      onClick={() => onSelectView('errors')}
+                      onClick={() => handleSwitchTab('errors')}
                       className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#0B1220] border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-[11px] font-bold hover:bg-rose-50 transition-all cursor-pointer shrink-0"
                     >
                       Revisar
@@ -922,6 +1037,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
       </div>
+      </>
+      )}
 
       {/* ── 4. Modal de Conquistas & Medalhas Completo ── */}
       {showAchievementsModal && (

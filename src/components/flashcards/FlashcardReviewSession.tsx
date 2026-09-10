@@ -11,17 +11,19 @@ import {
   Layers,
   Award,
   Link2,
+  ExternalLink,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { Flashcard, Discipline, Theme } from '../../types';
+import { Flashcard, Discipline, Theme, Compendium } from '../../types';
 import { calculateNextSRS } from '../../services/srsAlgorithm';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
-import { sourceVerificationLabel } from '../../utils/bibliographicSources';
+import { sourceVerificationLabel, formatToAbntCitation } from '../../utils/bibliographicSources';
 
 interface FlashcardReviewSessionProps {
   cards: Flashcard[];
   disciplines: Discipline[];
   themes: Theme[];
+  compendiums?: Compendium[];
   onFinishSession: () => void;
   onOpenCompendium: (compendiumId: string) => void;
 }
@@ -30,6 +32,7 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
   cards,
   disciplines,
   themes,
+  compendiums = [],
   onFinishSession,
   onOpenCompendium,
 }) => {
@@ -40,6 +43,16 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
   const [reviewedCount, setReviewedCount] = useState(0);
 
   const currentCard = queue[currentIdx];
+
+  const matchingCompendium = currentCard
+    ? compendiums.find(
+        (c) =>
+          c.id === currentCard.compendiumRefId ||
+          c.themeId === currentCard.themeId ||
+          c.disciplineId === currentCard.disciplineId
+      )
+    : undefined;
+  const compendiumIdToOpen = currentCard?.compendiumRefId || matchingCompendium?.id;
   const discipline = disciplines.find((d) => d.id === currentCard?.disciplineId);
   const theme = themes.find((t) => t.id === currentCard?.themeId);
 
@@ -221,37 +234,71 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
                   </div>
                 )}
 
+                {/* Vínculo com a Biblioteca Médica */}
+                {compendiumIdToOpen && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenCompendium(compendiumIdToOpen);
+                      }}
+                      className="w-full p-2.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 dark:hover:bg-teal-900/80 text-teal-800 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800/60 font-semibold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <BookOpen className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                      <span>
+                        Estudar Teoria na Biblioteca{matchingCompendium ? `: ${matchingCompendium.title}` : ''}
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Bibliografia Padronizada em ABNT NBR 6023 */}
                 {currentCard.bibliographicSources && currentCard.bibliographicSources.length > 0 && (
-                  <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 text-xs text-left">
-                    <strong className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300 mb-1">
-                      <Link2 className="w-3.5 h-3.5" />
-                      Bibliografia herdada da questão:
-                    </strong>
-                    <p className="mb-2 text-slate-500 dark:text-slate-400">
-                      Referências da questão de origem; sem verificação específica deste flashcard.
-                    </p>
-                    <ul className="space-y-1">
-                      {currentCard.bibliographicSources.map((source) => (
-                        <li key={source.sourceId} className="text-slate-500 dark:text-slate-400 break-words">
-                          {source.url ? (
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 text-xs text-left space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <strong className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                        <BookOpen className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        Bibliografia & Diretrizes Oficiais (ABNT NBR 6023):
+                      </strong>
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 border border-teal-200/70 dark:border-teal-800/50">
+                        Links Diretos
+                      </span>
+                    </div>
+                    <div className="space-y-2 pt-1">
+                      {currentCard.bibliographicSources.map((source) => {
+                        const abnt = formatToAbntCitation(source.citationText, source.url);
+                        return (
+                          <div
+                            key={source.sourceId}
+                            className="p-3 rounded-xl bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs shadow-2xs"
+                          >
+                            <div className="min-w-0 flex-1 space-y-0.5">
+                              <p className="font-bold text-[11px] text-slate-900 dark:text-slate-100 uppercase tracking-wide">
+                                {abnt.author}
+                              </p>
+                              <p className="font-medium text-slate-700 dark:text-slate-300">
+                                {abnt.title}.
+                              </p>
+                              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                                {abnt.publicationDetails}
+                              </p>
+                            </div>
                             <a
-                              href={source.url}
+                              href={abnt.accessUrl}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(event) => event.stopPropagation()}
-                              className="text-teal-700 dark:text-teal-400 hover:underline"
+                              className="self-end sm:self-center shrink-0 px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 dark:hover:bg-teal-900/80 text-teal-800 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800/60 font-semibold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
+                              title="Acessar diretriz/artigo na íntegra em nova aba"
                             >
-                              {source.citationText}
+                              <span>Acessar Fonte</span>
+                              <ExternalLink className="w-3 h-3" />
                             </a>
-                          ) : (
-                            <span>{source.citationText}</span>
-                          )}
-                          <span className="block text-[11px]">
-                            {sourceVerificationLabel(source.verificacao)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -264,17 +311,17 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
               Intervalo atual: {currentCard.srs.intervalDays}d • Repetições: {currentCard.srs.repetitionCount}
             </span>
 
-            {isFlipped && currentCard.compendiumRefId && (
+            {isFlipped && compendiumIdToOpen && (
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onOpenCompendium(currentCard.compendiumRefId!);
+                  onOpenCompendium(compendiumIdToOpen);
                 }}
                 className="text-teal-700 dark:text-teal-400 hover:underline font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <BookOpen className="w-3.5 h-3.5" />
-                <span>Ver no Compêndio</span>
+                <span>Ver na Biblioteca</span>
               </button>
             )}
           </div>
