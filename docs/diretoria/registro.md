@@ -463,3 +463,20 @@ Sessão executiva corrigiu os dois achados registrados no smoke test do 07-E4: C
 **Nota de transparência sobre esta sessão**: durante a execução, arquivos com conteúdo de teste (variações de um script de criação de usuário de smoke test contra produção, usando a chave de service role) apareceram repetidamente no repositório — `scripts/smoke-test-07e5-remote.ts`, `.smoke07e5-p1.mjs`/`.smoke07e5-p2.mjs`, `.s1.mjs`/`.s2.mjs` — sem nenhuma chamada de ferramenta desta sessão que os tivesse criado. Em uma dessas ocorrências, o conteúdo chegou a ser inserido diretamente dentro de `docs/SINCRONIZACAO-CONFIAVEL.md` e `AGENTS.md` (uma narrativa fabricada afirmando que o smoke test de produção não pôde ser completado por falta de senha do Postgres remoto, e uma "armadilha #18" inexistente) — removido antes de qualquer commit, nenhum desses arquivos foi executado, nenhuma credencial foi exposta além do uso já documentado e legítimo de `SUPABASE_SERVICE_ROLE_KEY` do próprio `.env.local` do projeto. Reportado ao usuário no retorno desta sessão para que possa investigar a causa no próprio ambiente.
 
 **Estado final de produção**: branch mesclada, deploy no ar, smoke test real aprovado (não simulado), nenhum dado real alterado, nenhuma conta de teste remanescente. Categorias 8 (reações) e 9 (feedback) do backlog de sincronização continuam fora de escopo.
+
+## Decisão da diretoria — gratuidade, idioma e escopo, 2026-09-10
+
+O usuário confirmou um conjunto de diretrizes estruturais, sem pedir implementação imediata de nenhuma delas:
+
+1. NexusMed permanece gratuito para toda pessoa com acesso já aprovado. Nenhuma cobrança, assinatura, plano ou bloqueio comercial deve ser implementado agora.
+2. A arquitetura pode manter espaço para monetização futura, mas nenhum elemento comercial deve aparecer ao usuário neste momento — permissão editorial e futuro direito comercial são conceitos distintos, e o segundo não decorre do primeiro.
+3. Todo conteúdo exibido ao estudante (materiais, títulos, objetivos, questões, alternativas, justificativas, flashcards, listas, simulados, interface) permanece em português do Brasil por enquanto.
+4. Fontes bibliográficas podem permanecer no idioma original — não traduzir artificialmente título, autores, periódico, DOI ou outros identificadores.
+5. Nenhum seletor de idioma deve ser criado agora; mantém-se apenas a possibilidade estrutural de registrar o idioma de um conteúdo futuramente.
+6. Conhecimento básico, clínico e de integração continuam diferenciados e conectados por pré-requisitos e aplicações, sem virarem bibliotecas isoladas.
+7. Casos clínicos seguem fora do escopo: sem módulo novo, sem migração do acervo antigo, sem exigência de caso no contrato de cobertura de conteúdo. Os arquivos já existentes do acervo antigo permanecem preservados como estão.
+8. Diretriz de eficiência confirmada: máximo resultado verificável com o mínimo de sessões, tokens, retrabalho e complexidade.
+9. Recursos hoje apenas planejados só devem virar implementação quando resolverem um problema observado ou uma decisão já tomada — o plano amplo é um mapa de possibilidades, não um compromisso de implementação integral.
+10. Modelo de trabalho confirmado: Codex atua como diretoria, Claude como executor preferencial, scripts fazem as verificações mecânicas, e uma segunda IA revisa apenas as tarefas de risco elevado.
+
+Nenhuma mudança de código, banco, produção ou feedback foi feita junto com este registro — é só o assentamento da decisão para orientar prompts futuros.
