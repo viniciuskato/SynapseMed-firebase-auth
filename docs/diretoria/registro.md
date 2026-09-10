@@ -419,3 +419,27 @@ Sessão executiva independente recebeu o Prompt 07-E3 (fechar os riscos residuai
 **Documentação**: `AGENTS.md` (seção "Estado atual", nova entrada 07-E3) e `docs/SINCRONIZACAO-CONFIAVEL.md` (seção "Prompt 07-E3" completa) atualizados.
 
 **Recomendação explícita desta sessão**: publicar exige ainda uma decisão humana sobre (1) a conta residual `fase3-validation-*` (recomendação de remoção já registrada no 07-E, não executada — escrita remota destrutiva fora do escopo de qualquer sessão local), e (2) revisão dos dois achados-limitação acima. Do ponto de vista técnico desta entrega — três defeitos reais corrigidos e confirmados por teste determinístico, toda a suíte (tsc/build/pgTAP/Playwright) verde em execuções repetidas — a branch está PRONTA para revisão de merge, mais madura que ao final do 07-E. Não recomendado publicar sem essa revisão humana das duas pendências declaradas. Nenhum push, merge, deploy ou escrita remota foi feito nesta sessão.
+
+## Concluído — 07-E4, 2026-09-10
+
+Publicação em produção da sincronização confiável das categorias 3-7 (caderno de erros, notas, favoritos, progresso de leitura, simulados), executada de ponta a ponta numa sessão executiva única, sem nenhuma parada nos critérios de interrupção definidos no prompt.
+
+**Gate de navegador (obrigatório antes de qualquer escrita)**: os dois cenários que faltavam (nota com base nula, conflito sucessivo) mais o de simulado concorrente — 23/23 asserções, DUAS execuções completas e independentes, sem nenhum defeito de produto novo (só três bugs no próprio script de teste, corrigidos antes da aprovação: campo `category`/`type` trocado, formato do payload de respostas do simulado errado, comparação de `completed_at` truncada para segundos). Detalhamento completo em `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Prompt 07-E4".
+
+**Validação local**: `supabase db reset` aplicou as 16 migrations (incluindo as três desta entrega) em ordem sem erro; `supabase test db` 146/146 pgTAP; `tsc --noEmit`/`npm run build` limpos; bundle sem `__syncDebug`/`__setTestBackoffOverride`.
+
+**Baseline remoto confirmado antes de qualquer escrita**: projeto `synapsemed`/`jfvhwwvixwvgjfqzlkkb`; exatamente as três migrations desta entrega pendentes (`supabase migration list --linked`); `origin/main` em `b7a31f7`; nenhum avanço concorrente.
+
+**Push e migrations**: branch `work/sincronizacao-dados-estudo-07e` enviada sem force; `origin/main` reconfirmado em `b7a31f7` antes do push; três migrations aplicadas na ordem (`supabase db push --linked --yes`) e verificadas diretamente no schema remoto — `upsert_note`/`save_simulado_session` com `pg_advisory_xact_lock` confirmado no corpo, grants restritos a `authenticated`/`postgres`, índices únicos de `notes` presentes, RLS `true` nas sete tabelas afetadas. Contagens de tabelas de conteúdo/pessoais idênticas antes/depois — nenhum dado real alterado pelas migrations.
+
+**Merge e deploy**: `--no-ff` em `main` (commit `288374b`, avançou de `b7a31f7`); `tsc`/`build` reconfirmados; push sem force; deploy automático do Vercel confirmado com bundle (`assets/index-BWtJ444Z.js`) byte-a-byte idêntico ao build local, 0 ocorrências de instrumentação DEV.
+
+**Smoke test em produção**: duas contas descartáveis, todos os fluxos pedidos exercitados pela interface real (nota, favorito, progresso de leitura, caderno de erros, simulado completo, troca de conta A→B→A sem vazamento) — 0 erros de console recorrentes, 0 requisições 5xx. Contas e dados de teste removidos ao final, contagens finais idênticas ao baseline. Conta residual `fase3-validation-*` preservada, conforme instrução.
+
+**Dois achados de smoke test, ambos fora do escopo autorizado desta entrega, NÃO corrigidos aqui — registrados para decisão futura**:
+1. Os botões "+ Adicionar anotação"/"Marcar como Dominada" do Caderno de Erros usam o caminho antigo (`answersRepository.recordAnswer`, categoria 1, resubmissão), não o `errorNotebookRepository.updateErrorLog` que o 07-E implementou e testou para a categoria 3 — esse método novo não tem nenhum chamador de UI hoje. Não é uma regressão (o código novo funciona como projetado), é uma lacuna de integração.
+2. **Pré-existente, confirmado idêntico em `b7a31f7` (antes desta entrega)**: `handleStartCustomSimulado` (`App.tsx`) ignora a configuração do simulado personalizado (quantidade, disciplinas, dificuldade) — qualquer simulado roda contra as 393 questões do banco inteiro. Ver armadilha #17 em `AGENTS.md`.
+
+**Documentação atualizada**: `AGENTS.md` (armadilha #17 nova; seção "Estado atual" com a entrada consolidada 07-E4, substituindo as três entradas "em andamento" anteriores por histórico), `docs/SINCRONIZACAO-CONFIAVEL.md` (seção "Prompt 07-E4" completa), este arquivo.
+
+**Estado final de produção**: branch mesclada, migrations aplicadas, deploy no ar, smoke test aprovado, nenhum dado real alterado, nenhuma conta de teste remanescente (exceto a residual já documentada e preservada por instrução). Categorias 8 (reações) e 9 (feedback) do backlog de sincronização continuam fora de escopo — nenhuma mudança nesta entrega.

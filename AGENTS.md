@@ -294,6 +294,32 @@ protótipo).
     (`true` só para `online`/`visibilitychange`, nunca para o heartbeat de
     60s) que ignora `nextRetryAt` para operações retentáveis pendentes.
 
+17. **`handleStartCustomSimulado` (`src/App.tsx`) ignora a configuração do
+    simulado personalizado** — descoberto no smoke test de produção do
+    Prompt 07-E4 (2026-09-10), **pré-existente, confirmado idêntico no
+    commit `b7a31f7` (produção antes desta publicação) e fora do escopo da
+    entrega de sincronização (07-E/E2/E3), não corrigido nesta sessão**. O
+    modal "Criador de Simulados & Listas" deixa o usuário escolher
+    `questionCount`, `disciplineIds`, `difficulties` etc., mas
+    `handleStartCustomSimulado` só grava `activeSimuladoConfig` e troca de
+    view — passa `questions={questions}` (o array cheio, todas as 393
+    questões do banco) direto para `<SimuladoSession>`, que por sua vez usa
+    o prop recebido como está (`questions.length`, `questions[currentIdx]`),
+    sem filtrar por `config` em lugar nenhum. Resultado observável: iniciar
+    um "Simulado Personalizado" com quantidade=2 na interface na verdade
+    roda contra as 393 questões (confirmado consultando
+    `simulation_questions` após finalizar um simulado de teste: 393 linhas,
+    não 2). O `save_simulado_session`/advisory lock (07-E3) funcionam
+    corretamente com qualquer tamanho de sessão que o cliente mande — o
+    defeito é anterior a isso, na montagem da lista de questões, não na
+    RPC. Precisa de correção futura (filtrar `questions` por
+    `config.disciplineIds`/`config.themeIds`/`config.difficulties`/
+    `config.cycles`/`config.onlyMistakes` e fatiar por
+    `config.questionCount`, em `handleStartCustomSimulado` ou dentro de
+    `SimuladoSession`) — não implementada aqui por estar fora do escopo
+    autorizado desta sessão (só sincronização confiável, não redesenho de
+    seleção de questões).
+
 ## Convenções de trabalho
 
 - **Commits vão direto pra `main`** hoje (sem PR obrigatório) porque é
@@ -421,8 +447,74 @@ protótipo).
   `docs/diretoria/registro.md` para o retorno completo do 07-D.
   Categorias 3-9 do backlog de sincronização permanecem pendentes, fora
   de escopo desta publicação.
-- **Em andamento na branch `work/sincronizacao-dados-estudo-07e` (2026-09-09,
-  Prompt 07-E), NÃO mesclada em `main`, migration NÃO aplicada no remoto**:
+- **PUBLICADO em produção em 2026-09-10 (07-E4)**: sincronização confiável
+  das categorias 3-7 (caderno de erros, notas, favoritos, progresso de
+  leitura, simulados) — branch `work/sincronizacao-dados-estudo-07e`
+  mesclada em `main` (`--no-ff`, commit de merge `288374b`, `main`/
+  `origin/main` avançaram de `b7a31f7`). Antes da publicação, os dois
+  cenários de navegador que faltavam ficaram como gate obrigatório e
+  passaram 23/23 asserções em duas execuções independentes (Playwright/
+  Chromium contra Supabase local, sem nenhum defeito de produto
+  encontrado — só bugs no próprio script de teste, corrigidos antes da
+  aprovação):
+  1. **Nota com base nula**: duas `BrowserContext` da mesma conta, mesmo
+     alvo sem nota anterior, textos diferentes, sincronização concorrente
+     — nenhum texto perdido (o texto do dispositivo que perde a corrida
+     é fundido, nunca descartado), banco e `getNotes()` convergem, conflito
+     marcado de forma compreensível.
+  2. **Conflito sucessivo**: interceptação de rede força 3 rodadas de
+     escrita concorrente de um terceiro "dispositivo" entre cada tentativa
+     de merge de um segundo — esgota as `MAX_NOTE_MERGE_ATTEMPTS=3`
+     tentativas; operação termina em `failed`/`kind: conflict` (nunca
+     `synced`), indicador de sincronização mostra falha, nenhuma versão é
+     descartada (texto local preserva a fusão de todas as rodadas vistas),
+     `retryAllFailed` disponível para reenvio manual.
+  3. **Simulado concorrente**: duas `BrowserContext` da mesma conta
+     finalizam a MESMA sessão (`Promise.all` real) com resultados
+     diferentes — só a primeira é preservada (`completed_at` vence por
+     `pg_advisory_xact_lock`), a segunda recebe erro visível
+     (`sessao_ja_finalizada`, `kind: validation`), replay idêntico do
+     resultado vencedor é aceito sem duplicar, `getSimuladoHistory()` bate
+     exatamente com o banco.
+  Migrations `20260909130000_sync_reliability_categorias_3_a_7.sql`,
+  `20260909140000_sync_reliability_conflict_guards.sql` e
+  `20260909150000_conflict_serialization_07e3.sql` aplicadas e verificadas
+  no Supabase remoto (`supabase migration list --linked` mostra os três
+  local=remote; `upsert_note`/`save_simulado_session` confirmados com
+  `pg_advisory_xact_lock` no corpo via `pg_proc.prosrc`; grants restritos a
+  `authenticated`/`postgres`, sem `anon`; índices únicos de `notes`
+  confirmados; RLS `true` em `notes`/`bookmarks`/`reading_progress`/
+  `simulations`/`simulation_questions`/`simulation_answers`/
+  `error_notebook`). Contagens de `questions`/`question_options`/
+  `question_answer_keys`/`question_references`/`sources`/`flashcards`
+  idênticas antes/depois da migration (nenhum dado real tocado). Deploy
+  automático do Vercel confirmado — bundle publicado
+  (`assets/index-BWtJ444Z.js`) byte-a-byte idêntico ao build local, `grep`
+  confirma 0 ocorrências de `__syncDebug`/`__setTestBackoffOverride`. Smoke
+  test em produção com contas descartáveis
+  (`smoke07e4.*`/`smoke07e4b.*@synapsemed.local`, promovidas a `active` via
+  conexão direta como `postgres`, todas removidas ao final — 0 rastro
+  remanescente, contagens de `question_attempts`/`error_notebook`/
+  `bookmarks`/`notes`/`reading_progress`/`simulations`/`profiles`
+  idênticas antes/depois): responder questão, favoritar/desfavoritar,
+  marcar seção como lida, criar/editar nota em compêndio, responder errado
+  e ver entrada gerada no caderno de erros, adicionar anotação e marcar
+  como dominada no caderno de erros, criar e finalizar simulado, troca de
+  conta A→B→A sem vazamento de XP/badge de erros entre contas — 0 erros de
+  console recorrentes (um único `401` transitório durante troca de sessão,
+  não reproduzido numa segunda execução, consistente com corrida normal de
+  refresh de token) e 0 requisições 5xx. Conta residual
+  `fase3-validation-1788529427449@synapsemed.local` (status `blocked`)
+  preservada intacta, conforme instrução — não removida. **Achado de
+  smoke test, pré-existente e fora de escopo, não corrigido**: ver
+  armadilha #17 (`handleStartCustomSimulado` ignora `questionCount`/
+  filtros do simulado personalizado, roda contra as 393 questões do banco
+  inteiro independentemente da configuração). Categorias 8 (reações) e 9
+  (feedback) do backlog de sincronização continuam fora de escopo. Ver
+  `docs/diretoria/registro.md`, entrada "Concluído — 07-E4", para o
+  detalhamento completo.
+- **Histórico — em andamento na branch `work/sincronizacao-dados-estudo-07e`
+  (2026-09-09, Prompt 07-E), mesclada em `main` no 07-E4 acima**:
   continuação da sincronização confiável para as categorias 3-7 do backlog
   (caderno de erros, notas, favoritos, progresso de leitura, simulados) —
   categorias 1/2 já estavam publicadas (07-D) e 8/9 (reações/feedback)
@@ -458,9 +550,9 @@ protótipo).
   fora do escopo de uma sessão que só pode alterar o Supabase LOCAL) — ver
   `docs/diretoria/registro.md`, entrada "Concluído — 07-E", para o
   detalhamento e a recomendação.
-- **Em andamento na mesma branch `work/sincronizacao-dados-estudo-07e`
-  (2026-09-09/10, Prompt 07-E2), NÃO mesclada em `main`, migration NÃO
-  aplicada no remoto**: primeira rodada de testes de navegador real
+- **Histórico — mesma branch `work/sincronizacao-dados-estudo-07e`
+  (2026-09-09/10, Prompt 07-E2), mesclada em `main` no 07-E4 acima**:
+  primeira rodada de testes de navegador real
   (Playwright/Chromium contra Supabase LOCAL) para as categorias 3-7,
   cobrindo exatamente a lacuna que o 07-E tinha deixado explícita. 25/25
   asserções passando, cobrindo notas (conflito real entre dois
@@ -514,9 +606,9 @@ protótipo).
   07-E2", para o detalhamento completo, incluindo um achado FORA de escopo
   não corrigido (race condition benigna em `AuthContext.tsx` só visível sob
   login programático muito rápido, não um clique humano real).
-- **Em andamento na mesma branch `work/sincronizacao-dados-estudo-07e`
-  (2026-09-09/10, Prompt 07-E3), NÃO mesclada em `main`, migration NÃO
-  aplicada no remoto**: a revisão do 07-E2 tinha deixado registrado (seção
+- **Histórico — mesma branch `work/sincronizacao-dados-estudo-07e`
+  (2026-09-09/10, Prompt 07-E3), mesclada em `main` no 07-E4 acima**: a
+  revisão do 07-E2 tinha deixado registrado (seção
   "Prompt 07-E2" de `docs/SINCRONIZACAO-CONFIAVEL.md`) que a corrida real
   entre duas conexões distintas para `upsert_note`/`save_simulado_session`
   não tinha sido provada com navegador/concorrência real — só sequencial.

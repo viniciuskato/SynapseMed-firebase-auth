@@ -1542,3 +1542,185 @@ a MESMA fila real). Isto é uma lacuna de prova, não uma alegação de
 comportamento verificado — uma sessão futura que altere `runFlush`,
 `classifySyncError`'s outras branches, ou a UI de notas/simulados deveria
 repetir o Playwright completo antes de publicar.
+
+## Prompt 07-E4 (2026-09-10) — gate de navegador final e publicação em produção
+
+Fechou a lacuna deixada pelo 07-E3 (Playwright completo não repetido) com os
+dois cenários que a diretoria definiu como gate obrigatório antes de
+publicar, e executou a sequência completa de publicação (push, migrations
+remotas, merge em `main`, deploy, smoke test).
+
+### Gate de navegador (Playwright/Chromium contra Supabase LOCAL)
+
+Ambiente: `%TEMP%\nexusmed-pw-07e4` (node_modules reaproveitado do
+07-E2/07-C2 via cópia, playwright já instalado), `vite` dev na porta 5183
+com `.env.development.local` apontando para `http://127.0.0.1:54321`
+(nunca o `.env.local` real). Usuário de teste
+`sync07e4.a@test.local`/`Senha123!teste`, fixtures (disciplina/tema/
+material/duas questões publicadas) criados via `docker exec ... psql -U
+postgres` (nunca client com service role, ver armadilha #9), removidos ao
+final. **23/23 asserções passaram em DUAS execuções independentes**, sem
+nenhum defeito de produto — só três bugs no próprio script de teste
+(campo `category` em vez de `type` nas operações da fila, formato errado
+do payload de `SimuladoSessionData.answers` — é um `Record<questionId,
+{selectedOption, timeSpent}>`, não um array de `{question_id,
+selected_option_id}` — e comparação de `completed_at` truncada para
+segundos quando a diferença entre os dois dispositivos era de 1ms),
+corrigidos antes da aprovação, não do código de produção.
+
+1. **Nota com base nula (9/9)**: dois `BrowserContext` autenticados como o
+   MESMO usuário, alvo (`QUESTION1_ID`) sem nota prévia em nenhum dos dois
+   — base nula por definição nos dois lados. Textos diferentes gravados
+   quase simultaneamente (`Promise.all` de `notesRepository.saveNote` +
+   `flush` reais, mesmo caminho client-side que o app usa, disparado via
+   `window.__syncDebug` — ponte DEV, ausente do bundle de produção, mesmo
+   padrão já usado e aceito desde o 07-C2). Resultado: exatamente 1 linha
+   em `notes` (nunca 0 nem 2), servidor com pelo menos um dos dois textos
+   originais, o dispositivo que perdeu a corrida com os DOIS textos
+   fundidos localmente (nada apagado), `getNotes()` (repositório real)
+   devolvendo exatamente o texto do servidor após convergência, marcação
+   textual explícita de conflito (`[Conflito de sincronização em ...]`)
+   sempre que um conflito de fato ocorreu.
+2. **Conflito sucessivo (9/9)**: nota pré-existente com texto base
+   conhecido; contexto A tenta salvar um texto novo com essa base;
+   `page.route()` intercepta as chamadas de A ao RPC `upsert_note` e,
+   ANTES de deixar cada tentativa prosseguir, um contexto B grava uma
+   versão nova e diferente por fora (caminho real, sem interceptação) —
+   garante que as até-3 tentativas de merge de A (`MAX_NOTE_MERGE_ATTEMPTS`
+   em `syncHandlers.ts`) encontrem sempre uma base desatualizada de novo,
+   esgotando o orçamento de forma determinística em vez de depender de
+   timing. Resultado: operação de A termina em `state: 'failed'` (nunca
+   `synced`), `lastError.kind === 'conflict'` (nunca genérico), indicador
+   de sincronização (`[aria-label*="Falha ao sincronizar"]`) visível,
+   texto local de A preserva a própria edição fundida com a marcação de
+   conflito (nada descartado), servidor preserva a última escrita
+   bem-sucedida de B, `retryAllFailed` disponível para reenvio manual.
+3. **Simulado concorrente (5/5)**: duas `BrowserContext` da mesma conta
+   chamam `simuladosRepository.saveSimuladoSession` para a MESMA sessão
+   (`id` igual) com `completed_at`/`score` diferentes, via `Promise.all`
+   real (duas conexões `supabase-js` distintas competindo pelo mesmo
+   `pg_advisory_xact_lock` no servidor). Resultado, em ambas as execuções
+   (o vencedor variou entre elas — confirma corrida real, não resultado
+   fixo por ordem de código): exatamente 1 linha em `simulations`, só uma
+   finalização `synced` e a outra `failed` com `kind: 'validation'`
+   (`sessao_ja_finalizada`), indicador de falha visível no dispositivo
+   perdedor, replay do MESMO resultado vencedor (idêntico `completed_at`)
+   aceito sem duplicar, `getSimuladoHistory()` (repositório real, não
+   leitura direta) batendo exatamente com o valor do banco.
+
+### Validação local (Fase 3)
+
+`supabase db reset` (aplica as 16 migrations, incluindo as três desta
+entrega, em ordem, sem erro) → `supabase test db`: **146/146 pgTAP**
+(mesmo total do 07-E3, nenhuma regressão). `npx tsc --noEmit` e `npm run
+build` limpos (mesmo aviso pré-existente de chunk >500kB). `grep` no bundle
+de produção confirma 0 ocorrências de `__syncDebug`/
+`__setTestBackoffOverride`.
+
+### Publicação (Fases 4-6)
+
+Baseline remoto confirmado antes de qualquer escrita: projeto
+`synapsemed`/`jfvhwwvixwvgjfqzlkkb`; `supabase migration list --linked`
+mostrou as três migrations desta entrega como as ÚNICAS pendentes (as 12
+anteriores já `local=remote`); `origin/main` em `b7a31f7` antes e depois do
+push da branch. Push da branch sem force, `supabase db push --linked --yes`
+aplicou as três migrations na ordem esperada. Verificação direta no schema
+remoto: `upsert_note`/`save_simulado_session` com `pg_advisory_xact_lock`
+confirmado no corpo (`pg_proc.prosrc`) via `supabase db query --linked`;
+`information_schema.routine_privileges` confirma `EXECUTE` restrito a
+`authenticated`/`postgres`, nunca `anon`/`public`; índices únicos de
+`notes` (`notes_user_material_uq`, `..._material_section_uq`,
+`..._question_uq`, `..._flashcard_uq`) presentes; `pg_tables.rowsecurity =
+true` em todas as sete tabelas afetadas. Contagens de `questions`/
+`question_options`/`question_answer_keys`/`question_references`/`sources`/
+`flashcards`/`profiles` idênticas antes/depois das migrations — nenhum
+dado real alterado pela aplicação do schema. Merge `--no-ff` em `main`
+(commit `288374b`, `main`/`origin/main` avançaram de `b7a31f7`), `tsc`/
+`build` reconfirmados limpos, push sem force. Deploy automático do Vercel
+confirmado: `assets/index-BWtJ444Z.js` publicado, byte-a-byte idêntico ao
+build local (`diff` sem saída), 0 ocorrências de `__syncDebug`/
+`__setTestBackoffOverride` no bundle servido.
+
+### Smoke test em produção (Fase 7)
+
+Duas contas descartáveis (`smoke07e4.*@synapsemed.local`,
+`smoke07e4b.*@synapsemed.local`), promovidas a `active` via `supabase db
+query --linked` (conexão real como `postgres`, nunca service role — ver
+armadilha #9), removidas ao final. Fluxos exercitados pela interface real
+(Playwright/Chromium contra `https://synapse-med-firebase-auth.vercel.app`,
+sem nenhuma ponte de debug — essa não existe em produção):
+
+- Responder questão (modo recall → revelar alternativas → selecionar →
+  confirmar) — 1 `question_attempts` real.
+- Favoritar → desfavoritar → favoritar de novo (toggle idempotente real via
+  UI) — `bookmarks` com 1 linha, estado final favoritado.
+- Marcar seção de compêndio como lida — `reading_progress` com 1 linha.
+- Criar/editar nota pessoal em compêndio (painel "Anotações") — `notes` com
+  1 linha, texto batendo exatamente com o enviado.
+- Responder questão incorretamente de propósito → confirma criação
+  automática de entrada em `error_notebook` (nunca escrita direta pelo
+  cliente, sempre efeito colateral de `submit_question_attempt`).
+- Caderno de Erros: "+ Adicionar anotação" → salvar, "Marcar como
+  Dominada" — **achado**: esses dois botões da tela `ErrorNotebookView.tsx`
+  chamam `answersRepository.recordAnswer` (categoria 1, resubmissão de
+  tentativa, evento imutável — CADA clique gera uma NOVA linha em
+  `question_attempts`/`error_notebook`, por design daquela categoria já
+  publicada no 07-D), **não** `errorNotebookRepository.updateErrorLog`
+  (categoria 3, upsert por id, o que esta entrega — 07-E — de fato mexeu).
+  Buscando no código, `errorNotebookRepository.updateErrorLog` não tem
+  NENHUM chamador de UI atualmente — só `getErrorLogs` é usado (leitura,
+  painel do dashboard). Ou seja: o handler `error_notebook_update`/RPC de
+  retry-com-fila que o 07-E implementou e testou (pgTAP + Playwright) está
+  correto e publicado, mas nenhum botão da interface o aciona hoje — a UI
+  existente resolve "adicionar nota"/"marcar dominada" por um caminho mais
+  antigo e diferente. Não é uma regressão desta publicação (o código novo
+  funciona como projetado, só não está conectado a um botão), mas é uma
+  lacuna de integração a registrar para uma iteração futura decidir se cria
+  um botão dedicado que chame `updateErrorLog` ou se aposenta esse método
+  do repositório.
+- Simulado: criar (via modal "Criador de Simulados & Listas"), responder,
+  finalizar — **achado, PRÉ-EXISTENTE e FORA de escopo** (idêntico no
+  commit `b7a31f7`, antes desta entrega — ver armadilha #17 em
+  `AGENTS.md`): a quantidade/filtros configurados no modal são ignorados;
+  `handleStartCustomSimulado` (`App.tsx`) passa o array cheio de questões
+  (as 393) para `<SimuladoSession>` sem filtrar por `config`, então
+  qualquer simulado "personalizado" roda contra o banco inteiro. Confirmado
+  consultando `simulation_questions` após finalizar (393 linhas para uma
+  configuração de quantidade=2). O `save_simulado_session`/advisory lock
+  (07-E3) funcionam corretamente com qualquer tamanho de sessão que o
+  cliente mande — o defeito é anterior a isso (montagem da lista de
+  questões no `App.tsx`), não na RPC desta entrega. Não corrigido aqui
+  (fora do escopo autorizado: só sincronização confiável).
+- Recarregar no meio do simulado: confirmado que o rascunho local
+  (`synapse_<uid>_simulado_draft_<id>`, mecanismo do 07-E) sobrevive
+  integralmente ao reload (`{"<questionId>":"A"}` presente no
+  `localStorage` depois do reload) — **mas não há caminho de UI para voltar
+  a essa mesma sessão após um reload completo** (o app volta ao dashboard;
+  `activeSimuladoConfig` é estado React não persistido, e não existe botão
+  "continuar simulado" na lista de histórico). Isso é consistente com a
+  documentação já existente do 07-E ("cronômetro deliberadamente não é
+  retomado, isso pertence ao Prompt 10-A") — a proteção de DADO está
+  garantida (nada se perde), mas a experiência de RETOMAR pela interface
+  ainda não existe, por decisão de escopo já registrada, não uma regressão
+  desta publicação. "Recarregar e retomar" do prompt 07-E4 foi testado
+  quanto à preservação do dado (confirmada); a retomada visual não pôde ser
+  testada porque a funcionalidade não existe ainda.
+- Troca de conta A→B→A na mesma janela: XP e badge de "Erros" de A (187
+  XP, 4 erros) não vazam para B (0 XP, sem badge de erros); XP de A idêntico
+  entre a primeira e a segunda sessão (187 XP nas duas).
+- 0 erros de console recorrentes (um único `401` transitório observado uma
+  vez durante uma troca de sessão, não reproduzido numa segunda execução do
+  mesmo script — consistente com corrida normal de refresh de token do
+  Supabase ao redor de um reload, não uma falha determinística) e 0
+  requisições 5xx em toda a sessão de smoke test.
+
+Limpeza: as duas contas descartáveis e todos os registros associados
+(`question_attempts`, `error_notebook`, `bookmarks`, `notes`,
+`reading_progress`, `simulations`/`simulation_questions`/
+`simulation_answers`) removidos ao final — contagens finais de todas as
+tabelas conferidas idênticas ao baseline pré-publicação. Conta residual
+`fase3-validation-1788529427449@synapsemed.local` (status `blocked`)
+preservada intacta, conforme instrução explícita do prompt.
+
+Categorias 8 (reações 👍/👎) e 9 (feedback contextual) do backlog de
+sincronização continuam fora de escopo — nenhuma mudança nesta entrega.
