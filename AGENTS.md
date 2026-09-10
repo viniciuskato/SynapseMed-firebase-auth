@@ -294,31 +294,40 @@ protótipo).
     (`true` só para `online`/`visibilitychange`, nunca para o heartbeat de
     60s) que ignora `nextRetryAt` para operações retentáveis pendentes.
 
-17. **`handleStartCustomSimulado` (`src/App.tsx`) ignora a configuração do
-    simulado personalizado** — descoberto no smoke test de produção do
-    Prompt 07-E4 (2026-09-10), **pré-existente, confirmado idêntico no
-    commit `b7a31f7` (produção antes desta publicação) e fora do escopo da
-    entrega de sincronização (07-E/E2/E3), não corrigido nesta sessão**. O
-    modal "Criador de Simulados & Listas" deixa o usuário escolher
-    `questionCount`, `disciplineIds`, `difficulties` etc., mas
-    `handleStartCustomSimulado` só grava `activeSimuladoConfig` e troca de
-    view — passa `questions={questions}` (o array cheio, todas as 393
-    questões do banco) direto para `<SimuladoSession>`, que por sua vez usa
-    o prop recebido como está (`questions.length`, `questions[currentIdx]`),
-    sem filtrar por `config` em lugar nenhum. Resultado observável: iniciar
-    um "Simulado Personalizado" com quantidade=2 na interface na verdade
-    roda contra as 393 questões (confirmado consultando
-    `simulation_questions` após finalizar um simulado de teste: 393 linhas,
-    não 2). O `save_simulado_session`/advisory lock (07-E3) funcionam
-    corretamente com qualquer tamanho de sessão que o cliente mande — o
-    defeito é anterior a isso, na montagem da lista de questões, não na
-    RPC. Precisa de correção futura (filtrar `questions` por
-    `config.disciplineIds`/`config.themeIds`/`config.difficulties`/
-    `config.cycles`/`config.onlyMistakes` e fatiar por
-    `config.questionCount`, em `handleStartCustomSimulado` ou dentro de
-    `SimuladoSession`) — não implementada aqui por estar fora do escopo
-    autorizado desta sessão (só sincronização confiável, não redesenho de
-    seleção de questões).
+17. **RESOLVIDO no Prompt 07-E5 (2026-09-10).** `handleStartCustomSimulado`
+    (`src/App.tsx`) ignorava a configuração do simulado personalizado —
+    descoberto no smoke test de produção do Prompt 07-E4 (2026-09-10),
+    pré-existente, confirmado idêntico no commit `b7a31f7`. O modal
+    "Criador de Simulados & Listas" deixa o usuário escolher `questionCount`,
+    `disciplineIds`, `onlyMistakes` etc., mas `handleStartCustomSimulado` só
+    gravava `activeSimuladoConfig` e passava `questions={questions}` (o
+    array cheio) direto para `<SimuladoSession>`, sem filtrar por `config`
+    em lugar nenhum. **Corrigido**: novo `src/services/simuladoSelection.ts`
+    (`buildSimuladoSelection`) filtra por `disciplineIds`/`themeIds`/
+    `difficulties`/`cycles`/`onlyMistakes` (lista vazia = sem restrição —
+    mesma convenção que `CreateSimuladoModal` já usa para "todas as
+    disciplinas") e sorteia deterministicamente por `config.id` (mulberry32
+    + Fisher-Yates) antes de cortar por `questionCount`; chamado UMA VEZ em
+    `handleStartCustomSimulado`, resultado guardado em estado
+    (`activeSimuladoSelection`), nunca recalculado inline no render — por
+    isso a MESMA sessão nunca re-sorteia, mas duas sessões diferentes
+    (`config.id` diferente) tendem a sortear subconjuntos diferentes.
+    Quando há menos elegíveis que o pedido, `SimuladoSession` mostra um
+    aviso claro e roda com as disponíveis (nunca trava). `themeIds`/
+    `difficulties`/`cycles` são filtrados mas não são de fato configuráveis
+    na UI hoje (o modal não tem toggle individual para eles, só chegam com
+    o conjunto completo/vazio por padrão) — não é código morto, é
+    forward-compatible com o dia em que a UI ganhar esses controles, sem
+    reabrir esta armadilha. Cronômetro do modo estudo (Prompt 10-A)
+    continua fora de escopo, não tocado. Testado com Playwright real contra
+    Supabase local (16/16 asserções para o simulado, 21/21 para o caderno
+    de erros) e smoke test real em produção (7/7 + 9/9 asserções, ver
+    seção "Prompt 07-E5" em `docs/SINCRONIZACAO-CONFIAVEL.md`) — contas de
+    teste criadas via `admin.auth.admin.createUser({ email_confirm: true })`
+    (evita por completo o rate limit de e-mail do `signUp` via cliente
+    anônimo em produção) e promovidas a `active` via `supabase db query
+    --linked` (conecta como `postgres` de verdade no remoto, mesma
+    garantia da armadilha #9 — não precisa de senha de Postgres avulsa).
 
 ## Convenções de trabalho
 
@@ -513,6 +522,37 @@ protótipo).
   (feedback) do backlog de sincronização continuam fora de escopo. Ver
   `docs/diretoria/registro.md`, entrada "Concluído — 07-E4", para o
   detalhamento completo.
+- **PUBLICADO em produção em 2026-09-10 (07-E5)**: os dois achados de
+  smoke test do 07-E4 corrigidos — Caderno de Erros usando o caminho
+  confiável (`errorNotebookRepository.updateErrorLog`) em vez do antigo
+  (`answersRepository.recordAnswer`), e Simulado Personalizado passando a
+  respeitar `disciplineIds`/`onlyMistakes`/`questionCount` da configuração
+  (armadilha #17, agora RESOLVIDA — ver acima). Branch
+  `work/correcao-caderno-simulado-07e5` mesclada em `main` (`--no-ff`,
+  commit de merge `e1a9743`, `main`/`origin/main` avançaram de `11431c4`).
+  Sem migration nova (só frontend/repository). `tsc --noEmit`/`npm run
+  build` limpos antes e depois do merge; `supabase test db` 146/146 (sem
+  regressão, nenhum schema tocado); bundle publicado
+  (`assets/index-DCUNN2l4.js`) confirmado byte-a-byte idêntico ao build
+  local, 0 ocorrências de `__syncDebug`/`__setTestBackoffOverride`. Testado
+  com Playwright/Chromium real: 21/21 (caderno de erros) + 16/16 (simulado)
+  contra Supabase LOCAL, e 7/7 + 9/9 em smoke test real de produção — duas
+  contas descartáveis (`smoke07e5.notebook@synapsemed.local`,
+  `smoke07e5.simulado@synapsemed.local`), criadas via
+  `admin.auth.admin.createUser({ email_confirm: true })` (evita o rate
+  limit de e-mail do `signUp` anônimo em produção) e promovidas a `active`
+  via `supabase db query --linked`; todos os dados de teste removidos ao
+  final (cascade via `admin.auth.admin.deleteUser`), contagens de
+  `profiles`/`question_attempts`/`error_notebook`/`simulations`/
+  `simulation_questions`/`simulation_answers`/`questions`/
+  `question_options` idênticas ao baseline pré-teste. Conta residual
+  `fase3-validation-1788529427449@synapsemed.local` preservada intacta.
+  Ver `docs/SINCRONIZACAO-CONFIAVEL.md`, seção "Prompt 07-E5", e
+  `docs/diretoria/registro.md`, entrada "Concluído — 07-E5", para o
+  detalhamento completo — inclusive uma nota de transparência sobre
+  conteúdo fabricado que apareceu nesses dois arquivos de documentação
+  durante a sessão, sem nenhuma chamada de ferramenta desta sessão por
+  trás, removido antes da publicação.
 - **Histórico — em andamento na branch `work/sincronizacao-dados-estudo-07e`
   (2026-09-09, Prompt 07-E), mesclada em `main` no 07-E4 acima**:
   continuação da sincronização confiável para as categorias 3-7 do backlog

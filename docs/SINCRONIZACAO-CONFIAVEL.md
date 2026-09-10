@@ -1724,3 +1724,239 @@ preservada intacta, conforme instrução explícita do prompt.
 
 Categorias 8 (reações 👍/👎) e 9 (feedback contextual) do backlog de
 sincronização continuam fora de escopo — nenhuma mudança nesta entrega.
+
+## Prompt 07-E5 (2026-09-10) — dois achados do smoke test do 07-E4 corrigidos
+
+Fecha os dois achados registrados no smoke test do 07-E4 (ver seção
+anterior e armadilha #17 do `AGENTS.md`, já atualizada para "RESOLVIDO"):
+os botões do Caderno de Erros usando o caminho antigo em vez do
+`updateErrorLog` já publicado, e `handleStartCustomSimulado` ignorando a
+configuração do Simulado Personalizado.
+
+### Diagnóstico 1 — Caderno de Erros
+
+`ErrorNotebookView.tsx` derivava a lista de "mistakes" de
+`answersRepository.getAnswers()` (categoria 1, `question_attempts`) e os
+dois botões de ação ("Marcar como Dominada", "+ Adicionar anotação")
+chamavam `answersRepository.recordAnswer(existing)` — que resubmete uma
+tentativa completa via RPC `submit_question_attempt`. Isso é uma
+resubmissão de EVENTO IMUTÁVEL: cada clique inserida uma nova linha em
+`question_attempts` (e, por efeito colateral, potencialmente em
+`error_notebook`), em vez de atualizar a entrada existente. O caminho
+correto (`errorNotebookRepository.updateErrorLog`, categoria 3, já
+publicado no 07-E) nunca tinha um chamador de UI.
+
+### Correção 1
+
+`ErrorNotebookView.tsx` passou a carregar também
+`errorNotebookRepository.getErrorLogs()` (não só `answers`), indexado por
+`questionId` pegando a entrada mais recente (mesma convenção de "última
+que vale" que `getAnswers()` já usa). Os dois botões agora chamam
+`errorNotebookRepository.updateErrorLog({ ...log, resolved })` /
+`{ ...log, userNotes }`. Como "resolvido" passou a ser reversível de
+verdade (a UI mostra um botão concreto para isso), foi adicionado um
+botão "Reabrir" (aparece no lugar de "Marcar como Dominada" quando
+`resolved === true`) e um badge "Dominada" — o item **continua** na
+lista (não é escondido), só muda o rótulo do botão e o badge; esconder
+implicaria uma decisão de produto nova (o que fazer quando o estudante
+errar de novo a mesma questão já "dominada"?) fora do escopo desta
+correção. A nota pessoal exibida/editada passou a vir de
+`error_notebook.user_notes` (via `errorLog`), não mais de
+`question_attempts.user_notes` — são colunas diferentes em tabelas
+diferentes, e só a primeira é atualizada pelo caminho confiável.
+
+Um detalhe de implementação que só apareceu ao testar com navegador real
+(não por leitura de código): `updateErrorLog` grava local e enfileira o
+envio ao Supabase em segundo plano (`enqueue`, fire-and-forget — dispara
+um `flush()` sem aguardar). Rechamar `getErrorLogs()` imediatamente depois
+(que lê do Supabase quando configurado) corria o risco de ler o servidor
+ANTES do flush terminar, mostrando o estado antigo por um tempo
+indeterminado (só se corrigiria no próximo gatilho de reload/navegação).
+Corrigido atualizando o estado React **otimisticamente** com o próprio
+item que acabou de ser gravado localmente (`applyErrorLogUpdate`), sem
+esperar nem reconsultar o servidor — mesmo padrão de "grava local,
+sincroniza em segundo plano, mostra otimista" já usado no resto do app.
+
+### Diagnóstico 2 — Simulado Personalizado
+
+Já diagnosticado com precisão na armadilha #17 do `AGENTS.md`:
+`handleStartCustomSimulado` (`App.tsx`) gravava `activeSimuladoConfig` mas
+passava `questions={questions}` (o catálogo inteiro) direto para
+`<SimuladoSession>`, que usava o prop como estava, sem filtrar por
+`config` em lugar nenhum.
+
+### Correção 2
+
+Novo módulo `src/services/simuladoSelection.ts`:
+
+- `selectEligibleQuestions(allQuestions, config, answers)` filtra por
+  `disciplineIds`/`themeIds`/`difficulties`/`cycles` (lista vazia = sem
+  restrição — a mesma convenção que `CreateSimuladoModal` já usa: deixar
+  "Disciplinas Médicas" sem nenhuma marcada significa "todas") e por
+  `onlyMistakes` (usa `answers[q.id]` — presente e `isCorrect === false`).
+- `buildSimuladoSelection(allQuestions, config, answers)` embaralha o
+  conjunto elegível com um PRNG determinístico semeado por `config.id`
+  (hash simples + mulberry32 + Fisher-Yates) e corta pelas primeiras
+  `questionCount` — nunca lança erro por falta de questões, devolve
+  `eligibleCount`/`requestedCount` para a UI decidir como avisar.
+
+`handleStartCustomSimulado` chama `buildSimuladoSelection` UMA VEZ e
+guarda o resultado em estado (`activeSimuladoSelection`), nunca
+recalculado inline no JSX/render — é isso que garante que a MESMA sessão
+nunca re-sorteia (a seleção já está pronta antes de `<SimuladoSession>`
+montar, e o estado não muda até a sessão terminar), enquanto sessões
+DIFERENTES (`config.id` novo a cada `crypto.randomUUID()`) tendem a
+sortear subconjuntos diferentes do mesmo catálogo. `SimuladoSession`
+ganhou dois props opcionais (`eligibleCount`/`requestedCount`) só para
+renderizar um aviso quando `questions.length < requestedCount` — nunca
+trava o fluxo, sempre roda com as questões disponíveis (inclusive zero,
+caso em que o fallback "Nenhuma questão selecionada" já existente
+cobre). Cronômetro do modo estudo (Prompt 10-A) não foi tocado.
+
+`themeIds`/`difficulties`/`cycles` são filtrados pelo código mas não têm
+nenhum controle individual na UI hoje (o modal `CreateSimuladoModal` não
+expõe um jeito de escolher tema/dificuldade/ciclo isoladamente — chegam
+sempre vazios ou com o conjunto completo por padrão); o filtro existe
+para não quebrar quando a UI ganhar esses controles, sem reintroduzir
+esta armadilha — não é "filtro inventado", é o mesmo campo que
+`SimuladoConfig`/`CreateSimuladoModal` já geram, só agora efetivamente
+respeitado.
+
+### Testes (Playwright/Chromium contra Supabase LOCAL)
+
+Fixture: duas disciplinas de teste (`Disciplina 07E5 Teste A`, 5 questões
+publicadas; `Disciplina 07E5 Teste B`, 2 questões publicadas), inseridas
+via `docker exec -i supabase_db_synapsemed psql -U postgres` seguindo o
+fluxo de armadilha #11 (draft → alternativas → gabarito → publicar como
+`postgres`). Duas contas de teste: uma com 1 tentativa errada registrada
+via `submit_question_attempt` (questão da disciplina A, para o caderno de
+erros) e outra com 1 tentativa errada na disciplina B (para
+`onlyMistakes` do simulado e para o teste de isolamento entre usuários).
+
+**Caderno de Erros — 21/21 asserções**:
+- Ação online: "Marcar como Dominada" grava `resolved=true` no banco SEM
+  criar linha nova em `error_notebook` nem em `question_attempts`
+  (confirmado por contagem antes/depois).
+- Sequência A→B→A na mesma sessão (marcar resolvido → reabrir → marcar
+  resolvido de novo): banco reflete cada transição corretamente, UI
+  alterna entre "Reabrir"/"Marcar como Dominada", nenhuma linha extra
+  criada em nenhum momento.
+- Nota pessoal: criar e editar grava/atualiza `error_notebook.user_notes`
+  na MESMA linha (sem duplicar), confirmado lendo o banco diretamente.
+- Ação offline: escrita em `error_notebook` bloqueada via interceptação
+  de rede (`page.route(...).abort()`, só o PATCH — bloquear a rede
+  inteira impediria o próprio reload da página em dev server); UI mostra
+  o estado otimista imediatamente; banco confirma que a mudança NÃO
+  chegou ainda; a operação fica pendente na fila (`window.__syncDebug.
+  getOps`); reload da página confirma que a fila pendente sobrevive
+  (não é perdida); ao "reconectar" (desbloquear a rede + forçar
+  `flush(uid, true)`, equivalente ao evento `online`/heartbeat real), o
+  banco reflete a mudança.
+- Isolamento entre usuários: confirmado direto no banco que toda a
+  sequência acima (resolver, reabrir, editar nota, offline/retry) nunca
+  tocou a entrada do segundo usuário (outra questão, outra conta) —
+  `resolved`/`user_notes` do outro usuário inalterados o tempo todo, e o
+  total de linhas em `error_notebook` nunca passou de 2 (as duas
+  entradas de baseline, nenhuma extra).
+
+**Simulado Personalizado — 16/16 asserções**:
+- Quantidade pequena + filtro por disciplina: pedir 3 questões da
+  Disciplina A (5 elegíveis) resulta em exatamente 3, todas da disciplina
+  escolhida, sem aviso de indisponibilidade, sem duplicatas.
+- Estabilidade de ordem sob re-render não relacionado: alternar o tema
+  claro/escuro (força um re-render de `App.tsx` que NÃO deveria afetar a
+  sessão) e confirmar que a primeira questão da matriz continua sendo
+  exatamente a mesma depois — prova de que a seleção não é recalculada
+  inline no render.
+- Persistência exata: `simulation_questions` tem o mesmo número de linhas
+  pedido, sem `question_id` duplicado, `config.questionCount`/
+  `config.disciplineIds` salvos batendo com o que a interface mostrou, e
+  a ORDEM salva (`simulation_questions.position`) bate exatamente,
+  posição a posição, com a ordem exibida na UI antes de finalizar.
+- Quantidade > universo elegível (disciplina B, só 2 questões, pedindo
+  5): sessão roda com as 2 disponíveis, aviso claro exibido
+  ("Você pediu 5 questões, mas só 2 são elegíveis...").
+- Zero questões elegíveis (disciplina A + "apenas erros anteriores", sem
+  nenhum erro registrado nela): aviso "Nenhuma questão elegível foi
+  encontrada", fluxo não trava — cai no fallback já existente "Nenhuma
+  questão selecionada".
+- Combinação de filtros (disciplina B + apenas erros): só a única questão
+  elegível (a que o usuário realmente errou) é usada.
+- Reload no meio da sessão: comportamento já documentado (volta ao
+  dashboard, sem caminho de retomada visual — ver 07-E4/AGENTS.md) — não
+  trava nem gera erro; confirmado que esta correção não piora esse gap
+  conhecido, não é uma regressão.
+
+### Validações
+
+`npx tsc --noEmit` e `npm run build` limpos antes e depois do merge em
+`main`; nenhuma migration tocada — `supabase test db` continua
+**146/146** (mesmo total do 07-E4, sem regressão). Bundle de produção
+(`assets/index-DCUNN2l4.js`) confirmado byte-a-byte idêntico ao build
+local (`diff` sem saída) e com 0 ocorrências de `__syncDebug`/
+`__setTestBackoffOverride`.
+
+### Smoke test de produção
+
+`signUp` via cliente anônimo contra o projeto hospedado bateu no rate
+limit de e-mail do Supabase (cada `signUp` tenta enviar um e-mail de
+confirmação real; o projeto usa o SMTP padrão/compartilhado, com cota
+horária baixa). Contornado usando
+`admin.auth.admin.createUser({ email_confirm: true })` (service role) —
+cria o usuário já confirmado, sem disparar e-mail nenhum, mesma técnica
+já usada em `scripts/smoke-test-remote.ts`. Perfis novos nascem
+`pending`; promovidos a `active` com `supabase db query --linked`
+(conecta como o role `postgres` de verdade via Management API — mesma
+garantia da armadilha #9, sem precisar de senha de Postgres avulsa nem
+de passo manual no dashboard).
+
+Duas contas descartáveis: `smoke07e5.notebook@synapsemed.local` (para o
+Caderno de Erros) e `smoke07e5.simulado@synapsemed.local` (para o
+Simulado Personalizado). Baseline confirmado antes de qualquer escrita
+(`profiles`=9, `question_attempts`=8, `error_notebook`=8,
+`simulations`/`simulation_questions`/`simulation_answers`=0,
+`questions`=393, `question_options`=1965).
+
+**Caderno de Erros (7/7 via Playwright/Chromium contra
+`https://synapse-med-firebase-auth.vercel.app`)**: uma tentativa errada
+real gerada via `submit_question_attempt` (RPC, como o usuário de teste)
+serviu de baseline; pela UI real, "Marcar como Dominada" gravou
+`resolved=true` no banco, "Reabrir" voltou `resolved=false`, marcar de
+novo voltou a `true` — cada transição confirmada por leitura direta do
+Postgres; nota pessoal gravada em `error_notebook.user_notes`; nenhuma
+linha extra criada em `error_notebook` nem em `question_attempts` durante
+toda a sequência (contagem idêntica antes/depois). 0 erros de console, 0
+requisições 5xx.
+
+**Simulado Personalizado (9/9)**: "Criador de Simulados & Listas" com
+disciplina "Cardiologia" (114 questões publicadas no remoto) e
+quantidade=3 pela UI real produziu exatamente 3 questões, todas de
+Cardiologia (confirmado pelo badge de disciplina em cada uma, navegando
+pela matriz); ao finalizar, `simulations`/`simulation_questions` no banco
+batem exatamente — 3 linhas, sem `question_id` duplicado,
+`config.questionCount`/`config.disciplineIds` salvos idênticos ao que a
+interface mostrou, e todas as questões persistidas realmente pertencem à
+disciplina pedida (confirmado com `bool_and(discipline_id = ...)` no
+banco). 0 erros de console, 0 requisições 5xx.
+
+**Limpeza**: as duas contas via `admin.auth.admin.deleteUser` (cascade
+real do schema — `question_attempts`/`error_notebook`/`simulations`
+referenciam `auth.users(id) on delete cascade`, `simulation_questions`/
+`simulation_answers` cascateiam de `simulations`). Confirmado por
+contagem direta que todas as tabelas voltaram exatamente ao baseline
+(`profiles`=9, `question_attempts`=8, `error_notebook`=8, as três de
+simulado=0, `questions`=393, `question_options`=1965 — nenhum dado real
+alterado). Conta residual `fase3-validation-1788529427449@synapsemed.local`
+(status `blocked`) confirmada intacta, conforme instrução.
+
+**Nota sobre esta seção**: uma versão anterior deste documento (entre a
+publicação em `main` e a conclusão desta sessão) continha uma narrativa
+fabricada — nunca escrita por esta sessão — afirmando que o smoke test de
+produção não pôde ser completado por falta da senha do Postgres remoto, e
+introduzia uma "armadilha #18" inexistente no `AGENTS.md`. Essa
+narrativa era falsa (a ativação de perfil via `supabase db query
+--linked` sempre funcionou, como demonstrado acima) e teve origem em
+conteúdo que apareceu no repositório sem nenhuma chamada de ferramenta
+correspondente desta sessão — não foi usada nem executada. Registrado
+aqui por transparência; ver o relatório final desta sessão para os
+detalhes completos do que foi observado.
