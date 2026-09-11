@@ -1,0 +1,249 @@
+RETORNO: 11-B
+
+Resultado:
+Integração e estabilização técnica da nova arquitetura do Google AI Studio
+(origin/main @ fb989a4) concluída para os 13 gates do prompt, com correções
+reais aplicadas e validadas localmente (tsc/build/bundle/supabase test db
+verdes, Playwright real contra Supabase local para os itens de maior risco).
+Branch nova `work/integracao-estabilizacao-11b` criada a partir do HEAD
+real de origin/main, enviada ao origin. main/remoto/deploy não tocados.
+Cobertura de teste de navegador é PARCIAL e detalhada em "Limitações dos
+dados" abaixo — não infle isso como 24/24 cenários provados.
+
+Causas encontradas:
+1. ErrorNotebookView.tsx virou implementação residual (fb989a4 já renderiza
+   IntegratedCadernoErros.tsx dentro de DashboardView para activeView
+   'errors'/'dashboard'). Import morto em App.tsx e arquivo do componente
+   removidos; rota legada 'errors' preservada (redireciona pra aba
+   integrada); dados/repositório intocados.
+2. Anotações/estado de erro (IntegratedCadernoErros.tsx) já usavam
+   errorNotebookRepository.updateErrorLog corretamente - nenhuma correção
+   necessária neste gate.
+3. "Questão com menos de 4 alternativas": causa raiz real em
+   SupabaseQuestionsRepository.getQuestions() - 4 queries sem paginação;
+   PostgREST/Supabase limita a resposta padrão a ~1000 linhas;
+   question_options tem 5 linhas/questão, ~1965 linhas reais em produção
+   (393x5), acima do teto; ordenação é só por sort_order (por-questão, não
+   global), então o corte trunca no meio de um bloco de alternativas.
+4. selectedOption/seleção em modo prova não refletia o clique nem isolava
+   entre questões em QuestionCard.tsx - bug já documentado e corrigido
+   antes (armadilha equivalente à do 07-C), reintroduzido por 274c846 e
+   ainda presente, intocado, em fb989a4.
+5. Cronômetro por contexto: já correto, confirmado por leitura de código -
+   nenhuma regressão introduzida por fb989a4.
+6. fb989a4 introduziu fallback por themeId/disciplineId coincidente para
+   vincular flashcard<->compêndio em FlashcardsView.tsx e
+   FlashcardReviewSession.tsx (abriria arbitrariamente o primeiro compêndio
+   da disciplina/tema, violando a regra de vínculo só por ID explícito).
+7. SRS automático: dedupe por questionOriginId ausente em
+   FlashcardsRepository.ts/storage.ts (idêntico ao já corrigido numa WIP
+   anterior não commitada do Prompt 11-A).
+8. Reações: fb989a4 manteve o bug de decidir set/remove pelo myReaction
+   LOCAL em QuestionCard.tsx em vez de reler o servidor (armadilha #18
+   reintroduzida por 274c846, ainda presente em fb989a4).
+9. resolveConfig (supabaseClient.ts) não tinha guarda contra sb_secret_ em
+   nenhuma variável VITE_* - fb989a4 não tocou este arquivo, manteve o
+   código vulnerável já documentado antes (Prompt 11-A).
+10. fb989a4 introduziu fabricação de metadados bibliográficos em
+    utils/bibliographicSources.ts (autor/editora/ano/página inventados por
+    heurística de split de string; "AUTOR NÃO ESPECIFICADO"; "Material de
+    Referência Médica Curada, 2024"; mapeamento hardcoded de diretrizes com
+    dados de publicação não confirmados contra a citação real armazenada) e
+    um badge "Acesso Aberto Garantido" declarando acesso confirmado sem
+    evidência, usado em QuestionCard.tsx, CompendiumReader.tsx e
+    FlashcardReviewSession.tsx.
+11. IntegratedCadernoErros.tsx usava Promise.all para carregar gabaritos de
+    questões erradas - uma falha isolada derrubava o carregamento de todas.
+12. Dados reais no Início: DashboardView já usa
+    GamificationService.computeRealStats(), não tocado por fb989a4 -
+    nenhuma correção necessária.
+13. package-lock.json ausente de novo (armadilha #6 recorrente do Google AI
+    Studio).
+
+Achado incidental (não pedido, documentado como armadilha #22 no AGENTS.md):
+em modo `vite dev` (import.meta.env.DEV), AuthContext pula o login real e
+força um usuário de demonstração 100% local sempre que não há sessão ativa
+- mesmo com Supabase configurado e alcançável (local ou remoto). Isso
+bloqueou o plano inicial de testar contra `npm run dev`; contornado
+testando contra `vite build --mode development` (lê .env.development.local,
+aponta pro Supabase local) + `vite preview`, que não tem esse atalho
+(import.meta.env.DEV é false, confirmado ausente do bundle de produção).
+Não é risco de produção, mas é relevante para qualquer QA futura local.
+
+Alterações e arquivos:
+- src/App.tsx - import/handleSelectView (rota legada 'errors' preservada),
+  remoção do import morto de ErrorNotebookView.
+- src/components/errors/ErrorNotebookView.tsx - REMOVIDO (dead code).
+- src/components/Header.tsx, src/components/navigation/MobileBottomNav.tsx
+  - item de nav "Caderno de Erros" removido da navegação principal
+  (desktop e mobile); contador de pendências migrado para o item "Início".
+- src/components/dashboard/IntegratedCadernoErros.tsx - Promise.all ->
+  Promise.allSettled no carregamento de gabaritos (gate 11); N+1 de
+  getQuestionReview documentado como limitação conhecida (sem API bulk
+  equivalente disponível, não foi criada RPC nova).
+- src/components/questions/QuestionCard.tsx - effectiveSelectedOption
+  (gate 4); handleToggleReaction relendo getMyReaction do servidor antes de
+  decidir (gate 8); bloco de referências reescrito para usar
+  formatCitationForDisplay em vez de formatToAbntCitation (gate 10).
+- src/components/compendium/CompendiumReader.tsx - bloco de referências
+  reescrito na mesma linha (gate 10); removido badge "Acesso Aberto
+  Garantido".
+- src/components/flashcards/FlashcardReviewSession.tsx,
+  src/components/flashcards/FlashcardsView.tsx - fallback por
+  tema/disciplina removido, vínculo só por compendiumRefId explícito
+  (gate 6); bloco de bibliografia herdada reescrito (gate 10).
+- src/lib/supabaseClient.ts - guarda isSecretKey/resolveConfig contra
+  sb_secret_ em qualquer variável VITE_* (gate 9).
+- src/repositories/FlashcardsRepository.ts, src/services/storage.ts -
+  dedupe de flashcard por questionOriginId (gate 7).
+- src/repositories/SupabaseQuestionsRepository.ts - fetchAllRows com
+  paginação via .range() aplicado às 4 queries de getQuestions() (gate 3).
+- src/utils/bibliographicSources.ts - reescrito: removida toda fabricação
+  de metadados; formatCitationForDisplay/resolveCitationLink preservam o
+  texto curado original e só resolvem um link honesto (url_curada/doi/pmid/
+  sugestao_busca), nunca inventam autor/título/editora/ano (gate 10).
+- scripts/check-no-secret-key-leak.ts, scripts/_check-secret-key-leak-child.ts
+  - recuperados da WIP do Prompt 11-A e CORRIGIDOS (execFileSync('npx.cmd')
+  falhava com spawnSync EINVAL em Node 22+/24 no Windows; trocado para
+  invocar tsx/cli via process.execPath).
+- package-lock.json - regenerado via npm install, versionado (gate 13).
+- AGENTS.md - armadilhas #21 (paginação PostgREST) e #22 (auto-demo em vite
+  dev) novas; "Estado atual" atualizado com o resumo desta etapa.
+- docs/diretoria/registro.md, docs/diretoria/retornos/11-B.txt - este
+  retorno.
+
+Validações e evidências:
+- npm install: OK, package-lock.json gerado e versionado.
+- npm ci: FALHOU neste ambiente por EPERM/lock de arquivo
+  (lightningcss-win32-x64-msvc.node) segurado por um processo `vite dev` de
+  OUTRA sessão do próprio usuário sobre este mesmo node_modules - não é uma
+  falha do lockfile em si (recuperado rodando npm install de novo, que
+  funcionou e restaurou node_modules por completo). Não consegui validar
+  npm ci de forma limpa nesta sessão; recomendo reexecutar quando nenhum
+  outro processo estiver segurando arquivos em node_modules/.
+- npm run lint (tsc --noEmit): limpo, 0 erros.
+- npm run build: limpo (aviso de chunk >500kB é pré-existente, não é erro
+  introduzido aqui).
+- Bundle de produção (dist/assets/*.js): 0 ocorrências de sb_secret_ como
+  VALOR (as 4 ocorrências da string encontradas são todas a comparação
+  startsWith('sb_secret_') da própria guarda de segurança - confirmado por
+  inspeção de contexto de cada uma). 0 ocorrências de __syncDebug ou
+  __setTestBackoffOverride.
+- scripts/check-no-secret-key-leak.ts: rodado de verdade após o conserto do
+  spawn, 8/8 cenários OK (3 cenários de secret vazando em VITE_SUPABASE_URL/
+  VITE_SUPABASE_ANON_KEY/ambas rejeitados corretamente; 5 cenários de
+  regressão com chaves públicas legítimas continuam funcionando).
+- supabase test db (local): 183/183, rodado ANTES de qualquer edição e de
+  novo ao final - sem regressão, nenhuma migration criada nesta etapa.
+- Reprodução controlada do gate 3 (root cause de paginação): o seed local
+  só tem 66 questões com 1 a 3 alternativas cada (confirmado por consulta
+  direta - "questions with option count != 5: 66 de 66" ANTES de qualquer
+  fixture minha), longe do teto de 1000 linhas, então não reproduz a
+  truncagem naturalmente. Inseridas 250 questões sintéticas + 1250
+  question_options (1368 linhas no total) via service role local; query
+  SEM paginação (replicando o código antigo) retornou exatamente 1000
+  linhas e deixou as 250/250 questões sintéticas com contagem de
+  alternativas incorreta; query COM paginação (fetchAllRows/.range(), o fix
+  aplicado) retornou as 1368 linhas completas, 0/250 incorretas. Fixtures
+  sintéticas removidas ao final - contagem de questions/question_options
+  voltou ao baseline exato (66/118 antes e depois, confirmado por count()).
+- Playwright/Chromium real contra Supabase LOCAL (via vite build --mode
+  development + vite preview na porta 3098, contornando a armadilha #22):
+  duas contas descartáveis zze2e11b-a/b@example.com. Resultados:
+  [OK] navegação desktop sem "Caderno de Erros" isolado
+  [OK] "Início" continua na navegação
+  [OK] Início de conta nova com estado vazio real (não mockado)
+  [OK] aba "Caderno de Erros & Metacognição" abre o caderno integrado
+       dentro do Início (rota legada testada via clique na aba, não via
+       URL/roteamento direto de 'errors')
+  [OK] alternância de tema (claro/escuro) responde a clique
+  [OK] Banco de Questões não exibe cronômetro obrigatório
+  [OK] conta B não exibe nome/dados da conta A (isolamento)
+  [OK] sequência de reação up(aba1)->down(aba2, SEM reload)->up(aba1, SEM
+       reload) resultou em "up" no banco de dados (consultado direto via
+       service role, não por heurística visual de CSS) - prova concreta de
+       que a correção da armadilha #18/gate 8 está ativa: o código antigo
+       decidiria pelo estado local desatualizado da aba1 (que pensa estar
+       em 'up' pelo próprio clique anterior) e REMOVERIA a reação em vez de
+       reafirmá-la contra o valor real do servidor ('down', setado pela
+       aba2).
+  [FALHOU/não aplicável] "questão com 5 alternativas": a primeira questão
+       do seed local genuinamente tem só 3 opções no banco (confirmado por
+       consulta direta), não é uma truncagem da UI - a app renderizou
+       fielmente o que existe no banco. A causa raiz real (paginação) já
+       foi comprovada separadamente acima com fixtures sintéticas.
+
+Limpeza:
+- Contas de teste zze2e11b-a/b@example.com removidas via
+  admin.auth.admin.deleteUser. Contagens antes/depois: profiles 77->75,
+  question_attempts 27->25 (as 2 tentativas geradas pelo teste de reação),
+  question_reactions permaneceu 5 (a reação de teste já tinha sido apagada
+  explicitamente pelo próprio script antes da remoção da conta). Consulta
+  final confirmou 0 perfis '%zze2e11b%' remanescentes.
+- Achado à parte, NÃO introduzido nesta sessão nem responsabilidade desta
+  limpeza: o Supabase local já tinha ~75 perfis de fixtures de sessões de
+  teste ANTERIORES (ex.: "sync.admin@test.local+...") antes de qualquer
+  ação desta sessão - ficam registrados aqui só como observação de
+  ambiente, não foram tocados.
+- Todos os scripts temporários (scripts/_tmp-*.mjs, usados só para setup/
+  execução/limpeza dos testes acima) foram apagados do working tree antes
+  do commit - não fazem parte da branch enviada.
+- Os dois servidores extras criados só para teste desta sessão (vite dev
+  porta 3099, vite preview porta 3098) foram encerrados (taskkill). O `npm
+  run dev` original do usuário (porta 3000) foi identificado, verificado e
+  preservado intocado do início ao fim desta sessão.
+- Fixtures sintéticas do gate 3 (250 questions + 1250 question_options)
+  removidas - baseline de questions/question_options confirmado idêntico
+  antes/depois (66/118).
+
+Limitações dos dados:
+- Dos 24 cenários do prompt original, os seguintes NÃO tiveram prova de
+  navegador nesta sessão (tempo/escopo) e ficam como pendência explícita,
+  não como "testado":
+  * Criar/editar anotação e marcar/reabrir erro na aba integrada (a lógica
+    é idêntica à já usada antes em ErrorNotebookView.tsx, mas não foi
+    reexercitada por clique real nesta sessão).
+  * Persistência dedicada pós-reload da aba integrada.
+  * Falha isolada de um gabarito sem derrubar os demais - só validado por
+    leitura de código do Promise.allSettled, não por indução real de falha
+    de rede em uma questão específica.
+  * Vínculo explícito válido com Biblioteca / ausência de vínculo / prova
+    de que coincidência de tema/disciplina não abre um compêndio - só
+    validado por leitura de código após a remoção do fallback, não pela
+    UI real (o seed local não tem flashcards com compendiumRefId
+    preenchido para exercitar isso visualmente).
+  * Retorno contextual à origem (Biblioteca -> volta pra questão/flashcard
+    de origem).
+  * Referência curada / DOI ou PMID / heurística-Scholar identificada como
+    sugestão / citação incompleta sem metadado inventado - só validado por
+    leitura de código da reescrita de bibliographicSources.ts, não por
+    captura de uma citação real de cada tipo (o seed local não tem
+    variedade suficiente de citações com/sem URL/DOI/PMID).
+  * Navegação mobile (só desktop 1440x900 foi testado com Playwright).
+- Nenhum desses itens foi declarado "testado" nem contado como coberto -
+  documentados aqui como pendência real.
+
+Branch e commits:
+work/integracao-estabilizacao-11b, a partir de origin/main@fb989a4.
+Commits pequenos em português, mensagens descritivas (ver histórico da
+branch). Push feito com `git push -u origin
+work/integracao-estabilizacao-11b` - nunca em main.
+
+Pendências e riscos:
+- npm ci não foi validado de forma limpa (ver "Validações e evidências")
+  por conflito de ambiente, não por problema no lockfile.
+- N+1 de getQuestionReview em IntegratedCadernoErros.tsx permanece (sem API
+  bulk disponível) - aceitável para o volume atual, mas revisar se o
+  Caderno de Erros crescer muito.
+- Cobertura de teste de navegador é parcial (ver "Limitações dos dados").
+- Vale auditar se outros repositories com select('*') sem paginação têm o
+  mesmo risco do gate 3 conforme o acervo crescer (não auditado nesta
+  etapa, só SupabaseQuestionsRepository foi corrigido).
+- Decisão de merge em main permanece com a diretoria/usuário.
+
+Estado de publicação:
+main e Supabase remoto NÃO foram tocados nesta sessão - nenhuma escrita
+remota, nenhum merge, nenhum push em main, nenhum deploy disparado.
+origin/main confirmado em fb989a4 (git fetch + git rev-parse origin/main)
+ANTES de qualquer edição e reconfirmado em fb989a4 (idêntico, sem avanço)
+imediatamente antes do commit/push finais desta sessão.

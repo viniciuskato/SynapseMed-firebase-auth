@@ -430,6 +430,53 @@ protótipo).
     os 3 presets visíveis. Cronômetro dos simulados reais (via "Criar
     Simulado Personalizado") confirmado intacto no mesmo teste.
 
+21. **RESOLVIDO no Prompt 11-B (2026-09-11).** `SupabaseQuestionsRepository
+    .getQuestions()` buscava `question_options`/`questions`/
+    `question_option_keys`/`question_answer_keys` com um único `select('*')`
+    sem paginação. O PostgREST/Supabase limita a resposta padrão de
+    qualquer `select` a um teto de linhas (tipicamente 1000), mesmo sem
+    `.limit()` explícito no código. `question_options` tem 5 linhas por
+    questão — com o acervo real de ~393 questões (~1965 linhas) esse teto
+    já é ultrapassado, e como a query só ordena por `sort_order` (que é
+    por-questão, não global), o corte no meio da resposta trunca no meio
+    de um "bloco" de sort_order, deixando muitas questões com 2 ou 3
+    alternativas em vez de 5 — a causa real do "questão aparecendo com
+    menos de 4 alternativas" (não é problema de banco, como já confirmado
+    antes: as 393 questões têm 5 alternativas cada no schema). **Corrigido**
+    com um helper `fetchAllRows` que pagina via `.range()` até esgotar os
+    resultados, aplicado às 4 queries de `getQuestions()`. **Reproduzido e
+    validado de forma controlada** (não dava pra reproduzir contra o seed
+    local, que só tem 66 questões/118 opções — bem abaixo do teto):
+    inseridas 250 questões sintéticas + 1250 `question_options` (total
+    1368 linhas) no Supabase local, comparando a query antiga (sem
+    paginação: retornou exatamente 1000 linhas, 250/250 questões
+    sintéticas ficaram com contagem de alternativas incorreta) contra a
+    nova (com paginação: retornou as 1368 linhas completas, 0/250
+    incorretas); fixtures sintéticas removidas ao final, contagem de
+    questões/opções voltou ao baseline exato (66/118). Vale revisar se
+    outros repositories com `select('*')` sem `.range()` têm o mesmo risco
+    conforme o acervo cresce (não auditado nesta etapa).
+
+22. **Achado no Prompt 11-B (2026-09-11), não é regressão desta etapa —
+    já existia antes de `274c846`/`fb989a4`.** Em QUALQUER servidor rodado
+    com `vite`/`vite dev` (`import.meta.env.DEV === true`), se não há
+    sessão Supabase ativa, `AuthContext` força login automático num
+    usuário de demonstração 100% local (`local-demo-user`,
+    `estudante@synapsemed.com`, dados fixos em `localStorage`) — mesmo
+    quando o Supabase está configurado e alcançável (local ou remoto). A
+    tela de login real (`<LoginView>`) nunca aparece em modo dev sem uma
+    sessão pré-existente. Isso é conveniente para o preview do Google AI
+    Studio, mas também significa: (1) `npm run dev` local nunca testa o
+    fluxo real de login/cadastro/aprovação sem contornar esse atalho; (2)
+    qualquer sessão de QA/E2E que rode contra `vite dev` (em vez de
+    `vite build` + `vite preview`) está testando o usuário demo local, não
+    contas Supabase reais. Não é risco de produção (`import.meta.env.DEV`
+    é `false` no bundle de produção/`vite build`, confirmado no bundle
+    gerado nesta etapa), mas é uma armadilha real para quem for validar
+    autenticação/isolamento entre contas localmente: use `vite build
+    --mode development` (lê `.env.development.local`, aponta pro Supabase
+    local) + `vite preview` pra testar o login de verdade, não `vite dev`.
+
 ## Convenções de trabalho
 
 - **Commits vão direto pra `main`** hoje (sem PR obrigatório) porque é
@@ -1094,6 +1141,77 @@ protótipo).
   branch tecnicamente pronta para revisão de merge em `main` (decisão de
   mesclar continua sendo do usuário/diretoria; nenhum merge/push/deploy foi
   feito nesta sessão). Categorias 3-9 continuam fora de escopo.
+- **Prompt 11-B (2026-09-11), branch `work/integracao-estabilizacao-11b`
+  a partir de `origin/main`@`fb989a4` ("feat: implement integrated Error
+  Notebook in dashboard", nova arquitetura do Google AI Studio — Início
+  pessoal, Biblioteca, Questões, Flashcards conectados), NÃO mesclada em
+  `main`**: integração e estabilização técnica preservando layout/tema
+  escuro/responsividade novos. Caderno de Erros saiu da navegação
+  principal (`Header.tsx`/`MobileBottomNav.tsx`) e virou aba dentro do
+  Início (`IntegratedCadernoErros.tsx`, componente novo do próprio
+  `fb989a4`) — a implementação antiga (`ErrorNotebookView.tsx`) virou
+  código morto e foi removida (rota legada `activeView==='errors'`
+  preservada, redireciona pra aba integrada). Reaplicadas por cima da
+  nova arquitetura as correções de uma WIP anterior não commitada (Prompt
+  11-A, preservada intacta como commit `32a6bc0` na branch
+  `work/estabilizacao-11a-google-ai-studio`, não deletada): guarda contra
+  `sb_secret_` em `resolveConfig` (`supabaseClient.ts`), releitura do
+  servidor via `getMyReaction` antes de `setReaction`/`removeReaction`
+  (`QuestionCard.tsx`, armadilha #18 reintroduzida por `274c846` e ainda
+  presente em `fb989a4`), dedupe de flashcard por `questionOriginId`
+  (`FlashcardsRepository.ts`+`storage.ts`), e os dois scripts de
+  verificação `scripts/check-no-secret-key-leak.ts` +
+  `scripts/_check-secret-key-leak-child.ts` (corrigidos nesta etapa: o
+  script original usava `execFileSync('npx.cmd', ...)`, que falha com
+  `spawnSync EINVAL` em Node 22+/24 no Windows — trocado para invocar
+  `tsx/cli` via `process.execPath`, sem depender de resolução de shell).
+  Também corrigido nesta etapa (não fazia parte da WIP do 11-A): (1)
+  `effectiveSelectedOption`/`selectedOption` em `QuestionCard.tsx` —
+  seleção em modo prova não refletia o clique nem isolava entre questões
+  (armadilha idêntica à do 07-C, reintroduzida por `274c846`); (2) o bug
+  real de "questão com menos de 4 alternativas" — causa raiz encontrada e
+  corrigida em `SupabaseQuestionsRepository.getQuestions()` (ver
+  armadilha #21: falta de paginação, teto de 1000 linhas do PostgREST,
+  ~1965 linhas reais de `question_options` em produção); (3) fabricação
+  de metadados bibliográficos (autor/editora/ano/página/"Acesso Aberto
+  Garantido" inventados) introduzida por `fb989a4` em
+  `utils/bibliographicSources.ts` + `QuestionCard.tsx` +
+  `CompendiumReader.tsx` + `FlashcardReviewSession.tsx` — removida,
+  citação volta a ser exibida no texto curado original com link honesto
+  (`resolveCitationLink`: URL curada/DOI/PMID reais, ou sugestão de busca
+  Google Scholar explicitamente rotulada como sugestão, nunca como acesso
+  confirmado); (4) fallback por `themeId`/`disciplineId` coincidente para
+  vincular flashcard↔compêndio, também introduzido por `fb989a4` em
+  `FlashcardsView.tsx`+`FlashcardReviewSession.tsx` — removido, vínculo
+  só por `compendiumRefId` explícito, ação ocultada quando ausente; (5)
+  `Promise.all`→`Promise.allSettled` no carregamento de gabaritos do
+  Caderno integrado (`IntegratedCadernoErros.tsx`) para isolar falha de
+  uma questão das demais; (6) `package-lock.json`, ausente de novo
+  (armadilha #6), regenerado via `npm install` e versionado. `npm ci`
+  falhou neste ambiente por um `EPERM`/lock de arquivo de um processo
+  `vite dev` de outra sessão do usuário sobre `node_modules` (não uma
+  falha do lockfile em si — `npm install` funcionou e o lockfile gerado é
+  consistente); `tsc --noEmit`/`npm run build` limpos; bundle de produção
+  sem `sb_secret_`/instrumentação de dev; `supabase test db` local
+  183/183 verde antes e depois. Achado novo não documentado antes: ver
+  armadilha #22 (modo `vite dev` sempre pula o login real com um usuário
+  demo local, independente de Supabase estar configurado — não afeta
+  produção/`vite build`, mas exige `vite build --mode development` +
+  `vite preview` pra testar login real localmente). Testado com
+  Playwright/Chromium real contra Supabase local (via esse caminho de
+  build+preview): isolamento entre duas contas confirmado, dedupe/leitura
+  fresca de reação confirmada por consulta direta ao banco (sequência
+  up→down→up entre duas abas da mesma conta resultou em "up", não em
+  removida — prova de que a correção da armadilha #18 está ativa), aba
+  "Caderno de Erros" dentro do Início confirmada, alternância de tema
+  confirmada, ausência de cronômetro no banco de questões confirmada.
+  Cobertura parcial e documentada no retorno (`docs/diretoria/retornos/
+  11-B.txt`): nem todos os 24 cenários do prompt original tiveram prova
+  de navegador (seed local tem só 66 questões com 1-3 alternativas cada,
+  não 5 — não dá pra testar cenário 9 "questão com cinco alternativas"
+  contra esse seed; a causa raiz foi comprovada à parte com fixtures
+  sintéticas). Nenhuma migration nova criada. `main`/Supabase remoto/
+  deploy não tocados.
 
 ## Manter este arquivo atualizado
 
