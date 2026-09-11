@@ -1,4 +1,4 @@
-import { sourceVerificationLabel, formatToAbntCitation } from '../../utils/bibliographicSources';
+import { sourceVerificationLabel, formatCitationForDisplay } from '../../utils/bibliographicSources';
 import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
@@ -68,10 +68,17 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   onSelectOptionInExam,
   hydrated,
 }) => {
-  // Local state for study mode
-  const [selectedOption, setSelectedOption] = useState<'A' | 'B' | 'C' | 'D' | 'E' | null>(
-    selectedOptionInExam || null
-  );
+  // Local state for study mode. No modo prova/simulado, a seleção NÃO usa
+  // este estado: `selectedOptionInExam` (prop controlada pelo pai,
+  // `SimuladoSession`, que mantém um registro por questão) é a única fonte
+  // de verdade — ver `effectiveSelectedOption` abaixo. Antes desta correção,
+  // este estado local era inicializado uma única vez a partir da prop (só no
+  // mount) e nunca mais atualizado no modo prova, então o clique numa
+  // alternativa atualizava o pai mas a renderização continuava presa ao
+  // valor do primeiro mount — a alternativa clicada não aparecia selecionada,
+  // e ao navegar entre questões o mesmo valor "congelado" podia vazar
+  // visualmente para a questão seguinte (Prompt 11-B, gate 4).
+  const [selectedOption, setSelectedOption] = useState<'A' | 'B' | 'C' | 'D' | 'E' | null>(null);
   const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [isBookmarked, setIsBookmarked] = useState<boolean>(false);
   const [eliminatedOptions, setEliminatedOptions] = useState<string[]>([]);
@@ -122,7 +129,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     ) => {
       if (cancelled) return;
       if (!isExamMode) {
-        setSelectedOption(initialAnswer?.selectedOption || selectedOptionInExam || null);
+        setSelectedOption(initialAnswer?.selectedOption || null);
         setIsSubmitted(!!initialAnswer);
         setAnswerOrigin(initialAnswer ? 'hydrated' : null);
       }
@@ -256,16 +263,24 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
   };
 
   const handleToggleReaction = async (val: 'up' | 'down') => {
-    const nextVal = myReaction === val ? null : val;
+    // Decide "set" vs. "remove" a partir do valor ATUAL do SERVIDOR, lido
+    // imediatamente antes da decisão — nunca a partir do estado local
+    // `myReaction` (um useState carregado uma vez no mount, nunca atualizado
+    // por assinatura em tempo real). Reintroduzido pelo commit 274c846
+    // (Google AI Studio); é a mesma armadilha nº 18 já documentada e
+    // corrigida antes: se outro dispositivo/aba da MESMA conta mudou a
+    // reação nesse meio tempo, decidir com base no estado local obsoleto
+    // pode apagar a reação em vez de reafirmá-la. O clique sempre expressa a
+    // intenção certa em relação ao estado mais recente conhecido (Prompt
+    // 11-B, gate 8). setReaction/removeReaction já entram na fila confiável
+    // (syncQueue) internamente — não precisam de catch aqui.
+    const serverVal = await questionReactionsRepository.getMyReaction(question.id);
+    const nextVal = serverVal === val ? null : val;
     setMyReaction(nextVal);
-    try {
-      if (nextVal) {
-        await questionReactionsRepository.setReaction(question.id, nextVal);
-      } else {
-        await questionReactionsRepository.removeReaction(question.id);
-      }
-    } catch {
-      // Falha silenciosa de rede com fila resiliente
+    if (nextVal) {
+      await questionReactionsRepository.setReaction(question.id, nextVal);
+    } else {
+      await questionReactionsRepository.removeReaction(question.id);
     }
   };
 
@@ -283,6 +298,12 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
     setIsBookmarked(bookmarked);
     showToast(bookmarked ? 'Questão adicionada aos seus favoritos' : 'Removida dos favoritos');
   };
+
+  // Fonte de verdade única para "qual alternativa está marcada": no modo
+  // prova/simulado é sempre a prop controlada pelo pai (nunca o estado local
+  // `selectedOption`, que só existe para o modo comum); fora do modo prova é
+  // o estado local de sempre (Prompt 11-B, gate 4).
+  const effectiveSelectedOption = isExamMode ? selectedOptionInExam ?? null : selectedOption;
 
   const isCorrect = isSubmitted && !!reviewResult?.isCorrect;
   const isIncorrect = isSubmitted && !!reviewResult && !isCorrect;
@@ -380,7 +401,7 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       {/* Options List */}
       <div className="space-y-3 mb-6">
         {question.options.map((opt) => {
-          const isSelected = selectedOption === opt.letter;
+          const isSelected = effectiveSelectedOption === opt.letter;
           const isEliminated = eliminatedOptions.includes(opt.letter);
           const reviewOpt = reviewByLetter.get(opt.letter);
 
@@ -534,50 +555,47 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             <p className="leading-relaxed font-medium text-teal-950/90 dark:text-teal-200/90">{reviewResult?.highYieldSummary}</p>
           </div>
 
-          {/* Fontes vinculadas a esta questão - Padronizadas em ABNT NBR 6023 com link clicável */}
+          {/* Fontes vinculadas a esta questão. Texto da citação preservado
+              integralmente (nunca reescrito/inventado); o link, quando
+              existe, é rotulado de forma honesta sobre sua origem (Prompt
+              11-B, gate 10). */}
           {reviewResult?.references && reviewResult.references.length > 0 && (
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#111827] border border-slate-200 dark:border-[#243452] text-xs space-y-2.5">
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-bold flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
-                  <BookOpen className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                  Bibliografia & Diretrizes da Questão (ABNT NBR 6023):
-                </span>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-800 dark:text-teal-300 border border-teal-200/70 dark:border-teal-800/50">
-                  Links Oficiais
-                </span>
-              </div>
+              <span className="font-bold flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                <BookOpen className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                Bibliografia da questão:
+              </span>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Referências científicas e diretrizes que fundamentam o gabarito. Clique para ler na íntegra na fonte original.
+                Referências gerais da questão; não há vínculo individual com cada alternativa.
               </p>
               <div className="space-y-2 pt-1">
                 {reviewResult.references.map((ref) => {
-                  const abnt = formatToAbntCitation(ref.citationText, ref.url);
+                  const citation = formatCitationForDisplay(ref.citationText, ref.url);
                   return (
                     <div
                       key={ref.sourceId}
                       className="p-3 rounded-xl bg-white dark:bg-[#0F172A] border border-slate-200/80 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs shadow-2xs"
                     >
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        <p className="font-bold text-[11px] text-slate-900 dark:text-slate-100 uppercase tracking-wide">
-                          {abnt.author}
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="text-slate-700 dark:text-slate-300 leading-relaxed break-words">
+                          {citation.citationText}
                         </p>
-                        <p className="font-medium text-slate-700 dark:text-slate-300">
-                          {abnt.title}.
-                        </p>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                          {abnt.publicationDetails}
-                        </p>
+                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">
+                          {sourceVerificationLabel(ref.verificacao)}
+                        </span>
                       </div>
-                      <a
-                        href={abnt.accessUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="self-end sm:self-center shrink-0 px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 dark:hover:bg-teal-900/80 text-teal-800 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800/60 font-semibold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
-                        title="Acessar material na íntegra em nova aba"
-                      >
-                        <span>Acessar Fonte</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
+                      {citation.link && (
+                        <a
+                          href={citation.link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="self-end sm:self-center shrink-0 px-2.5 py-1 rounded-lg bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 dark:hover:bg-teal-900/80 text-teal-800 dark:text-teal-300 border border-teal-200/80 dark:border-teal-800/60 font-semibold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
+                          title={citation.link.kind === 'sugestao_busca' ? 'Sugestão de busca - não confirma acesso ao texto' : 'Abrir fonte em nova aba'}
+                        >
+                          <span>{citation.link.label}</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
                     </div>
                   );
                 })}
