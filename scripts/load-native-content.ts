@@ -168,6 +168,11 @@ interface YamlQuestion {
   compendiumSection: string;
   difficulty: string;
   tags?: string[];
+  // Sobrescreve institution/year do arquivo quando presente — usado por
+  // questões de prova real dentro de um arquivo cujo padrão é autoral (ou
+  // vice-versa). Ver YamlQuestionsFile.institution/year.
+  institution?: string;
+  year?: number;
   clinicalVignette: string;
   questionStem: string;
   options: YamlOption[];
@@ -297,8 +302,8 @@ async function main() {
         material_section_id: sectionId,
         cycle: questionsFile.cycle,
         difficulty: q.difficulty,
-        institution: questionsFile.institution ?? null,
-        year: questionsFile.year ?? null,
+        institution: q.institution ?? questionsFile.institution ?? null,
+        year: q.year ?? questionsFile.year ?? null,
         clinical_vignette: q.clinicalVignette,
         question_stem: q.questionStem,
         tags: q.tags ?? [],
