@@ -13,7 +13,6 @@ import {
   BookOpen,
   HelpCircle,
   Layers,
-  BookMarked,
   Database,
 } from 'lucide-react';
 import { UserPlan, UserStats, ThemeMode } from '../types';
@@ -90,7 +89,11 @@ export const Header: React.FC<HeaderProps> = ({
       label: 'Início',
       shortLabel: 'Início',
       icon: LayoutDashboard,
-      badge: null,
+      // O Caderno de Erros saiu da navegação principal (Prompt 11-B) e foi
+      // incorporado como aba dentro do Início; o contador de pendências que
+      // antes ficava no item próprio de navegação aparece aqui.
+      badge: errorLogCount > 0 ? errorLogCount : null,
+      badgeColor: 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30',
     },
     {
       id: 'compendiums',
@@ -113,14 +116,6 @@ export const Header: React.FC<HeaderProps> = ({
       icon: Layers,
       badge: dueCardsCount > 0 ? dueCardsCount : null,
       badgeColor: 'bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500/30',
-    },
-    {
-      id: 'errors',
-      label: 'Caderno de Erros',
-      shortLabel: 'Erros',
-      icon: BookMarked,
-      badge: errorLogCount > 0 ? errorLogCount : null,
-      badgeColor: 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30',
     },
     ...(isAdmin
       ? [

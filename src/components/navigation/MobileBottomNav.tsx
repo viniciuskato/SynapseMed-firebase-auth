@@ -4,7 +4,6 @@ import {
   BookOpen,
   HelpCircle,
   Layers,
-  BookMarked,
   Database,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -35,7 +34,10 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       id: 'dashboard',
       label: 'Início',
       icon: LayoutDashboard,
-      badge: null,
+      // Caderno de Erros saiu da navegação principal (Prompt 11-B) e virou
+      // aba do Início; o contador de pendências migra para cá.
+      badge: errorLogCount > 0 ? errorLogCount : null,
+      badgeColor: 'bg-rose-600 text-white',
     },
     {
       id: 'compendiums',
@@ -55,13 +57,6 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       icon: Layers,
       badge: dueCardsCount > 0 ? dueCardsCount : null,
       badgeColor: 'bg-teal-600 text-white',
-    },
-    {
-      id: 'errors',
-      label: 'Erros',
-      icon: BookMarked,
-      badge: errorLogCount > 0 ? errorLogCount : null,
-      badgeColor: 'bg-rose-600 text-white',
     },
     ...(isAdmin
       ? [
