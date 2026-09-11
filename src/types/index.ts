@@ -61,6 +61,28 @@ export interface CompendiumSection {
   diagramSvgKey?: string;
 }
 
+/** Campos de CompendiumSection que entram no snapshot de histórico (prosa editável). */
+export interface CompendiumSectionSnapshot {
+  title: string;
+  mechanismTag?: string;
+  content: string;
+  keyTakeaways: string[];
+  clinicalPearl?: string;
+  warningAlert?: string;
+}
+
+/** Snapshot completo de uma seção de compêndio, gravado a cada edição via CMS. */
+export interface MaterialSectionVersion {
+  id: string;
+  materialSectionId: string;
+  changedBy: string | null;
+  changedFields: string[];
+  reason: string | null;
+  beforeSnapshot: CompendiumSectionSnapshot;
+  afterSnapshot: CompendiumSectionSnapshot;
+  createdAt: string;
+}
+
 export type StudyLens =
   | 'fisiopatologia'
   | 'diagnostico'

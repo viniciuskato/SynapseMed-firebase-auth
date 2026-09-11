@@ -37,6 +37,7 @@ import { materialsRepository } from '../../repositories/MaterialsRepository';
 import { questionsRepository } from '../../repositories/QuestionsRepository';
 import { feedbackRepository } from '../../repositories/FeedbackRepository';
 import { supabase } from '../../lib/supabaseClient';
+import SectionEditor from './SectionEditor';
 
 interface AdminProfileRow {
   id: string;
@@ -205,6 +206,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
   const [isCompendiumFormOpen, setIsCompendiumFormOpen] = useState(false);
   const [editingCompId, setEditingCompId] = useState<string | null>(null);
   const [compSearch, setCompSearch] = useState('');
+  // Editor de seção (piloto CMS) — guarda só o id, não o objeto Compendium,
+  // para que o SectionEditor sempre receba a versão mais recente vinda de
+  // onRefreshData (ver AGENTS.md / plano da feature).
+  const [editingSectionsCompId, setEditingSectionsCompId] = useState<string | null>(null);
 
   // Compendium Form Fields
   const [compTitle, setCompTitle] = useState('');
@@ -676,6 +681,19 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
             </button>
           </div>
 
+          {/* ── Section Editor (piloto CMS: histórico + reversão) ──── */}
+          {editingSectionsCompId && (() => {
+            const target = compendiums.find((c) => c.id === editingSectionsCompId);
+            if (!target) return null;
+            return (
+              <SectionEditor
+                compendium={target}
+                onClose={() => setEditingSectionsCompId(null)}
+                onSaved={onRefreshData}
+              />
+            );
+          })()}
+
           {/* ── Compendium Creation/Edit Modal/Drawer Form ─────────── */}
           {isCompendiumFormOpen && (
             <form
@@ -1135,9 +1153,18 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                       </button>
 
                       <button
+                        onClick={() => setEditingSectionsCompId(c.id)}
+                        className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-[#243452] hover:bg-stone-100 dark:hover:bg-[#1A2845] text-stone-700 dark:text-slate-300 font-semibold text-xs flex items-center gap-1 transition-colors"
+                        title="Editar texto das seções (com histórico e reversão)"
+                      >
+                        <Layers className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>Editar seções</span>
+                      </button>
+
+                      <button
                         onClick={() => handleEditCompendium(c)}
                         className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-[#243452] hover:bg-stone-100 dark:hover:bg-[#1A2845] text-stone-700 dark:text-slate-300 font-semibold text-xs flex items-center gap-1 transition-colors"
-                        title="Editar compêndio"
+                        title="Editar metadados do compêndio (título, disciplina, tags...)"
                       >
                         <Edit3 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                         <span>Editar</span>
