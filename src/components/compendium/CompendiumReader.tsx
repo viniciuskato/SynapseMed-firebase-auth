@@ -76,7 +76,38 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
   const [scrollPercent, setScrollPercent] = useState(0);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [copiedRefIdx, setCopiedRefIdx] = useState<number | null>(null);
+  const [returnScrollY, setReturnScrollY] = useState<number | null>(null);
+  const [highlightedRefId, setHighlightedRefId] = useState<string | null>(null);
   const moreMenuTriggerRef = useRef<HTMLButtonElement>(null);
+  const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clique em citação inline (`[N](#ref-N)`, gerado pelo SafeMarkdown a
+  // partir do conteúdo do compêndio): rolagem suave até a referência em vez
+  // do salto instantâneo do navegador, guarda a posição de leitura pra um
+  // botão "Voltar à leitura", e destaca o card por alguns segundos.
+  const handleContentClick = (e: React.MouseEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement;
+    const link = target.closest('a[href^="#ref-"]') as HTMLAnchorElement | null;
+    if (!link) return;
+    const refId = link.getAttribute('href')?.slice(1);
+    if (!refId) return;
+    const refElement = document.getElementById(refId);
+    if (!refElement) return;
+
+    e.preventDefault();
+    setReturnScrollY(window.scrollY);
+    refElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    setHighlightedRefId(refId);
+    if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current);
+    highlightTimeoutRef.current = setTimeout(() => setHighlightedRefId(null), 2500);
+  };
+
+  const handleReturnToReading = () => {
+    if (returnScrollY === null) return;
+    window.scrollTo({ top: returnScrollY, behavior: 'smooth' });
+    setReturnScrollY(null);
+  };
 
   const handleCopyAbnt = (e: React.MouseEvent, text: string, idx: number) => {
     e.preventDefault();
@@ -229,6 +260,19 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
           <Sparkles className="w-3.5 h-3.5 text-teal-400 shrink-0" />
           <span>{notification}</span>
         </div>
+      )}
+
+      {/* Botão flutuante "Voltar à leitura" — aparece depois de clicar numa
+          citação inline ([N](#ref-N)) e pular até a referência no rodapé. */}
+      {returnScrollY !== null && (
+        <button
+          type="button"
+          onClick={handleReturnToReading}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-bold flex items-center gap-2 elev-lg transition-colors cursor-pointer animate-in fade-in slide-in-from-bottom-2"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Voltar à leitura</span>
+        </button>
       )}
 
       {/* ── Sticky Subheader / Top Action Bar ─────────────────────── */}
@@ -491,7 +535,7 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
       )}
 
       {/* ── Central Editorial Article (max-width between 760 and 820px) ───── */}
-      <main className="max-w-[780px] w-full mx-auto px-4 sm:px-8 py-8 sm:py-12">
+      <main className="max-w-[780px] w-full mx-auto px-4 sm:px-8 py-8 sm:py-12" onClick={handleContentClick}>
         {/* Banner contextual de retorno às questões */}
         {onReturnToQuestions && returnToQuestionsContext && (
           <div className="mb-6 p-4 rounded-2xl bg-teal-50/90 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 elev-xs">
@@ -771,7 +815,11 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
                   <div
                     key={rIdx}
                     id={`ref-${rIdx + 1}`}
-                    className="p-4 rounded-2xl border border-[#E2E8F0] dark:border-[#263244] bg-[#F8FAFC] dark:bg-[#1E293B]/60 transition-all shadow-xs space-y-3 scroll-mt-24 target:ring-2 target:ring-[#0F766E] dark:target:ring-[#14B8A6]"
+                    className={`p-4 rounded-2xl border bg-[#F8FAFC] dark:bg-[#1E293B]/60 transition-all shadow-xs space-y-3 scroll-mt-24 ${
+                      highlightedRefId === `ref-${rIdx + 1}`
+                        ? 'border-[#0F766E] dark:border-[#14B8A6] ring-2 ring-[#0F766E] dark:ring-[#14B8A6]'
+                        : 'border-[#E2E8F0] dark:border-[#263244]'
+                    }`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                       <div className="flex items-start gap-3 min-w-0 flex-1">
