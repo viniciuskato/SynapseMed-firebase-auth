@@ -35,7 +35,15 @@ export function useScrollMemory(key: string, ready: boolean = true): void {
     return () => {
       window.removeEventListener('scroll', onScroll);
       if (rafId.current !== null) cancelAnimationFrame(rafId.current);
-      scrollMemory.set(key, window.scrollY);
+      // NÃO capturar window.scrollY aqui: quando este efeito desmonta porque
+      // a view trocou, o DOM deste componente já foi removido antes da
+      // cleanup rodar (garantia do React) — o documento já encolheu e
+      // window.scrollY já reflete a página NOVA, não a posição de leitura
+      // real. Isso sobrescrevia o valor bom (capturado pelo listener de
+      // scroll enquanto o usuário ainda lia) com 0 ou outro valor errado,
+      // toda vez — bug relatado pelo usuário ("volta no material certo, mas
+      // não na mesma linha"). O listener contínuo já é suficiente: a última
+      // posição de scroll real do usuário já ficou salva antes de desmontar.
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, ready]);
