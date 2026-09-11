@@ -283,6 +283,43 @@ export class SupabaseFlashcardsRepository implements FlashcardsRepository {
     return this.saveFlashcard(newCard);
   }
 
+  // NOTA (Prompt 11-B2): caminho realmente usado em produção para criar um
+  // flashcard A PARTIR DE UMA QUESTÃO é este método (via syncQueue/
+  // syncHandlers em FlashcardsRepository.ts, op `flashcard_create_from_question`),
+  // que chama a RPC `create_flashcard_from_question` — atômica e idempotente
+  // no servidor (unicidade por (user_id, question_origin_id), lock por
+  // pg_advisory_xact_lock, replay seguro pelo mesmo id). `createFlashcardFromQuestion`
+  // acima faz duas escritas separadas sem essa garantia e SÓ deve ser usado
+  // pelo `LocalStorageFlashcardsRepository`/fallback offline — nunca para a
+  // criação real contra o Supabase. Ver
+  // supabase/migrations/20260911120000_flashcard_srs_unique_creation.sql.
+  async createFlashcardFromQuestionAtomic(card: Flashcard): Promise<Flashcard> {
+    const { data: row, error } = await supabase.rpc('create_flashcard_from_question', {
+      p_id: card.id,
+      p_discipline_id: card.disciplineId,
+      p_theme_id: card.themeId,
+      p_material_id: card.compendiumRefId || null,
+      p_question_origin_id: card.questionOriginId || null,
+      p_front: card.front,
+      p_back: card.back,
+      p_mechanism_highlight: card.mechanismHighlight || null,
+      p_tags: card.tags ?? [],
+      p_difficulty: card.difficulty,
+      p_is_custom: card.isCustom ?? true,
+    });
+    if (error) throw error;
+    const cardRow = row as FlashcardRow;
+
+    const [{ data: srsRow, error: sErr }, { data: reviews, error: rErr }] = await Promise.all([
+      supabase.from('flashcard_srs_state').select('*').eq('flashcard_id', cardRow.id).maybeSingle(),
+      supabase.from('flashcard_reviews').select('flashcard_id, reviewed_at, rating').eq('flashcard_id', cardRow.id).order('reviewed_at'),
+    ]);
+    if (sErr) throw sErr;
+    if (rErr) throw rErr;
+
+    return rowToFlashcard(cardRow, (srsRow ?? undefined) as SRSStateRow | undefined, (reviews ?? []) as ReviewRow[]);
+  }
+
   // NOTA (Prompt 07-A): o caminho realmente usado em produção para revisão de
   // flashcard é a RPC `submit_flashcard_review` (via syncQueue/syncHandlers em
   // FlashcardsRepository.ts), que recalcula o SM-2 no servidor de forma

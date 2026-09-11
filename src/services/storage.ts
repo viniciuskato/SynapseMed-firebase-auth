@@ -215,8 +215,25 @@ export const StorageService = {
       mechanismNote: question.highYieldSummary,
     };
 
+    // id precisa ser um uuid válido (Prompt 11-B2): este id é o mesmo
+    // enviado como `p_id` à RPC `create_flashcard_from_question` quando
+    // Supabase está configurado — a coluna `flashcards.id` no schema é
+    // `uuid`, e o id também funciona como chave de replay (reenviar a
+    // mesma operação com o mesmo id nunca cria um segundo flashcard). Usa
+    // `crypto.randomUUID()` quando disponível; sem fonte de aleatoriedade
+    // criptográfica (raro, mesmo caso já tratado em syncQueue.enqueue), cai
+    // para uma chave local opaca — funciona para o modo 100% local, mas
+    // nunca deve ser enviada ao servidor como uuid.
+    const newCardId = (() => {
+      try {
+        return crypto.randomUUID();
+      } catch {
+        return `fc-from-q-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      }
+    })();
+
     const newCard: Flashcard = {
-      id: `fc-from-q-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: newCardId,
       disciplineId: question.disciplineId,
       themeId: question.themeId,
       compendiumRefId: question.compendiumRefId,

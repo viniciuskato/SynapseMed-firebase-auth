@@ -32,6 +32,10 @@ export interface FlashcardUpsertOpPayload {
   flashcard: Parameters<typeof supabaseFlashcardsRepository.saveFlashcard>[0];
 }
 
+export interface FlashcardCreateFromQuestionOpPayload {
+  flashcard: Parameters<typeof supabaseFlashcardsRepository.createFlashcardFromQuestionAtomic>[0];
+}
+
 export interface FlashcardDeleteOpPayload {
   id: string;
 }
@@ -175,6 +179,17 @@ export function registerSyncHandlers(): void {
 
   registerHandler('flashcard_upsert', async (payload: FlashcardUpsertOpPayload) => {
     return supabaseFlashcardsRepository.saveFlashcard(payload.flashcard);
+  });
+
+  // Criação de flashcard a partir de questão (SRS automático) — usa a RPC
+  // atômica/idempotente em vez de `flashcard_upsert` (que faz upsert por
+  // `id`, sem nenhuma garantia contra duas abas criando dois ids distintos
+  // para a mesma questão ao mesmo tempo; ver AGENTS.md e
+  // docs/diretoria/retornos/11-B2.txt). `id` continua vindo do cliente e
+  // funciona como chave de replay: reenviar esta operação (retry da fila)
+  // sempre converge para o MESMO flashcard, nunca cria um segundo.
+  registerHandler('flashcard_create_from_question', async (payload: FlashcardCreateFromQuestionOpPayload) => {
+    return supabaseFlashcardsRepository.createFlashcardFromQuestionAtomic(payload.flashcard);
   });
 
   registerHandler('flashcard_delete', async (payload: FlashcardDeleteOpPayload) => {

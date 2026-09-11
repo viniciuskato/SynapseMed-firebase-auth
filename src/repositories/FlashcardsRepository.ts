@@ -2,7 +2,7 @@ import { Flashcard, FlashcardSRS, Question } from '../types';
 import { StorageService, getStorageUser } from '../services/storage';
 import { SupabaseFlashcardsRepository } from './SupabaseFlashcardsRepository';
 import { enqueue, enqueueAndTry } from '../services/syncQueue';
-import { FlashcardReviewOpPayload } from '../services/syncHandlers';
+import { FlashcardReviewOpPayload, FlashcardCreateFromQuestionOpPayload } from '../services/syncHandlers';
 
 import { isSupabaseConfigured } from '../lib/supabaseClient';
 
@@ -137,15 +137,20 @@ class ResilientFlashcardsRepository implements FlashcardsRepository {
   }
 
   async createFlashcardFromQuestion(question: Question): Promise<Flashcard> {
-    // Deduplicação por questionOriginId (Prompt 11-A/11-B, gate 7): antes de
-    // criar, verifica se já existe um flashcard do usuário atual com o mesmo
-    // `questionOriginId` — via `getFlashcards()` (traz do Supabase quando
-    // configurado, com fallback local), para pegar também um card já criado
-    // por OUTRO dispositivo e ainda sincronizado. Repetir o mesmo erro ou
-    // reenviar a mesma operação (ex.: retry da fila) não pode criar um
-    // segundo card equivalente. Só deduplica cards com `questionOriginId`
-    // preenchido — cards personalizados sem origem de questão e duplicatas
-    // históricas já existentes não são tocados aqui (fora de escopo).
+    // Deduplicação por questionOriginId (Prompt 11-A/11-B, gate 7 + 11-B2):
+    // antes de criar, verifica se já existe um flashcard do usuário atual
+    // com o mesmo `questionOriginId` — via `getFlashcards()` (traz do
+    // Supabase quando configurado, com fallback local), para pegar também
+    // um card já criado por OUTRO dispositivo e ainda sincronizado. Isso
+    // cobre o caso comum (sequencial) sem round-trip extra, mas NÃO é
+    // suficiente sob concorrência real — duas abas podem passar por este
+    // `find` ao mesmo tempo e ambas verem "ausente" (corrida comprovada por
+    // teste automatizado, ver docs/diretoria/retornos/11-B2.txt). A garantia
+    // real é a RPC `create_flashcard_from_question` (11-B2): idempotente por
+    // id (replay) e com unicidade autoritativa (user_id, question_origin_id)
+    // no servidor via advisory lock + índice único — mesmo que este `find`
+    // deixe passar duas criações concorrentes, a chamada ao servidor abaixo
+    // sempre converge para o MESMO flashcard canônico, nunca duplica.
     const current = await this.getFlashcards();
     const existing = current.find((f) => f.questionOriginId === question.id);
     if (existing) return existing;
@@ -153,7 +158,21 @@ class ResilientFlashcardsRepository implements FlashcardsRepository {
     const localRes = await this.local.createFlashcardFromQuestion(question);
     const userId = getStorageUser();
     if (isSupabaseConfigured && userId) {
-      enqueue(userId, 'flashcard_upsert', { flashcard: localRes });
+      const payload: FlashcardCreateFromQuestionOpPayload = { flashcard: localRes };
+      const serverResult = await enqueueAndTry(userId, 'flashcard_create_from_question', payload);
+      if (serverResult) {
+        const canonical = serverResult as Flashcard;
+        if (canonical.id !== localRes.id) {
+          // Perdemos a corrida: outra aba/dispositivo já tinha criado o
+          // flashcard desta questão. Descarta o card local otimista (nunca
+          // enviado como 'synced', então não aparece em nenhuma UI que
+          // dependa do servidor) e persiste o canônico no lugar, para que
+          // getFlashcards()/localStorage convirjam com o servidor.
+          this.local.deleteFlashcard(localRes.id);
+          await this.local.saveFlashcard(canonical);
+        }
+        return canonical;
+      }
     }
     return localRes;
   }
