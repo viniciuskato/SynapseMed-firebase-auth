@@ -623,4 +623,24 @@ Sessão executiva independente, branch nova `work/integracao-estabilizacao-11b` 
 
 **Estado de publicação**: `main`/Supabase remoto/deploy NÃO tocados. `origin/main` confirmado em `fb989a4` antes E depois desta sessão (`git fetch` + `git rev-parse origin/main` re-executados ao final). Nenhuma migration criada. Decisão de merge continua sendo da diretoria/usuário.
 
+## Retorno recebido — 11-B2, 2026-09-11 (fecha lacunas do 11-B; branch enviada, NÃO mesclada)
+
+Sessão executiva independente, continuação na mesma branch `work/integracao-estabilizacao-11b` (confirmada no remoto em `e3ca527` antes de editar; fetch + fast-forward realizados; nenhuma sessão escritora concorrente detectada).
+
+**1) Paginação estável**: `fetchAllRows` (11-B) corrigia o teto de ~1000 linhas do PostgREST, mas as 4 queries de `getQuestions()` não tinham `ORDER BY` total/determinístico antes de `.range()` — corrigido (`questions` por `id`; `question_options` por `question_id, sort_order, id`; `question_option_keys` por `question_id, option_id`; `question_answer_keys` por `question_id`). Prova com 250 questões sintéticas + 1250 `question_options`: teste de navegador REAL (Playwright, não só consulta ao banco) confirma a questão de id "pior caso" (ordena por último) exibindo as 5 alternativas na interface, 0 erros de console. Fixtures removidas, baseline restaurado.
+
+**2) Idempotência real do SRS sob concorrência**: `FlashcardsRepository.createFlashcardFromQuestion` tinha corrida real (read-before-create no cliente) — reproduzida com duas conexões Supabase-js concorrentes E com dois `BrowserContext` REAIS (Playwright) respondendo errado à mesma questão ao mesmo tempo. Migration LOCAL `20260911120000_flashcard_srs_unique_creation.sql`: índice único `(user_id, question_origin_id)` (não-parcial, ver AGENTS.md #14) + RPC `create_flashcard_from_question` (idempotente por id/replay, serializada por `pg_advisory_xact_lock`). **Inventário pré-migration**: 0 duplicatas locais; **1 grupo de duplicata REAL no Supabase remoto** (consulta somente leitura, nenhum dado alterado) — bloqueia aplicar a mesma migration no remoto sem reconciliação humana prévia; ver `docs/diretoria/retornos/11-B2.txt` para IDs anonimizados e proposta. Migration NÃO aplicada no remoto.
+
+**3) Testes de navegador**: paginação/5 alternativas e concorrência do SRS — reais, Playwright. Mobile (390px): sem overflow, dock com 4 itens, 0 erros de console. Cenários A/B/D/E/F da seção 3 do prompt (caderno integrado, falha parcial de gabarito, vínculos Biblioteca, retorno contextual, referências por tipo) NÃO tiveram prova de navegador nesta sessão — pendência real, documentada como tal.
+
+**4) npm ci isolado**: validado com sucesso via `git worktree add --detach` (node_modules próprio, sem tocar no ambiente do usuário) — resolve a pendência que o 11-B tinha deixado aberta (falhava por conflito de ambiente, não por problema no lockfile). `tsc --noEmit`/`npm run build` limpos; `check-no-secret-key-leak.ts` 8/8; bundle sem `sb_secret_`/`__syncDebug`/`__setTestBackoffOverride`; `supabase test db` local 201/201 (183 + 18 pgTAP novos, sem regressão).
+
+**Limpeza**: fixtures de teste (questões sintéticas, contas descartáveis) removidas; contagens confirmadas idênticas ao baseline antes/depois (`auth.users`=66, `questions`=56, `question_options`=95, `flashcards`=12).
+
+**Branch e commits**: `work/integracao-estabilizacao-11b`, commits `f0a3871` (paginação) e `52c27e5` (SRS/concorrência) mais os de documentação. Enviada ao `origin` — nunca `main`.
+
+**Estado de publicação**: `main`/Supabase remoto/deploy NÃO tocados. Única operação remota foi a consulta somente leitura do inventário de duplicatas. Decisão de merge e de reconciliação das duplicatas remotas continuam com a diretoria/usuário.
+
+Ver `docs/diretoria/retornos/11-B2.txt` para o retorno completo no formato padrão.
+
 Ver `docs/diretoria/retornos/11-B.txt` para o retorno completo no formato padrão.

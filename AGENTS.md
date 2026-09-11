@@ -477,6 +477,65 @@ protótipo).
     --mode development` (lê `.env.development.local`, aponta pro Supabase
     local) + `vite preview` pra testar o login de verdade, não `vite dev`.
 
+23. **RESOLVIDO no Prompt 11-B2 (2026-09-11).** A paginação de
+    `fetchAllRows` (armadilha #21) corrigia o teto de ~1000 linhas do
+    PostgREST, mas `.range()` sem `ORDER BY` total/determinístico antes
+    dele não garante que cada offset devolva sempre o mesmo recorte —
+    `questions` não tinha `order`, `question_option_keys`/
+    `question_answer_keys` não tinham `order`, e `question_options`
+    ordenava só por `sort_order` (repetido em toda questão, não é único
+    global). Corrigido adicionando `order()` por uma combinação que
+    determina a posição de cada linha de forma inequívoca: `questions` por
+    `id`; `question_options` por `question_id, sort_order, id`;
+    `question_option_keys` por `question_id, option_id`;
+    `question_answer_keys` por `question_id`. Provado com 250 questões
+    sintéticas (1250 `question_options`) e teste de navegador REAL
+    (Playwright contra `vite build --mode development` + `vite preview`,
+    não só consulta direta ao banco): a questão cujo `id` ordena por
+    último (pior caso para paginação por `id`) exibe as 5 alternativas
+    corretamente na UI, 0 erros de console. Fixtures removidas, baseline
+    local restaurado.
+24. **RESOLVIDO no Prompt 11-B2 (2026-09-11).** `FlashcardsRepository.
+    createFlashcardFromQuestion` fazia read-before-create no CLIENTE
+    (`getFlashcards()` → procura por `questionOriginId` → cria se
+    ausente) sem nenhuma garantia autoritativa no servidor — duas abas/
+    dispositivos da MESMA conta podem ler "ausente" na mesma janela de
+    tempo e criar dois flashcards distintos para a mesma questão.
+    Reproduzido deterministicamente de duas formas: (1) duas conexões
+    Supabase-js concorrentes da mesma conta chamando a lógica exata do
+    repositório; (2) dois `BrowserContext` REAIS (Playwright) da mesma
+    conta respondendo errado à MESMA questão ao mesmo tempo (o que
+    dispara a criação automática do flashcard SRS) — sem a correção,
+    ambos os cenários produzem 2 linhas em `flashcards` para o mesmo
+    `(user_id, question_origin_id)`. **Corrigido** com
+    `supabase/migrations/20260911120000_flashcard_srs_unique_creation.sql`:
+    índice único NÃO-parcial (ver armadilha #14) em `(user_id,
+    question_origin_id)` — `NULL` nunca colide consigo mesmo num índice
+    comum, então flashcards personalizados sem origem de questão
+    continuam livres para coexistir sem dedupe indevido — e a RPC
+    `create_flashcard_from_question` (`security definer`), idempotente
+    por `id` (o mesmo id gerado no cliente funciona como chave de
+    replay: reenviar a mesma operação nunca duplica) e serializada por
+    `pg_advisory_xact_lock` em `(user_id, question_origin_id)` — o
+    segundo criador concorrente a obter o lock sempre encontra a linha
+    que o primeiro acabou de commitar e devolve o flashcard CANÔNICO em
+    vez de criar um duplicado. `FlashcardsRepository.
+    createFlashcardFromQuestion` passou a usar essa RPC via
+    `enqueueAndTry` (nova op `flashcard_create_from_question`); quando o
+    servidor devolve um id diferente do otimista local (perdeu a
+    corrida), o card local é substituído pelo canônico. `storage.ts`
+    passou a gerar o id do flashcard local com `crypto.randomUUID()` (era
+    uma chave opaca não-uuid, incompatível com o `p_id uuid` da RPC).
+    **Achado do inventário de duplicatas antes de criar a migration**
+    (consulta somente leitura no remoto via `supabase db query --linked`,
+    nenhum dado alterado): local 0 grupos duplicados; **remoto 1 grupo
+    duplicado encontrado** (2 flashcards, mesmo usuário, mesma
+    `question_origin_id`) — não impede a migration LOCAL (autorizada
+    nesta etapa), mas bloqueia aplicar a MESMA migration no remoto sem
+    reconciliar antes; ver `docs/diretoria/retornos/11-B2.txt` para IDs
+    anonimizados e proposta de reconciliação. A migration NÃO foi aplicada
+    no remoto nesta etapa.
+
 ## Convenções de trabalho
 
 - **Commits vão direto pra `main`** hoje (sem PR obrigatório) porque é
@@ -1212,6 +1271,44 @@ protótipo).
   contra esse seed; a causa raiz foi comprovada à parte com fixtures
   sintéticas). Nenhuma migration nova criada. `main`/Supabase remoto/
   deploy não tocados.
+- **Prompt 11-B2 (2026-09-11), mesma branch `work/integracao-
+  estabilizacao-11b` (continuação do 11-B, NÃO mesclada em `main`)**:
+  fecha as lacunas que o 11-B tinha deixado explícitas antes da
+  publicação — ver armadilhas #23 (paginação estável/única) e #24
+  (idempotência real do SRS sob concorrência) para o detalhamento
+  técnico completo. Resumo: (1) as 4 queries de `getQuestions()` ganharam
+  `order()` determinístico antes de `.range()`, provado com 250 questões
+  sintéticas + teste de navegador real (não só consulta ao banco); (2)
+  nova migration `20260911120000_flashcard_srs_unique_creation.sql`
+  (índice único `(user_id, question_origin_id)` + RPC
+  `create_flashcard_from_question`, idempotente/serializada) elimina a
+  corrida real de criação de flashcard SRS comprovada com duas conexões
+  concorrentes E com dois `BrowserContext` reais; achado do inventário
+  pré-migration: 1 grupo de duplicata real no Supabase REMOTO (consulta
+  somente leitura, nenhum dado alterado, migration NÃO aplicada lá — ver
+  `docs/diretoria/retornos/11-B2.txt` para IDs anonimizados e proposta de
+  reconciliação). `npm ci` validado com sucesso em worktree git isolado
+  (`git worktree add --detach`, node_modules próprio, sem tocar no
+  ambiente do usuário) — diferente do 11-B, que não conseguiu validar
+  isso por conflito de ambiente. `tsc --noEmit`/`npm run build` limpos;
+  `scripts/check-no-secret-key-leak.ts` 8/8; bundle sem `sb_secret_`
+  como valor (só as 4 ocorrências esperadas do guard
+  `startsWith("sb_secret_")`)/sem `__syncDebug`/sem
+  `__setTestBackoffOverride`; `supabase test db` local 201/201 (183
+  anteriores + 18 pgTAP novos da migration desta etapa, sem regressão).
+  Cobertura de navegador desta etapa: paginação/5 alternativas (real,
+  Playwright) e concorrência do SRS (real, dois `BrowserContext`) — os
+  itens B a F da seção 3 do prompt (falha parcial de gabarito, vínculos
+  com Biblioteca, retorno contextual, referências por tipo) não tiveram
+  prova de navegador nesta sessão (tempo/escopo), documentados como
+  pendência real em `docs/diretoria/retornos/11-B2.txt`, não como
+  "testado". Item G (mobile 390px) testado: sem overflow horizontal,
+  dock com 4 itens (Início/Biblioteca/Questões/Flashcards, sem "Caderno
+  de Erros" isolado), 0 erros de console. Fixtures de teste (questões
+  sintéticas, contas descartáveis) removidas, baseline local confirmado
+  idêntico antes/depois. `main`/Supabase remoto/deploy não tocados;
+  única operação remota foi a consulta somente leitura de inventário de
+  duplicatas.
 
 ## Manter este arquivo atualizado
 

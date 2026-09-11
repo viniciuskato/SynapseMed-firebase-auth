@@ -1,0 +1,222 @@
+RETORNO: 11-B2
+
+Resultado:
+Fechadas as quatro lacunas do prompt que impediam a publicação do 11-B,
+na mesma branch work/integracao-estabilizacao-11b (continuação, NÃO
+mesclada em main). Branch confirmada no remoto em e3ca527 antes de
+editar; fetch + fast-forward realizados; ausência de sessão escritora
+concorrente confirmada (nenhum lock de arquivo/processo conflitante
+detectado neste repositório); main permaneceu em fb989a4 (idêntico
+antes/depois) — nenhum push em main, nenhuma migration remota, nenhum
+deploy.
+
+1) Paginação e prova com mais de 1000 registros:
+Causa raiz confirmada por leitura de código: fetchAllRows pagina via
+.range() mas nenhuma das 4 queries de getQuestions() tinha ORDER BY
+total/determinístico antes disso — paginação por offset sem ordenação
+única pode omitir ou repetir linhas entre páginas mesmo com o fix de
+teto de 1000 linhas do 11-B. Corrigido em
+src/repositories/SupabaseQuestionsRepository.ts:
+- questions: order(id)
+- question_options: order(question_id, sort_order, id)
+- question_option_keys: order(question_id, option_id)
+- question_answer_keys: order(question_id)
+Prova com volume >1000 registros: 250 questões sintéticas publicadas +
+1250 question_options (1345 linhas totais na tabela) inseridas no
+Supabase local. Teste de navegador REAL (Playwright/Chromium contra
+`vite build --mode development` + `vite preview`, porta 3098 — mesmo
+contorno da armadilha #22): login real, filtro de busca isolando a
+questão cujo id ordena por ÚLTIMO (pior caso possível para paginação
+por id), as 5 alternativas (A-E) confirmadas visíveis na interface por
+clique/leitura de texto real, 0 erros de console. Screenshot confirma
+visualmente. Fixtures sintéticas removidas ao final — baseline local
+restaurado (56 questões/95 question_options, idêntico ao estado antes
+da inserção).
+
+2) Concorrência do SRS e decisão de schema:
+Causa raiz confirmada e reproduzida: FlashcardsRepository.
+createFlashcardFromQuestion fazia read-before-create no CLIENTE
+(getFlashcards -> find por questionOriginId -> cria se ausente) sem
+garantia autoritativa no servidor. Reproduzido de duas formas
+independentes: (a) duas conexões Supabase-js concorrentes da mesma
+conta replicando a lógica exata do repositório -> 2 flashcards
+distintos para a mesma (user, questão); (b) dois BrowserContext REAIS
+(Playwright) da mesma conta respondendo ERRADO à MESMA questão ao
+mesmo tempo (o que dispara a criação automática do flashcard SRS em
+QuestionCard.tsx) -> sem a correção, também 2 flashcards distintos.
+
+Inventário de duplicatas ANTES de criar a migration (obrigatório pelo
+prompt):
+- Local (Supabase local, contagem direta): 0 grupos de duplicata em
+  flashcards para (user_id, question_origin_id) com question_origin_id
+  não nulo.
+- Remoto (consulta SOMENTE LEITURA via `supabase db query --linked`,
+  nenhum dado alterado, nenhuma escrita tentada): 1 grupo de duplicata
+  real encontrado — 2 flashcards, mesmo usuário (id truncado para
+  anonimização: user 06948458...), mesma questão de origem (id
+  truncado: question ef5c8134...). Quantidade: 1 grupo (2 linhas
+  excedentes). Proposta de reconciliação (não executada nesta etapa,
+  decisão pendente de diretoria/usuário): revisar as duas linhas
+  manualmente (histórico de flashcard_reviews de cada uma, se houver) e
+  decidir entre (i) manter a mais antiga e mesclar/preservar o
+  histórico de revisão da mais nova antes de removê-la, ou (ii) manter
+  as duas como estão até a decisão humana, já que isso não bloqueia o
+  trabalho LOCAL autorizado nesta etapa. A migration desta etapa é
+  EXCLUSIVAMENTE LOCAL (conforme autorizado no prompt) — não foi e não
+  será aplicada no remoto sem essa reconciliação prévia.
+
+Correção (migration LOCAL
+supabase/migrations/20260911120000_flashcard_srs_unique_creation.sql):
+- Índice único NÃO-parcial (consistente com AGENTS.md armadilha #14,
+  evita o problema de ON CONFLICT do PostgREST com índices parciais) em
+  flashcards(user_id, question_origin_id) — NULL nunca colide consigo
+  mesmo num índice comum, então flashcards personalizados sem
+  question_origin_id continuam livres para coexistir sem dedupe
+  indevido.
+- RPC create_flashcard_from_question (security definer): idempotente
+  por id (o mesmo id gerado no cliente funciona como chave de replay —
+  reenviar a mesma operação nunca duplica) e serializada por
+  pg_advisory_xact_lock em (user_id, question_origin_id) — o segundo
+  criador concorrente a obter o lock sempre encontra a linha que o
+  primeiro acabou de commitar e devolve o flashcard CANÔNICO em vez de
+  criar um duplicado. Ownership verificado (id já existente pertencente
+  a outro usuário é rejeitado, erro 42501, classificado como
+  'permission' por classifySyncError — falha permanente e visível,
+  nunca retry infinito).
+
+Wiring do cliente:
+- src/repositories/SupabaseFlashcardsRepository.ts: novo método
+  createFlashcardFromQuestionAtomic chama a RPC e reconstrói o
+  Flashcard completo (srs state + histórico de revisões).
+- src/services/syncHandlers.ts: nova op 'flashcard_create_from_question'
+  (payload FlashcardCreateFromQuestionOpPayload).
+- src/repositories/FlashcardsRepository.ts: createFlashcardFromQuestion
+  passou a usar enqueueAndTry com a nova op; quando o servidor devolve
+  um flashcard com id DIFERENTE do otimista local (perdeu a corrida), o
+  local é substituído pelo canônico (delete do otimista + save do
+  canônico) — nunca fica um duplicado local órfão visível.
+- src/services/storage.ts: id do flashcard local passou a ser
+  crypto.randomUUID() (era uma chave opaca não-uuid, incompatível com o
+  p_id uuid da RPC), com fallback documentado para o caso raro de
+  crypto indisponível.
+
+Testes exigidos pelo prompt, todos cobertos:
+- Criação sequencial repetida: pgTAP + script Node — replay pelo mesmo
+  id não duplica.
+- Criação concorrente em duas abas: BrowserContext real (Playwright) —
+  exatamente 1 flashcard no banco após resposta errada simultânea.
+- Replay da mesma operação: pgTAP + script Node — reenvio pós-sucesso
+  devolve o canônico sem erro.
+- Flashcard personalizado sem origem: pgTAP + script Node — dois
+  flashcards sem question_origin_id coexistem, NUNCA deduplicados.
+- Isolamento entre usuários: pgTAP + script Node — usuário B cria seu
+  próprio flashcard para a mesma questão que A já tem, sem colisão;
+  ownership testado (B não consegue "assumir" o id de A).
+Nenhum erro falso ao usuário, nenhuma operação presa, nenhum retry
+infinito (erro de ownership é classificado 'permission', falha
+definitiva) e nenhum par de flashcards equivalentes sobrevive à
+convergência.
+
+3) Testes de navegador por cenário:
+A (Início/caderno integrado), D (vínculos Biblioteca), E (retorno
+contextual) e F (referências por tipo) NÃO tiveram prova de navegador
+nesta sessão — pendência real, documentada abaixo, não declarada como
+testada. B (falha parcial de gabarito) também não foi exercitada nesta
+sessão (só validada por leitura de código do Promise.allSettled já
+aplicado no 11-B).
+C (cinco alternativas): coberto pelo item 1 acima (paginação) — questão
+sintética publicada com 5 alternativas válidas, confirmadas por
+clique/leitura de interface real, não só consulta ao banco.
+G (mobile 390px): testado com Playwright em viewport 390x844 — Início
+sem overflow horizontal (delta 0px), dock fixo mobile com exatamente 4
+itens (Início/Biblioteca/Questões/Flashcards — confirmado sem "Caderno
+de Erros" como item isolado, que só aparece integrado como conteúdo
+dentro do Início, conforme desenho do 11-B), sem overflow após navegar
+por cada item do dock, 0 erros de console.
+
+4) npm ci, lint, build, segredo e pgTAP:
+npm ci validado com SUCESSO em ambiente isolado: `git worktree add
+--detach` para um checkout separado do commit da branch, node_modules
+próprio (não reutiliza o node_modules do servidor do usuário, nenhum
+processo do usuário encerrado). `npm ci`: OK, 235 pacotes instalados
+sem erro. `npm run lint` (tsc --noEmit): limpo. `npm run build`: limpo
+(aviso de chunk >500kB pré-existente, não é erro novo). Bundle de
+produção: 0 ocorrências de sb_secret_ como VALOR (só as 4 ocorrências
+esperadas do guard startsWith("sb_secret_")/mensagem de erro,
+confirmado por inspeção de contexto de cada uma), 0 ocorrências de
+__syncDebug, 0 ocorrências de __setTestBackoffOverride.
+scripts/check-no-secret-key-leak.ts: 8/8 cenários OK.
+supabase test db (local): 201/201 — 183 anteriores (sem regressão) + 18
+novos em
+supabase/tests/database/sync_reliability_flashcard_srs_uniqueness.test.sql,
+cobrindo: índice único existe; criação simples; replay idempotente por
+id; segunda tentativa com id diferente converge pro canônico (não
+duplica); isolamento entre usuários (B cria seu próprio flashcard sem
+colidir com A); ownership (B não assume id de A, erro 42501);
+flashcard personalizado sem origem NUNCA deduplicado (2 coexistem);
+autenticação obrigatória (erro 28000 sem sessão). Worktree isolado
+removido ao final (git worktree remove).
+
+Limpeza:
+Todos os scripts temporários (scripts/_tmp-*.mjs, screenshots de debug)
+apagados do working tree antes dos commits — não fazem parte da
+branch enviada. Contas de teste descartáveis (pagtest-*, srsverify-*,
+srsbrowser-*, mobiletest-*, srsrace-*) removidas via
+admin.auth.admin.deleteUser + delete direto quando necessário.
+Questões sintéticas de paginação (250) e suas question_options (1250)
+removidas — precisou primeiro voltar status para draft (guard_question_delete
+não permite excluir questão publicada, ver AGENTS.md armadilha #11).
+Contagens confirmadas idênticas ao baseline antes/depois de toda a
+sessão: auth.users=66, questions=56, question_options=95,
+flashcards=12. Servidor de preview (vite preview porta 3098) encerrado
+ao final; nenhum processo do usuário tocado.
+
+Arquivos e commits:
+- src/repositories/SupabaseQuestionsRepository.ts — ordenação estável
+  nas 4 queries de getQuestions().
+- supabase/migrations/20260911120000_flashcard_srs_unique_creation.sql
+  — índice único + RPC create_flashcard_from_question (NOVA, LOCAL
+  apenas).
+- supabase/tests/database/sync_reliability_flashcard_srs_uniqueness.test.sql
+  — 18 casos pgTAP novos.
+- src/repositories/SupabaseFlashcardsRepository.ts —
+  createFlashcardFromQuestionAtomic.
+- src/services/syncHandlers.ts — op 'flashcard_create_from_question'.
+- src/repositories/FlashcardsRepository.ts — createFlashcardFromQuestion
+  usa enqueueAndTry + reconciliação com o canônico do servidor.
+- src/services/storage.ts — id do flashcard local via
+  crypto.randomUUID().
+- AGENTS.md — armadilhas #23/#24 novas; "Estado atual" atualizado com
+  o resumo desta etapa.
+- docs/diretoria/registro.md, docs/diretoria/retornos/11-B2.txt — este
+  retorno.
+Commits (branch work/integracao-estabilizacao-11b, a partir de e3ca527):
+f0a3871 fix(questoes): ordenacao estavel e unica antes de range() na paginacao
+52c27e5 fix(flashcards): idempotencia real do SRS automatico sob concorrencia
+(mais os commits de documentação enviados junto com este retorno).
+Push feito com `git push origin work/integracao-estabilizacao-11b` —
+nunca em main.
+
+Pendências reais:
+- 1 grupo de duplicata de flashcard REAL no Supabase remoto (2 linhas,
+  mesmo usuário/questão) — impede aplicar a migration desta etapa no
+  remoto sem reconciliação humana prévia (ver seção 2 acima para IDs
+  anonimizados e proposta). A migration é local apenas, conforme
+  autorizado.
+- Cenários A, B, D, E, F da seção 3 do prompt (Início/caderno integrado,
+  falha parcial de gabarito, vínculos com Biblioteca, retorno
+  contextual, referências por tipo — URL/DOI/PMID/Scholar/incompleta)
+  não tiveram prova de navegador nesta sessão — tempo/escopo, não
+  declarados como testados.
+- N+1 de getQuestionReview em IntegratedCadernoErros.tsx permanece
+  (achado pré-existente do 11-B, fora de escopo desta etapa).
+- Decisão de merge em main permanece com a diretoria/usuário; aplicação
+  da migration no remoto depende da reconciliação de duplicatas acima.
+
+Estado:
+Main, banco remoto e deploy permanecem inalterados. origin/main
+confirmado em fb989a4 antes e depois desta sessão. Única operação
+remota realizada foi a consulta SOMENTE LEITURA de inventário de
+duplicatas (supabase db query --linked) — nenhuma escrita, nenhuma
+migration aplicada no remoto, nenhum dado real alterado ou exposto
+(IDs reportados truncados/anonimizados acima).
