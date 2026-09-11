@@ -149,12 +149,29 @@ function buildQuestion(
 export class SupabaseQuestionsRepository implements QuestionsRepository {
   async getQuestions(): Promise<Question[]> {
     const [questions, options, optionKeys, answerKeys] = await Promise.all([
-      fetchAllRows<QuestionRow>((from, to) => supabase.from('questions').select('*').range(from, to)),
-      fetchAllRows<QuestionOptionRow>((from, to) =>
-        supabase.from('question_options').select('*').order('sort_order').range(from, to)
+      fetchAllRows<QuestionRow>((from, to) =>
+        supabase.from('questions').select('*').order('id', { ascending: true }).range(from, to)
       ),
-      fetchAllRows<QuestionOptionKeyRow>((from, to) => supabase.from('question_option_keys').select('*').range(from, to)),
-      fetchAllRows<QuestionAnswerKeyRow>((from, to) => supabase.from('question_answer_keys').select('*').range(from, to)),
+      fetchAllRows<QuestionOptionRow>((from, to) =>
+        supabase
+          .from('question_options')
+          .select('*')
+          .order('question_id', { ascending: true })
+          .order('sort_order', { ascending: true })
+          .order('id', { ascending: true })
+          .range(from, to)
+      ),
+      fetchAllRows<QuestionOptionKeyRow>((from, to) =>
+        supabase
+          .from('question_option_keys')
+          .select('*')
+          .order('question_id', { ascending: true })
+          .order('option_id', { ascending: true })
+          .range(from, to)
+      ),
+      fetchAllRows<QuestionAnswerKeyRow>((from, to) =>
+        supabase.from('question_answer_keys').select('*').order('question_id', { ascending: true }).range(from, to)
+      ),
     ]);
 
     return questions.map((q) => buildQuestion(q, options, optionKeys, answerKeys));
