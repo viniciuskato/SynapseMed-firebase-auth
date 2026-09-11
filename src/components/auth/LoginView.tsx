@@ -515,7 +515,7 @@ export const LoginView: React.FC = () => {
               Novas contas iniciam no perfil <strong className="text-slate-700 dark:text-slate-300">Estudante</strong> com plano Free.
             </p>
             <p className="text-[11px] text-slate-400 dark:text-slate-500">
-              Autenticação gerenciada com criptografia de ponta a ponta. Senhas nunca são expostas ou salvas no banco de dados.
+              Autenticação gerenciada pelo Supabase Auth, com senhas armazenadas como hash (nunca em texto plano) e tráfego protegido por HTTPS/TLS.
             </p>
           </div>
         </div>
