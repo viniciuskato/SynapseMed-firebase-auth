@@ -20,15 +20,34 @@ interface ResolvedConfig {
   isConfigured: boolean;
 }
 
+// `sb_secret_...` é a chave de SERVIÇO do Supabase (privilégios de
+// service_role) — nunca pode ser aceita como anonKey/publishable key nem
+// virar configuração válida no frontend, seja qual for a variável VITE_ onde
+// aparecer por engano (Prompt 11-A/11-B, gate 9). O commit 274c846 (Google
+// AI Studio) tinha reintroduzido um caminho que fazia exatamente isso: se
+// VITE_SUPABASE_URL viesse com uma chave `sb_secret_` colada por engano, o
+// código promovia esse valor para `anonKey` sempre que `VITE_SUPABASE_ANON_KEY`
+// estivesse vazia ou também fosse uma secret — nenhum caminho impedia
+// `sb_secret_` de chegar até `createClient`. fb989a4 (Google AI Studio,
+// integração da nova arquitetura) não tocou este arquivo e manteve o mesmo
+// código vulnerável.
+function isSecretKey(value: string | undefined): boolean {
+  return !!value && value.startsWith('sb_secret_');
+}
+
 function resolveConfig(): ResolvedConfig {
   let rawUrl = env.VITE_SUPABASE_URL?.trim();
   let rawKey = env.VITE_SUPABASE_ANON_KEY?.trim();
 
-  // Caso o usuário tenha colado a chave pública/publishable no campo de URL
+  // Caso o usuário tenha colado a chave pública/publishable (ou, por engano,
+  // a secret) no campo de URL.
   if (rawUrl && (rawUrl.startsWith('sb_publishable_') || rawUrl.startsWith('sb_secret_') || rawUrl.startsWith('eyJ'))) {
     const keyFromUrl = rawUrl;
     rawUrl = 'https://jfvhwwvixwvgjfqzlkkb.supabase.co';
-    if (!rawKey || rawKey.startsWith('sb_secret_')) {
+    // NUNCA promove uma chave secreta para o lugar da anonKey, nem daqui nem
+    // do valor bruto de VITE_SUPABASE_ANON_KEY — ver guarda final abaixo,
+    // que cobre os dois casos de forma incondicional.
+    if (!isSecretKey(keyFromUrl) && (!rawKey || isSecretKey(rawKey))) {
       rawKey = keyFromUrl;
     }
   }
@@ -51,6 +70,19 @@ function resolveConfig(): ResolvedConfig {
     } catch {
       isValid = false;
     }
+  }
+
+  // Guarda final, incondicional: `sb_secret_...` nunca é uma anonKey válida,
+  // não importa de onde veio (VITE_SUPABASE_ANON_KEY diretamente, ou
+  // promovida do campo de URL acima). Nunca loga o valor da chave.
+  if (isSecretKey(rawKey)) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[supabaseClient] Uma variável VITE_SUPABASE_* contém uma chave secreta ' +
+        '(sb_secret_...), não uma chave pública/anônima. Por segurança essa ' +
+        'configuração foi rejeitada; operando em modo local resiliente.'
+    );
+    rawKey = undefined;
   }
 
   const isConfigured = Boolean(isValid && rawKey);
