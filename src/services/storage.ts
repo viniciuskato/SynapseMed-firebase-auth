@@ -208,7 +208,7 @@ export const StorageService = {
     };
 
     const newCard: Flashcard = {
-      id: `fc-from-q-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: crypto.randomUUID(),
       disciplineId: question.disciplineId,
       themeId: question.themeId,
       compendiumRefId: question.compendiumRefId,
