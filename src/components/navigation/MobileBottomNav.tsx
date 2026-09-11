@@ -86,7 +86,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
         <button
           type="button"
           onClick={onResumeReading}
-          className="pointer-events-auto px-4 py-1.5 rounded-full bg-slate-900/70 dark:bg-slate-950/70 backdrop-blur-2xl border border-teal-500/40 dark:border-teal-400/40 text-white text-[11px] font-semibold flex items-center gap-2 shadow-lg hover:bg-slate-900/85 active:scale-[0.98] transition-all cursor-pointer group"
+          className="pointer-events-auto px-4 py-1.5 rounded-full bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-2xl border border-teal-400/60 dark:border-teal-400/50 text-white text-[11px] font-semibold flex items-center gap-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)] hover:bg-slate-900 dark:hover:bg-slate-950 active:scale-[0.98] transition-all cursor-pointer group"
           title={`Retomar leitura: ${lastReadingSession.compendiumTitle}`}
         >
           <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse shrink-0" />
@@ -104,7 +104,7 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({
       <nav
         id="mobile-floating-dock"
         aria-label="Navegação Principal"
-        className="pointer-events-auto flex items-center justify-center gap-1 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-2xl bg-white/45 dark:bg-slate-950/45 backdrop-blur-2xl border border-white/60 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5)] transition-all"
+        className="pointer-events-auto flex items-center justify-center gap-1 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-2xl bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border border-slate-200/80 dark:border-white/15 shadow-[0_8px_32px_rgba(0,0,0,0.18)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.6)] transition-all"
       >
         {navItems.map((item) => {
           const Icon = item.icon;
