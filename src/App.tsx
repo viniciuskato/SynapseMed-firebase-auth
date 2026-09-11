@@ -489,6 +489,7 @@ function AuthenticatedApp() {
               onOpenQuestionsForTheme={handleOpenQuestionsForTheme}
               onOpenFlashcardsForTheme={handleOpenFlashcardsForTheme}
               targetSectionId={selectedSectionId}
+              onSectionJumpHandled={() => setSelectedSectionId(undefined)}
               returnToQuestionsContext={libraryOrigin}
               onReturnToQuestions={libraryOrigin ? handleReturnToQuestions : undefined}
             />
