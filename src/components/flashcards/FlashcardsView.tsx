@@ -235,10 +235,9 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
             const disc = disciplines.find((d) => d.id === card.disciplineId);
             const th = themes.find((t) => t.id === card.themeId);
             const isDue = isCardDueToday(card);
-            const matchingComp = compendiums.find(
-              (c) => c.id === card.compendiumRefId || c.themeId === card.themeId || c.disciplineId === card.disciplineId
-            );
-            const compendiumId = card.compendiumRefId || matchingComp?.id;
+            // Vínculo com a Biblioteca só por ID explícito (Prompt 11-B,
+            // gate 6): nunca por coincidência de tema/disciplina.
+            const compendiumId = card.compendiumRefId || undefined;
 
             return (
               <div
