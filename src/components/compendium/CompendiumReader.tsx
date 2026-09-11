@@ -259,9 +259,15 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
     ? compendium.author
     : 'Revisão editorial pendente';
 
-  const lastUpdatedDisplay = compendium.lastUpdated?.trim()
-    ? compendium.lastUpdated
-    : 'Revisão editorial pendente';
+  // compendium.lastUpdated vem de materials.updated_at como ISO cru
+  // (ex. "2026-09-11T14:20:36.886889+00:00") -- formata pra data legível em
+  // vez de mostrar o timestamp bruto. Cai no texto original (ou no
+  // fallback) se a data vier vazia ou não for parseável.
+  const parsedLastUpdated = compendium.lastUpdated?.trim() ? new Date(compendium.lastUpdated) : null;
+  const lastUpdatedDisplay =
+    parsedLastUpdated && !Number.isNaN(parsedLastUpdated.getTime())
+      ? parsedLastUpdated.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      : compendium.lastUpdated?.trim() || 'Revisão editorial pendente';
 
   return (
     <div className="min-h-screen bg-[#F6F7F9] dark:bg-[#0B1220] text-[#172033] dark:text-[#E5E7EB] transition-colors pb-24">
