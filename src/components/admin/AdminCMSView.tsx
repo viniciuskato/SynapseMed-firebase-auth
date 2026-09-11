@@ -150,19 +150,23 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     if (activeTab === 'questions') loadReactionCounts();
   }, [activeTab, loadFeedback, loadReactionCounts]);
 
-  const NEXT_FEEDBACK_STATUS: Record<FeedbackStatus, FeedbackStatus | null> = {
-    pendente: 'em_analise',
-    em_analise: 'resolvido',
-    resolvido: null,
-  };
-
-  const handleAdvanceFeedbackStatus = async (item: UserFeedback) => {
-    const next = NEXT_FEEDBACK_STATUS[item.status];
-    if (!next) return;
+  const handleResolveFeedback = async (item: UserFeedback) => {
     setUpdatingFeedbackId(item.id);
     try {
-      await feedbackRepository.updateFeedbackStatus(item.id, next);
-      showToast(`Feedback marcado como "${next.replace('_', ' ')}".`);
+      await feedbackRepository.updateFeedbackStatus(item.id, 'resolvido');
+      showToast('Feedback marcado como resolvido.');
+      await loadFeedback();
+    } catch (err) {
+      showToast(`Erro ao atualizar feedback: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    setUpdatingFeedbackId(null);
+  };
+
+  const handleReopenFeedback = async (item: UserFeedback) => {
+    setUpdatingFeedbackId(item.id);
+    try {
+      await feedbackRepository.updateFeedbackStatus(item.id, 'pendente');
+      showToast('Feedback reaberto como pendente.');
       await loadFeedback();
     } catch (err) {
       showToast(`Erro ao atualizar feedback: ${err instanceof Error ? err.message : String(err)}`);
@@ -194,7 +198,8 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     }
   }, [activeTab, highlightedQuestionId]);
 
-  const feedbackPendingCount = feedbackList.filter((f) => f.status === 'pendente').length;
+  const [feedbackFilter, setFeedbackFilter] = useState<'todos' | 'pendentes' | 'resolvidos'>('todos');
+  const feedbackPendingCount = feedbackList.filter((f) => f.status !== 'resolvido').length;
 
   // ── Compendium State ───────────────────────────────────────────
   const [isCompendiumFormOpen, setIsCompendiumFormOpen] = useState(false);
@@ -1564,23 +1569,61 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       {/* ══════════════════════════════════════════════════════════════ */}
       {activeTab === 'feedback' && (
         <div className="space-y-4">
-          <div className="bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] elev-xs flex items-center justify-between">
+          <div className="bg-white dark:bg-[#0F172A] p-4 rounded-xl border border-stone-200 dark:border-[#243452] elev-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="font-serif-reading text-base font-bold text-stone-900 dark:text-slate-100">
                 Feedback dos Participantes
               </h3>
               <p className="text-[11px] text-stone-500 dark:text-slate-400">
-                Relatos de problema/sugestão/elogio enviados pelos estudantes, com ou sem vínculo a uma questão ou compêndio específico.
+                Relatos de problemas, erros de gabarito e sugestões enviados pelos estudantes.
               </p>
             </div>
-            <button
-              onClick={loadFeedback}
-              disabled={feedbackLoading}
-              className="px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-[#142038] hover:bg-stone-200 hover:dark:bg-stone-700 text-stone-700 dark:text-slate-300 border border-stone-200 dark:border-[#243452] text-xs font-semibold transition-colors flex items-center gap-2 shrink-0 disabled:opacity-50"
-            >
-              <RotateCcw className={`w-3.5 h-3.5 ${feedbackLoading ? 'animate-spin' : ''}`} />
-              <span>Atualizar</span>
-            </button>
+            <div className="flex items-center gap-2.5 shrink-0">
+              <div className="flex items-center gap-1 p-1 bg-stone-100 dark:bg-[#142038] rounded-xl border border-stone-200 dark:border-[#243452]">
+                <button
+                  type="button"
+                  onClick={() => setFeedbackFilter('todos')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    feedbackFilter === 'todos'
+                      ? 'bg-white dark:bg-[#0F172A] text-stone-900 dark:text-slate-100 shadow-2xs'
+                      : 'text-stone-500 dark:text-slate-400 hover:text-stone-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Todos ({feedbackList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFeedbackFilter('pendentes')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    feedbackFilter === 'pendentes'
+                      ? 'bg-white dark:bg-[#0F172A] text-amber-700 dark:text-amber-300 shadow-2xs'
+                      : 'text-stone-500 dark:text-slate-400 hover:text-stone-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Pendentes ({feedbackPendingCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFeedbackFilter('resolvidos')}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                    feedbackFilter === 'resolvidos'
+                      ? 'bg-white dark:bg-[#0F172A] text-emerald-700 dark:text-emerald-300 shadow-2xs'
+                      : 'text-stone-500 dark:text-slate-400 hover:text-stone-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Resolvidos ({feedbackList.filter((f) => f.status === 'resolvido').length})
+                </button>
+              </div>
+
+              <button
+                onClick={loadFeedback}
+                disabled={feedbackLoading}
+                className="px-3.5 py-2 rounded-xl bg-stone-100 dark:bg-[#142038] hover:bg-stone-200 hover:dark:bg-stone-700 text-stone-700 dark:text-slate-300 border border-stone-200 dark:border-[#243452] text-xs font-semibold transition-colors flex items-center gap-2 shrink-0 disabled:opacity-50 cursor-pointer"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${feedbackLoading ? 'animate-spin' : ''}`} />
+                <span>Atualizar</span>
+              </button>
+            </div>
           </div>
 
           {feedbackError && (
@@ -1597,7 +1640,13 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
             {!feedbackLoading && feedbackList.length === 0 && !feedbackError && (
               <div className="p-6 text-center text-xs text-stone-500 dark:text-slate-400">Nenhum feedback recebido ainda.</div>
             )}
-            {feedbackList.map((f) => (
+            {feedbackList
+              .filter((f) => {
+                if (feedbackFilter === 'pendentes') return f.status !== 'resolvido';
+                if (feedbackFilter === 'resolvidos') return f.status === 'resolvido';
+                return true;
+              })
+              .map((f) => (
               <div key={f.id} className="p-4 space-y-2 text-xs">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span
@@ -1612,21 +1661,19 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     {f.type}
                   </span>
                   <span
-                    className={`text-[9px] px-2 py-0.5 rounded font-bold border ${
+                    className={`text-[9px] px-2 py-0.5 rounded font-bold border uppercase tracking-wider ${
                       f.status === 'resolvido'
                         ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-900'
-                        : f.status === 'em_analise'
-                        ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-900'
-                        : 'bg-stone-100 dark:bg-[#142038] text-stone-600 dark:text-slate-300 border-stone-200 dark:border-[#243452]'
+                        : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900'
                     }`}
                   >
-                    {f.status.replace('_', ' ')}
+                    {f.status === 'resolvido' ? 'Resolvido' : 'Pendente'}
                   </span>
                   <span className="font-bold text-stone-900 dark:text-slate-100">{f.title}</span>
                   {(f.questionId || f.materialId) && (
                     <button
                       onClick={() => handleOpenFeedbackTarget(f)}
-                      className="text-[11px] text-teal-700 dark:text-teal-400 font-semibold hover:underline flex items-center gap-1"
+                      className="text-[11px] text-teal-700 dark:text-teal-400 font-semibold hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <span>{f.questionId ? 'Ver questão' : 'Ver compêndio'}</span>
                       <ArrowRight className="w-3 h-3" />
@@ -1638,15 +1685,29 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                   <span className="text-[10px] text-stone-400">
                     {f.userEmail || 'e-mail não disponível'} · {new Date(f.createdAt).toLocaleString('pt-BR')}
                   </span>
-                  {NEXT_FEEDBACK_STATUS[f.status] && (
+                  {f.status !== 'resolvido' ? (
                     <button
-                      onClick={() => handleAdvanceFeedbackStatus(f)}
+                      onClick={() => handleResolveFeedback(f)}
                       disabled={updatingFeedbackId === f.id}
-                      className="px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1.5 disabled:opacity-50"
+                      className="px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 hover:dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
                     >
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      <span>Marcar como "{NEXT_FEEDBACK_STATUS[f.status]?.replace('_', ' ')}"</span>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Marcar como Resolvido</span>
                     </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Resolvido</span>
+                      </span>
+                      <button
+                        onClick={() => handleReopenFeedback(f)}
+                        disabled={updatingFeedbackId === f.id}
+                        className="text-[10px] text-stone-400 hover:text-stone-600 dark:hover:text-slate-300 underline cursor-pointer disabled:opacity-50"
+                      >
+                        Reabrir
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

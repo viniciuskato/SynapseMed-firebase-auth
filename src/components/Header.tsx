@@ -136,6 +136,21 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="tabular-nums">{stats.streakDays}d</span>
           </div>
 
+          {/* Direct Feedback / Report Error Button */}
+          {onOpenFeedback && (
+            <button
+              onClick={onOpenFeedback}
+              id="header-feedback-btn"
+              style={{ minHeight: 44 }}
+              className="px-2 sm:px-3 py-1.5 rounded-xl border border-slate-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] hover:bg-slate-100 dark:hover:bg-[#142038] text-slate-600 dark:text-slate-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs shrink-0"
+              title="Enviar feedback ou reportar erro"
+              aria-label="Enviar feedback ou reportar erro"
+            >
+              <MessageSquarePlus className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+              <span className="hidden xl:inline text-xs font-semibold">Feedback</span>
+            </button>
+          )}
+
           {/* Theme Selector (Claro / Escuro) */}
           <button
             onClick={onToggleTheme}

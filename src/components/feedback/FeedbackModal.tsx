@@ -173,6 +173,49 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
               </div>
             </div>
 
+            {/* Quick Topic Chips */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                Assunto Rápido (clique para preencher o título)
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {(type === 'problema'
+                  ? [
+                      'Erro de gabarito em questão',
+                      'Erro conceitual / diretriz médica',
+                      'Erro de digitação / formatação',
+                      'Lentidão ou bug visual',
+                      'Imagem ou tabela ilegível',
+                    ]
+                  : type === 'sugestao'
+                  ? [
+                      'Sugestão de funcionalidade',
+                      'Mais questões desta especialidade',
+                      'Melhoria visual ou atalhos',
+                      'Novo compêndio temático',
+                    ]
+                  : [
+                      'Qualidade dos comentários',
+                      'Design fluido e agradável',
+                      'Excelente compêndio teórico',
+                    ]
+                ).map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => setTitle(chip)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all cursor-pointer ${
+                      title === chip
+                        ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border-teal-300 dark:border-teal-700 font-semibold'
+                        : 'bg-slate-50 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Title */}
             <div className="space-y-1.5">
               <label htmlFor="feedback-title" className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -181,7 +224,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
               <input
                 id="feedback-title"
                 type="text"
-                placeholder="Ex: Melhoria no leitor de compêndios / Dúvida na questão"
+                placeholder="Ex: Erro no gabarito da questão X / Sugestão de filtro"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={100}

@@ -13,6 +13,7 @@ import {
   Layers,
   Lightbulb,
   AlertTriangle,
+  AlertCircle,
   MessageSquare,
   List,
   X,
@@ -336,7 +337,11 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
 
           {/* Secondary actions — wrap onto their own line on mobile; inline (pushed right) on desktop */}
           <div className="order-3 sm:order-2 basis-full sm:basis-auto sm:shrink-0 sm:ml-auto flex items-center justify-between sm:justify-normal gap-2 pt-1.5 mt-0.5 border-t border-[#E2E8F0] dark:border-[#263244] sm:pt-0 sm:mt-0 sm:border-t-0">
-            <ContextualFeedbackPopover materialId={compendium.id} />
+            <ContextualFeedbackPopover
+              materialId={compendium.id}
+              label="Reportar erro no texto"
+              variant="pill"
+            />
 
             {/* Desktop (sm+): três botões separados, lado a lado — layout original preservado */}
             <div className="hidden sm:flex items-center gap-2">
@@ -890,6 +895,26 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
             </div>
           </footer>
         )}
+
+        {/* ── Callout de Revisão & Feedback Editorial ────── */}
+        <div className="my-6 p-4 rounded-2xl bg-slate-50 dark:bg-[#142038]/70 border border-slate-200 dark:border-[#243452] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5 text-slate-700 dark:text-slate-300">
+            <div className="w-7 h-7 rounded-lg bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-200 dark:border-rose-900/60 shrink-0">
+              <AlertCircle className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="font-semibold block">Notou alguma divergência de diretriz, erro conceitual ou ortográfico?</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400 block">Nosso comitê médico revisa cada apontamento para manter o texto 100% fidedigno.</span>
+            </div>
+          </div>
+          <div className="self-end sm:self-auto shrink-0">
+            <ContextualFeedbackPopover
+              materialId={compendium.id}
+              label="Reportar Erro no Texto"
+              variant="pill"
+            />
+          </div>
+        </div>
 
         {/* ── Fixação do Conteúdo / Próximos Passos Interativos ────── */}
         <section

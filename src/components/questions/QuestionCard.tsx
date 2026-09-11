@@ -349,8 +349,12 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-3">
-          <ContextualFeedbackPopover questionId={question.id} />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <ContextualFeedbackPopover
+            questionId={question.id}
+            label="Reportar erro"
+            variant="pill"
+          />
           <button
             onClick={handleToggleBookmark}
             className={`p-2 rounded-xl border text-xs transition-colors cursor-pointer ${
@@ -585,33 +589,56 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
             </div>
           )}
 
-          {/* Reação rápida à explicação */}
-          <div className="flex items-center justify-end gap-2">
-            <span className="text-[10px] text-slate-400">Esta explicação te ajudou?</span>
-            <button
-              type="button"
-              onClick={() => handleToggleReaction('up')}
-              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                myReaction === 'up'
-                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
-                  : 'bg-white dark:bg-[#142038] text-slate-400 dark:text-slate-500 border-slate-200 dark:border-[#243452] hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-              title="Explicação útil"
-            >
-              <ThumbsUp className={`w-3.5 h-3.5 ${myReaction === 'up' ? 'fill-emerald-500' : ''}`} />
-            </button>
-            <button
-              type="button"
-              onClick={() => handleToggleReaction('down')}
-              className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                myReaction === 'down'
-                  ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
-                  : 'bg-white dark:bg-[#142038] text-slate-400 dark:text-slate-500 border-slate-200 dark:border-[#243452] hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-              title="Explicação confusa"
-            >
-              <ThumbsDown className={`w-3.5 h-3.5 ${myReaction === 'down' ? 'fill-rose-500' : ''}`} />
-            </button>
+          {/* Reação rápida à explicação e feedback contextual */}
+          <div className="pt-2 border-t border-slate-200/80 dark:border-[#243452]/80 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <ContextualFeedbackPopover
+                questionId={question.id}
+                label="Notou erro no gabarito ou comentário?"
+                variant="subtle"
+              />
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400">Esta explicação te ajudou?</span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleReaction('up')}
+                  className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                    myReaction === 'up'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                      : 'bg-white dark:bg-[#142038] text-slate-400 dark:text-slate-500 border-slate-200 dark:border-[#243452] hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                  title="Explicação útil"
+                >
+                  <ThumbsUp className={`w-3.5 h-3.5 ${myReaction === 'up' ? 'fill-emerald-500' : ''}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleToggleReaction('down')}
+                  className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                    myReaction === 'down'
+                      ? 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+                      : 'bg-white dark:bg-[#142038] text-slate-400 dark:text-slate-500 border-slate-200 dark:border-[#243452] hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                  title="Explicação confusa"
+                >
+                  <ThumbsDown className={`w-3.5 h-3.5 ${myReaction === 'down' ? 'fill-rose-500' : ''}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Prompt de ação rápida caso a explicação tenha recebido dislike */}
+            {myReaction === 'down' && (
+              <div className="p-2.5 rounded-xl bg-rose-50/90 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-900 dark:text-rose-200 flex items-center justify-between gap-3 animate-in fade-in">
+                <span className="text-[11px] leading-tight">
+                  Identificou gabarito divergente ou erro conceitual? Avise nossa equipe em 1 clique:
+                </span>
+                <ContextualFeedbackPopover
+                  questionId={question.id}
+                  label="Reportar Erro"
+                  variant="pill"
+                />
+              </div>
+            )}
           </div>
 
           {/* Vínculo de Conteúdo Teórico da Biblioteca */}
