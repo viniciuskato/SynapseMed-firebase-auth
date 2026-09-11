@@ -82,6 +82,32 @@ export const STUDY_LENSES: { id: StudyLens; label: string; description: string; 
   },
 ];
 
+// Extrai o número do módulo de títulos como "M7 — ..." ou "Módulo 10 — ..."
+// pra ordenar os cards na sequência didática em vez da ordem de inserção no
+// banco (hoje "M7" podia aparecer antes de "M2" no grid). Materiais sem
+// número no título (ex. "Citocinas: Visão Integradora") vão pro fim, em
+// ordem alfabética.
+function moduleSortKey(title: string): number {
+  const match = title.match(/^(?:M|Módulo)\s*(\d+)/i);
+  return match ? parseInt(match[1], 10) : Number.POSITIVE_INFINITY;
+}
+
+function compareByModuleThenTitle(a: Compendium, b: Compendium): number {
+  const keyDiff = moduleSortKey(a.title) - moduleSortKey(b.title);
+  if (keyDiff !== 0) return keyDiff;
+  return a.title.localeCompare(b.title, 'pt-BR');
+}
+
+// Mesma lógica de CompendiumReader.tsx (lastUpdatedDisplay): formata a data
+// em vez de mostrar o timestamp ISO cru salvo em materials.updated_at.
+function formatLastUpdated(raw?: string): string {
+  const parsed = raw?.trim() ? new Date(raw) : null;
+  if (parsed && !Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+  return raw?.trim() || 'Revisão editorial pendente';
+}
+
 export const CompendiumView: React.FC<CompendiumViewProps> = ({
   compendiums,
   disciplines,
@@ -242,6 +268,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
       }
       groups[comp.disciplineId].push(comp);
     });
+    Object.values(groups).forEach((items) => items.sort(compareByModuleThenTitle));
     return groups;
   }, [filteredCompendiums]);
 
@@ -662,13 +689,17 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
                           {/* Editorial & Update Meta */}
                           <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 space-y-1 text-[11px] text-slate-400">
                             <div className="flex items-center justify-between">
-                              <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
-                                <UserCheck className="w-3 h-3 text-teal-600" />
-                                <span className="truncate max-w-[150px]">{comp.author}</span>
-                              </span>
+                              {comp.author?.trim() ? (
+                                <span className="flex items-center gap-1 text-slate-600 dark:text-slate-300">
+                                  <UserCheck className="w-3 h-3 text-teal-600" />
+                                  <span className="truncate max-w-[150px]">{comp.author}</span>
+                                </span>
+                              ) : (
+                                <span />
+                              )}
                               <span className="flex items-center gap-1 text-slate-400">
                                 <Calendar className="w-3 h-3" />
-                                {comp.lastUpdated}
+                                {formatLastUpdated(comp.lastUpdated)}
                               </span>
                             </div>
 
@@ -748,7 +779,15 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
       ) : (
         /* ── MODO LISTA EDITORIAL (LIST) ─────────────────────────── */
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800 elev-xs">
-          {filteredCompendiums.map((comp) => {
+          {[...filteredCompendiums]
+            .sort((a, b) => {
+              const discA = disciplines.find((d) => d.id === a.disciplineId)?.name || '';
+              const discB = disciplines.find((d) => d.id === b.disciplineId)?.name || '';
+              const discDiff = discA.localeCompare(discB, 'pt-BR');
+              if (discDiff !== 0) return discDiff;
+              return compareByModuleThenTitle(a, b);
+            })
+            .map((comp) => {
             const disc = disciplines.find((d) => d.id === comp.disciplineId);
             const compProgress = readingProgress[comp.id] || { readSectionIds: [], percent: 0 };
             const isBookmarked = bookmarks.compendiums.includes(comp.id);
@@ -800,8 +839,10 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
                   </p>
 
                   <div className="flex items-center gap-4 text-[11px] text-slate-400 pt-1">
-                    <span>Curadoria: <strong className="font-medium text-slate-600 dark:text-slate-300">{comp.author}</strong></span>
-                    <span>Atualizado: {comp.lastUpdated}</span>
+                    {comp.author?.trim() && (
+                      <span>Curadoria: <strong className="font-medium text-slate-600 dark:text-slate-300">{comp.author}</strong></span>
+                    )}
+                    <span>Atualizado: {formatLastUpdated(comp.lastUpdated)}</span>
                     {compHighlights.length > 0 && (
                       <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
                         <Highlighter className="w-3 h-3" /> {compHighlights.length} destaques
