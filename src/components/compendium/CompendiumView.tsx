@@ -30,6 +30,8 @@ import { StorageService } from '../../services/storage';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { notesRepository } from '../../repositories/NotesRepository';
 import { readingProgressRepository } from '../../repositories/ReadingProgressRepository';
+import { usePersistedState } from '../../hooks/usePersistedState';
+import { useScrollMemory } from '../../hooks/useScrollMemory';
 
 interface CompendiumViewProps {
   compendiums: Compendium[];
@@ -92,13 +94,27 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
   lastReadingSession,
 }) => {
   // Navigation State: Especialidade -> Lente de Estudo -> Material
-  const [selectedDisciplineId, setSelectedDisciplineId] = useState<string>(
+  // Persistido (usePersistedState) para sobreviver à troca de seção do app
+  // (App.tsx desmonta CompendiumView ao navegar pra outra view). searchQuery
+  // fica de fora de propósito — texto de busca antigo reaparecendo ao voltar
+  // seria mais confuso que útil.
+  const [selectedDisciplineId, setSelectedDisciplineId] = usePersistedState<string>(
+    'library_discipline',
     initialDisciplineId || 'all'
   );
-  const [selectedLens, setSelectedLens] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [selectedLens, setSelectedLens] = usePersistedState<string>('library_lens', 'all');
+  const [viewMode, setViewMode] = usePersistedState<'grid' | 'list'>('library_view_mode', 'grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | EditorialStatus>('all');
+  useScrollMemory('library-list');
+
+  // initialDisciplineId representa um contexto explícito de navegação (ex.
+  // veio de "estudar esta disciplina" em outra tela) — quando presente, tem
+  // prioridade sobre a disciplina lembrada da última visita.
+  useEffect(() => {
+    if (initialDisciplineId) setSelectedDisciplineId(initialDisciplineId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialDisciplineId]);
 
   // Persistence data
   const [readingProgress, setReadingProgress] = useState<
