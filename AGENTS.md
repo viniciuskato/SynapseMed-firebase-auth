@@ -1304,11 +1304,17 @@ protótipo).
   pendência real em `docs/diretoria/retornos/11-B2.txt`, não como
   "testado". Item G (mobile 390px) testado: sem overflow horizontal,
   dock com 4 itens (Início/Biblioteca/Questões/Flashcards, sem "Caderno
-  de Erros" isolado), 0 erros de console. Fixtures de teste (questões
-  sintéticas, contas descartáveis) removidas, baseline local confirmado
-  idêntico antes/depois. `main`/Supabase remoto/deploy não tocados;
-  única operação remota foi a consulta somente leitura de inventário de
-  duplicatas.
+  de Erros" isolado), 0 erros de console. Fixtures NOMEADAS desta sessão
+  (questões sintéticas, contas descartáveis) removidas, 0 remanescentes.
+  Rodar `supabase test db` mais de uma vez (validação local + worktree
+  isolado do `npm ci`) faz `auth.users`/`questions`/`question_options`/
+  `flashcards` locais crescerem de novo — 100% fixture de pgTAP
+  (`tests.create_user`), comportamento já conhecido/aceito do projeto
+  (Supabase local acumula fixtures de pgTAP entre rodadas, sessões
+  anteriores nunca as tocam), não uma falha de limpeza desta sessão. Ver
+  `docs/diretoria/retornos/11-B2.txt`. `main`/Supabase remoto/deploy não
+  tocados; única operação remota foi a consulta somente leitura de
+  inventário de duplicatas.
 
 ## Manter este arquivo atualizado
 

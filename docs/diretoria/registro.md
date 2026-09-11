@@ -635,7 +635,7 @@ Sessão executiva independente, continuação na mesma branch `work/integracao-e
 
 **4) npm ci isolado**: validado com sucesso via `git worktree add --detach` (node_modules próprio, sem tocar no ambiente do usuário) — resolve a pendência que o 11-B tinha deixado aberta (falhava por conflito de ambiente, não por problema no lockfile). `tsc --noEmit`/`npm run build` limpos; `check-no-secret-key-leak.ts` 8/8; bundle sem `sb_secret_`/`__syncDebug`/`__setTestBackoffOverride`; `supabase test db` local 201/201 (183 + 18 pgTAP novos, sem regressão).
 
-**Limpeza**: fixtures de teste (questões sintéticas, contas descartáveis) removidas; contagens confirmadas idênticas ao baseline antes/depois (`auth.users`=66, `questions`=56, `question_options`=95, `flashcards`=12).
+**Limpeza**: fixtures de teste NOMEADAS desta sessão (questões sintéticas de paginação, contas `pagtest-*`/`srsverify-*`/`srsbrowser-*`/`mobiletest-*`/`srsrace-*`) removidas — 0 remanescentes, confirmado por consulta. Rodar `supabase test db` múltiplas vezes (validação local + worktree isolado do `npm ci`) fez `auth.users`/`questions`/`question_options`/`flashcards` crescerem de novo (66→83/56→70/95→118/12→17) — 100% fixture de pgTAP (`tests.create_user`, emails `+uuid`), comportamento já conhecido/aceito do projeto (ver AGENTS.md), não uma falha de limpeza desta sessão. Ver `docs/diretoria/retornos/11-B2.txt` para o detalhamento.
 
 **Branch e commits**: `work/integracao-estabilizacao-11b`, commits `f0a3871` (paginação) e `52c27e5` (SRS/concorrência) mais os de documentação. Enviada ao `origin` — nunca `main`.
 

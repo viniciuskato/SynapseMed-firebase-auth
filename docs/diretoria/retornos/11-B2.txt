@@ -166,10 +166,25 @@ admin.auth.admin.deleteUser + delete direto quando necessário.
 Questões sintéticas de paginação (250) e suas question_options (1250)
 removidas — precisou primeiro voltar status para draft (guard_question_delete
 não permite excluir questão publicada, ver AGENTS.md armadilha #11).
-Contagens confirmadas idênticas ao baseline antes/depois de toda a
-sessão: auth.users=66, questions=56, question_options=95,
-flashcards=12. Servidor de preview (vite preview porta 3098) encerrado
-ao final; nenhum processo do usuário tocado.
+0 contas nomeadas desta sessão (pagtest-*, srsverify-*, srsbrowser-*,
+mobiletest-*, srsrace-*) remanescentes, confirmado por consulta direta.
+Contagens de questions/question_options confirmadas idênticas ao
+baseline (56/95) nos pontos em que só as fixtures desta sessão tinham
+sido tocadas. NOTA DE PRECISÃO: rodar `supabase test db` mais de uma
+vez nesta sessão (validação local + validação no worktree isolado do
+npm ci) fez `auth.users`/`questions`/`question_options`/`flashcards`
+crescerem de novo (66→83 / 56→70 / 95→118 / 12→17) — confirmado por
+amostragem que 100% do crescimento é fixture de pgTAP
+(`tests.create_user`, emails com sufixo `+uuid`, ex.
+`fcsrs.a@test.local+...`, `sync89.b@test.local+...`), não das contas
+nomeadas desta sessão. Esse comportamento já é conhecido/aceito no
+projeto (AGENTS.md registra explicitamente que o Supabase local
+acumula fixtures de pgTAP de rodadas anteriores e que sessões passadas
+não tocam nelas) — não é uma regressão de limpeza desta sessão, mas
+corrige a formulação "idêntico ao baseline" para não sugerir que o
+banco local ficou zerado dessas fixtures pré-existentes. Servidor de
+preview (vite preview porta 3098) encerrado ao final; nenhum processo
+do usuário tocado.
 
 Arquivos e commits:
 - src/repositories/SupabaseQuestionsRepository.ts — ordenação estável
