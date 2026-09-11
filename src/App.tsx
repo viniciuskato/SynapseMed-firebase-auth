@@ -115,6 +115,13 @@ function AuthenticatedApp() {
   // Deep-link / Context State
   const [selectedCompendiumId, setSelectedCompendiumId] = useState<string | null>(null);
   const [selectedSectionId, setSelectedSectionId] = useState<string | undefined>(undefined);
+  // Qual tela da Biblioteca estava ativa por último — 'reader' enquanto o
+  // usuário está lendo um compêndio, mesmo depois de navegar temporariamente
+  // pra outra seção (Cards, Início...) e voltar. Só volta pra 'list' quando o
+  // usuário sai do leitor explicitamente (botão de voltar). Sem isso, clicar
+  // em "Biblioteca" na barra inferior sempre forçava a lista de seleção,
+  // mesmo no meio da leitura (bug relatado pelo usuário em 2026-09-11).
+  const [libraryLastView, setLibraryLastView] = useState<'list' | 'reader'>('list');
   const [activeSimuladoConfig, setActiveSimuladoConfig] = useState<SimuladoConfig | null>(null);
   // Questões já filtradas/sorteadas/cortadas por config (Prompt 07-E5 — ver
   // src/services/simuladoSelection.ts). Resolvida UMA VEZ em
@@ -150,6 +157,10 @@ function AuthenticatedApp() {
     }
     if (view === 'dashboard') {
       setDashboardTab('overview');
+    }
+    if (view === 'compendiums' && libraryLastView === 'reader' && selectedCompendiumId) {
+      setActiveView('compendium-reader');
+      return;
     }
     setActiveView(view);
   };
@@ -322,11 +333,13 @@ function AuthenticatedApp() {
     }
 
     if (!compendiumId) {
+      setLibraryLastView('list');
       setActiveView('compendiums');
       return;
     }
     setSelectedCompendiumId(compendiumId);
     setSelectedSectionId(sectionId);
+    setLibraryLastView('reader');
     setActiveView('compendium-reader');
   };
 
@@ -348,6 +361,7 @@ function AuthenticatedApp() {
     if (session?.compendiumId) {
       handleOpenCompendium(session.compendiumId, session.sectionId);
     } else {
+      setLibraryLastView('list');
       setActiveView('compendiums');
     }
   };
@@ -465,6 +479,7 @@ function AuthenticatedApp() {
               disciplines={disciplines}
               themes={themes}
               onBack={() => {
+                setLibraryLastView('list');
                 if (libraryOrigin) {
                   handleReturnToQuestions();
                 } else {
