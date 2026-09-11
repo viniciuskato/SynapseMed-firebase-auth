@@ -101,6 +101,28 @@ function parseInline(text: string): React.ReactNode[] {
 }
 
 /**
+ * Junta linhas de continuação (quebradas só por legibilidade na fonte, ex.
+ * um item de lista digitado em 3 linhas de ~70 caracteres no YAML) na linha
+ * de marcador anterior — quebra de linha simples é espaço, como em markdown
+ * padrão; só `\n\n` (bloco novo) é quebra de verdade. Sem isso, uma linha de
+ * continuação que não começa com o marcador ("- "/"1. ") derrubava a
+ * detecção de lista inteira (every() falhava) e o bloco virava parágrafo
+ * comum com o marcador aparecendo como texto literal.
+ */
+function reflowMarkedLines(lines: string[], markerRegex: RegExp): string[] | null {
+  if (!markerRegex.test(lines[0])) return null;
+  const merged: string[] = [];
+  for (const raw of lines) {
+    if (markerRegex.test(raw)) {
+      merged.push(raw.trim());
+    } else if (merged.length > 0) {
+      merged[merged.length - 1] += ' ' + raw.trim();
+    }
+  }
+  return merged;
+}
+
+/**
  * Safe markdown block parser.
  * Renders paragraphs, headings, bullet lists, ordered lists, tables, and blockquotes.
  */
@@ -227,13 +249,14 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({ content, className =
           );
         }
 
-        // Bullet list (- or * or •)
+        // Bullet list (- or * or •) — linhas de continuação (sem marcador)
+        // são juntadas na linha do marcador anterior antes de renderizar.
         const lines = trimmed.split('\n');
-        const isBulletList = lines.every((l) => /^\s*[-*•]\s+/.test(l));
-        if (isBulletList) {
+        const bulletLines = reflowMarkedLines(lines, /^\s*[-*•]\s+/);
+        if (bulletLines) {
           return (
             <ul key={bIdx} className="space-y-1.5 my-3 pl-4 list-none text-sm leading-relaxed">
-              {lines.map((line, lIdx) => {
+              {bulletLines.map((line, lIdx) => {
                 const itemText = line.replace(/^\s*[-*•]\s+/, '');
                 return (
                   <li key={lIdx} className="flex items-start gap-2">
@@ -246,12 +269,12 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({ content, className =
           );
         }
 
-        // Numbered list (1. 2. ...)
-        const isNumberedList = lines.every((l) => /^\s*\d+\.\s+/.test(l));
-        if (isNumberedList) {
+        // Numbered list (1. 2. ...) — mesma lógica de reflow acima.
+        const numberedLines = reflowMarkedLines(lines, /^\s*\d+\.\s+/);
+        if (numberedLines) {
           return (
             <ol key={bIdx} className="space-y-1.5 my-3 pl-5 list-decimal text-sm leading-relaxed">
-              {lines.map((line, lIdx) => {
+              {numberedLines.map((line, lIdx) => {
                 const itemText = line.replace(/^\s*\d+\.\s+/, '');
                 return <li key={lIdx}>{parseInline(itemText)}</li>;
               })}
@@ -259,15 +282,14 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({ content, className =
           );
         }
 
-        // Standard Paragraph with soft line breaks
+        // Standard paragraph: quebra de linha simples na fonte vira espaço
+        // (markdown padrão), não quebra forçada — deixa o navegador quebrar
+        // a linha naturalmente na largura real da coluna, o que também é
+        // necessário pra text-justify funcionar de verdade (justificar uma
+        // linha curta cortada à força no meio da frase fica ruim).
         return (
           <p key={bIdx} className="leading-[1.7] text-slate-800 dark:text-slate-200 text-base text-justify [text-justify:inter-word]">
-            {lines.map((line, lIdx) => (
-              <React.Fragment key={lIdx}>
-                {parseInline(line)}
-                {lIdx < lines.length - 1 && <br />}
-              </React.Fragment>
-            ))}
+            {parseInline(lines.map((l) => l.trim()).join(' '))}
           </p>
         );
       })}
