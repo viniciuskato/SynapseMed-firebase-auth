@@ -585,3 +585,40 @@ Sessão executiva independente, mesma branch `work/prompt-10a-cronometro-recorda
 - Logar como admin na Área Editorial e marcar manualmente os dois feedbacks acima como `em_analise` e depois `resolvido`, se a diretoria confirmar que a descrição de cada um corresponde inequivocamente ao que foi corrigido nesta publicação.
 
 **Commits desta sessão**: `c32fb9d` (fix de navegação + documentação do achado #20) e `f9c396e` (merge `--no-ff` em `main`, publicado).
+
+## Achado em produção + hotfix isolado — 2026-09-11 (flashcard automático com id inválido)
+
+Usuário reportou banner "Falha ao sincronizar" em produção (19 itens presos).
+Diagnóstico feito via DevTools real do usuário (Console + Network, 400 em
+`POST /rest/v1/flashcards`) e confirmado lendo o bundle de produção real
+(`index-B9yjir8C.js`, baixado direto do site publicado) — não foi suposição.
+
+**Causa raiz**: `storage.ts:createFlashcardFromQuestion` (o caminho de
+criação automática de flashcard ao errar uma questão) gerava
+`id: fc-from-q-<timestamp>-<random>` — string comum, não uuid. A coluna
+`flashcards.id` é `uuid` no banco. Todo flashcard automático falha ao
+sincronizar com erro Postgres `22P02 invalid input syntax for type uuid`,
+travando a fila de sincronização permanentemente para esses itens
+(ficam só no localStorage do dispositivo, nunca chegam no banco).
+Criação MANUAL de flashcard já usava `crypto.randomUUID()` corretamente —
+só o caminho automático tinha o bug. Parece ser um bug antigo (não
+introduzido por nenhuma sessão recente), só não tinha sido notado.
+
+**Achado incidental**: esse mesmo problema já tinha sido corrigido no
+Prompt 11-B2 (branch `work/integracao-estabilizacao-11b`, não mesclada),
+mas por outro motivo (compatibilidade com a RPC nova de dedupe de SRS) —
+nunca foi identificado ali como um bug de produção já ativo.
+
+**Hotfix isolado**: branch `hotfix/flashcard-auto-uuid` (a partir de
+`origin/main`, commit `4119c1e`), troca só a linha do `id` para
+`crypto.randomUUID()` — sem trazer a deduplicação/RPC/migration do
+11-B2 (que dependem da reconciliação de duplicata remota ainda pendente
+no 11-C). Validado reproduzindo o erro exato (`22P02`) contra Supabase
+local com o formato antigo, e confirmando sucesso com uuid + mesmos
+campos. `tsc --noEmit` e `npm run build` limpos. Branch enviada ao
+origin — NÃO mesclada em `main`, decisão de publicação com o usuário.
+
+**Pendência**: os 19 flashcards já presos no dispositivo do usuário
+continuam com id no formato antigo — vão continuar falhando ao
+sincronizar mesmo depois desse hotfix publicado (o fix só vale para
+flashcards criados DEPOIS dele). Não tratado nesta etapa.
