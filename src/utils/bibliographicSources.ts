@@ -22,6 +22,18 @@ export function sourceUrl(ids?: Record<string, string> | null, referenceUrl?: st
   } catch { return undefined; }
 }
 
+// Muitas referências trazem o tipo de estudo já anotado pelo autor do
+// compêndio entre colchetes no fim da citação (ex.: "... DOI: 10.1056/
+// NEJMoa1615664 [Ensaio clínico randomizado, fase 3 — FOURIER]"). Isso é
+// dado real já presente no texto, não uma classificação inferida — por
+// isso é extraído e usado como documentType em vez do rótulo genérico fixo
+// ("Artigo Científico"/"Artigo Indexado") que só refletia qual identificador
+// foi encontrado (DOI/PMID), não o tipo do estudo em si.
+function extractStudyTypeAnnotation(citationText: string): string | undefined {
+  const match = citationText.match(/\[([^[\]]+)\]\s*$/);
+  return match ? match[1].trim() : undefined;
+}
+
 export interface OpenAccessReferenceLink {
   url: string;
   badgeLabel: string;
@@ -53,6 +65,8 @@ export function resolveOpenAccessReferenceLink(
   citationText: string,
   existingUrl?: string
 ): OpenAccessReferenceLink {
+  const studyType = extractStudyTypeAnnotation(citationText);
+
   // 1. URL curada explícita — estado editorial real, preservado como está.
   if (existingUrl) {
     try {
@@ -61,7 +75,7 @@ export function resolveOpenAccessReferenceLink(
         return {
           url: existingUrl,
           badgeLabel: 'Fonte curada',
-          documentType: 'Documento Oficial',
+          documentType: studyType ?? 'Documento Oficial',
           isOpenAccess: true,
           actionLabel: 'Acessar fonte',
         };
@@ -77,7 +91,7 @@ export function resolveOpenAccessReferenceLink(
     return {
       url: urlMatch[0],
       badgeLabel: 'Link direto na citação',
-      documentType: 'Documento Oficial',
+      documentType: studyType ?? 'Documento Oficial',
       isOpenAccess: true,
       actionLabel: 'Acessar fonte',
     };
@@ -90,7 +104,7 @@ export function resolveOpenAccessReferenceLink(
     return {
       url: `https://doi.org/${doiMatch[0]}`,
       badgeLabel: 'DOI',
-      documentType: 'Artigo Científico',
+      documentType: studyType ?? 'Artigo Científico',
       isOpenAccess: false,
       actionLabel: 'Abrir DOI',
     };
@@ -103,7 +117,7 @@ export function resolveOpenAccessReferenceLink(
     return {
       url: `https://pubmed.ncbi.nlm.nih.gov/${pmidMatch[1]}/`,
       badgeLabel: 'PMID',
-      documentType: 'Artigo Indexado',
+      documentType: studyType ?? 'Artigo Indexado',
       isOpenAccess: false,
       actionLabel: 'Abrir no PubMed',
     };
@@ -120,7 +134,7 @@ export function resolveOpenAccessReferenceLink(
   return {
     url: `https://scholar.google.com/scholar?q=${encodeURIComponent(cleanTitle)}`,
     badgeLabel: 'Sugestão de busca',
-    documentType: 'Referência sem identificador confirmado',
+    documentType: studyType ?? 'Referência sem identificador confirmado',
     isOpenAccess: false,
     actionLabel: 'Pesquisar referência (Google Scholar)',
   };
