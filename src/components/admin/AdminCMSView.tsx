@@ -210,6 +210,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
   // para que o SectionEditor sempre receba a versão mais recente vinda de
   // onRefreshData (ver AGENTS.md / plano da feature).
   const [editingSectionsCompId, setEditingSectionsCompId] = useState<string | null>(null);
+  const [openEditMenuCompId, setOpenEditMenuCompId] = useState<string | null>(null);
 
   // Compendium Form Fields
   const [compTitle, setCompTitle] = useState('');
@@ -1152,23 +1153,52 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                         )}
                       </button>
 
-                      <button
-                        onClick={() => setEditingSectionsCompId(c.id)}
-                        className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-[#243452] hover:bg-stone-100 dark:hover:bg-[#1A2845] text-stone-700 dark:text-slate-300 font-semibold text-xs flex items-center gap-1 transition-colors"
-                        title="Editar texto das seções (com histórico e reversão)"
-                      >
-                        <Layers className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                        <span>Editar seções</span>
-                      </button>
+                      <div className="relative">
+                        <button
+                          onClick={() => setOpenEditMenuCompId(openEditMenuCompId === c.id ? null : c.id)}
+                          className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-[#243452] hover:bg-stone-100 dark:hover:bg-[#1A2845] text-stone-700 dark:text-slate-300 font-semibold text-xs flex items-center gap-1 transition-colors"
+                          title="Editar"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                          <span>Editar</span>
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
 
-                      <button
-                        onClick={() => handleEditCompendium(c)}
-                        className="px-3 py-1.5 rounded-lg border border-stone-200 dark:border-[#243452] hover:bg-stone-100 dark:hover:bg-[#1A2845] text-stone-700 dark:text-slate-300 font-semibold text-xs flex items-center gap-1 transition-colors"
-                        title="Editar metadados do compêndio (título, disciplina, tags...)"
-                      >
-                        <Edit3 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                        <span>Editar</span>
-                      </button>
+                        {openEditMenuCompId === c.id && (
+                          <>
+                            {/* Overlay transparente para fechar o menu ao clicar fora */}
+                            <div className="fixed inset-0 z-10" onClick={() => setOpenEditMenuCompId(null)} />
+                            <div className="absolute right-0 mt-1 w-56 rounded-lg border border-stone-200 dark:border-[#243452] bg-white dark:bg-[#0F172A] elev-md z-20 overflow-hidden">
+                              <button
+                                onClick={() => {
+                                  setEditingSectionsCompId(c.id);
+                                  setOpenEditMenuCompId(null);
+                                }}
+                                className="w-full text-left px-3 py-2.5 hover:bg-stone-100 dark:hover:bg-[#1A2845] text-stone-700 dark:text-slate-300 text-xs flex items-center gap-2 transition-colors"
+                              >
+                                <Layers className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+                                <span>
+                                  <span className="block font-semibold">Conteúdo</span>
+                                  <span className="block text-[10px] text-stone-400">Texto das seções, com histórico e reversão</span>
+                                </span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleEditCompendium(c);
+                                  setOpenEditMenuCompId(null);
+                                }}
+                                className="w-full text-left px-3 py-2.5 hover:bg-stone-100 dark:hover:bg-[#1A2845] text-stone-700 dark:text-slate-300 text-xs flex items-center gap-2 transition-colors border-t border-stone-100 dark:border-[#243452]"
+                              >
+                                <Edit3 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
+                                <span>
+                                  <span className="block font-semibold">Metadados</span>
+                                  <span className="block text-[10px] text-stone-400">Título, disciplina, tags, autor...</span>
+                                </span>
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
 
                       <button
                         onClick={() => handleDeleteCompendium(c.id, c.title)}
