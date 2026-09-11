@@ -24,6 +24,7 @@ import {
   ThemeMode,
   MigrationSummary,
   QuestionAnswerRecord,
+  LastReadingSession,
 } from './types';
 import { StorageService } from './services/storage';
 import { materialsRepository } from './repositories/MaterialsRepository';
@@ -170,6 +171,11 @@ function AuthenticatedApp() {
   // Migration State
   const [migrationSummary, setMigrationSummary] = useState<MigrationSummary | null>(null);
 
+  // Sessão de leitura em andamento para retorno contextual fluido
+  const [lastReadingSession, setLastReadingSession] = useState<LastReadingSession | null>(() =>
+    StorageService.getLastReadingSession()
+  );
+
   // Core Data State (carregados do StorageService / Supabase)
   const [theme, setTheme] = useState<ThemeMode>(() => StorageService.getTheme());
   const [plan, setPlan] = useState<UserPlan>(() => StorageService.getUserPlan());
@@ -224,6 +230,19 @@ function AuthenticatedApp() {
     }
     StorageService.setTheme(theme);
   }, [theme]);
+
+  // Atualizar sessão de leitura ativa sempre que trocar de tela ou focar na aba
+  useEffect(() => {
+    setLastReadingSession(StorageService.getLastReadingSession());
+  }, [activeView]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      setLastReadingSession(StorageService.getLastReadingSession());
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
 
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
@@ -321,6 +340,15 @@ function AuthenticatedApp() {
       setActiveView(targetView);
     } else {
       setActiveView('questions');
+    }
+  };
+
+  const handleResumeReading = () => {
+    const session = StorageService.getLastReadingSession();
+    if (session?.compendiumId) {
+      handleOpenCompendium(session.compendiumId, session.sectionId);
+    } else {
+      setActiveView('compendiums');
     }
   };
 
@@ -427,6 +455,7 @@ function AuthenticatedApp() {
               onOpenQuestionsForTheme={handleOpenQuestionsForTheme}
               returnToQuestionsContext={libraryOrigin}
               onReturnToQuestions={libraryOrigin ? handleReturnToQuestions : undefined}
+              lastReadingSession={lastReadingSession}
             />
           )}
 
@@ -461,6 +490,12 @@ function AuthenticatedApp() {
               filterThemeId={filterThemeForQuestions}
               focusQuestionId={focusQuestionId}
               initialStatusFilter={filterStatusForQuestions}
+              returnToCompendiumContext={lastReadingSession}
+              onReturnToCompendium={() => {
+                if (lastReadingSession) {
+                  handleOpenCompendium(lastReadingSession.compendiumId, lastReadingSession.sectionId);
+                }
+              }}
             />
           )}
 
@@ -579,12 +614,18 @@ function AuthenticatedApp() {
         </main>
       </div>
 
-      {/* Mobile Floating Thumb Dock */}
+      {/* Floating Thumb Dock & Navigation Hub */}
       <MobileBottomNav
         activeView={activeView}
         onSelectView={handleSelectView}
         dueCardsCount={dueCardsCount}
         errorLogCount={errorCount}
+        lastReadingSession={lastReadingSession}
+        onResumeReading={handleResumeReading}
+        onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenCreateSimulado={() => setIsCreateSimuladoOpen(true)}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {/* Global Modals */}

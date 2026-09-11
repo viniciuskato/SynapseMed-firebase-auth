@@ -296,3 +296,15 @@ export interface UserFeedback {
 }
 
 export type QuestionReactionValue = 'up' | 'down';
+
+export interface LastReadingSession {
+  compendiumId: string;
+  sectionId?: string;
+  compendiumTitle: string;
+  themeId?: string;
+  themeName?: string;
+  disciplineId?: string;
+  disciplineName?: string;
+  sectionTitle?: string;
+  updatedAt: number;
+}

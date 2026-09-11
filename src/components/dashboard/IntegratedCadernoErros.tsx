@@ -24,6 +24,7 @@ import {
   Stethoscope,
   BarChart2,
   ExternalLink,
+  ArrowLeft,
 } from 'lucide-react';
 import {
   Question,
@@ -287,6 +288,17 @@ export const IntegratedCadernoErros: React.FC<IntegratedCadernoErrosProps> = ({
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full md:w-auto shrink-0">
+          {onSwitchToOverview && (
+            <button
+              type="button"
+              onClick={onSwitchToOverview}
+              className="px-4 py-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+              title="Voltar para a Visão Geral do Dashboard"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Visão Geral</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={onStartErrorSimulado}

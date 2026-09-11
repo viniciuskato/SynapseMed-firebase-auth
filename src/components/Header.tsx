@@ -9,12 +9,6 @@ import {
   ChevronDown,
   MessageSquarePlus,
   Settings,
-  LayoutDashboard,
-  BookOpen,
-  HelpCircle,
-  Layers,
-  BookMarked,
-  Database,
 } from 'lucide-react';
 import { UserPlan, UserStats, ThemeMode } from '../types';
 import { useAuth } from '../contexts/AuthContext';
@@ -84,59 +78,8 @@ export const Header: React.FC<HeaderProps> = ({
     .join('')
     .toUpperCase();
 
-  const navItems = [
-    {
-      id: 'dashboard',
-      label: 'Início',
-      shortLabel: 'Início',
-      icon: LayoutDashboard,
-      badge: null,
-    },
-    {
-      id: 'compendiums',
-      label: 'Biblioteca Médica',
-      shortLabel: 'Biblioteca',
-      icon: BookOpen,
-      badge: null,
-    },
-    {
-      id: 'questions',
-      label: 'Questões',
-      shortLabel: 'Questões',
-      icon: HelpCircle,
-      badge: null,
-    },
-    {
-      id: 'flashcards',
-      label: 'Flashcards',
-      shortLabel: 'Cards',
-      icon: Layers,
-      badge: dueCardsCount > 0 ? dueCardsCount : null,
-      badgeColor: 'bg-teal-500/20 text-teal-700 dark:text-teal-300 border-teal-500/30',
-    },
-    {
-      id: 'errors',
-      label: 'Caderno de Erros',
-      shortLabel: 'Erros',
-      icon: BookMarked,
-      badge: errorLogCount > 0 ? errorLogCount : null,
-      badgeColor: 'bg-rose-500/20 text-rose-700 dark:text-rose-300 border-rose-500/30',
-    },
-    ...(isAdmin
-      ? [
-          {
-            id: 'admin',
-            label: 'Editorial',
-            shortLabel: 'CMS',
-            icon: Database,
-            badge: null,
-          },
-        ]
-      : []),
-  ];
-
   return (
-    <header ref={headerRef} className="sticky top-0 z-30 bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-md border-b border-[#E2E8F0] dark:border-[#243452] px-2 sm:px-5 lg:px-8 py-2.5 transition-colors max-w-full">
+    <header ref={headerRef} className="sticky top-0 z-30 bg-white/80 dark:bg-[#0B1220]/80 backdrop-blur-xl border-b border-slate-200/70 dark:border-white/10 px-3 sm:px-6 lg:px-8 py-2.5 transition-colors max-w-full">
       <div className="max-w-[1720px] mx-auto flex items-center justify-between gap-1.5 sm:gap-3">
         {/* Left: Brand Identity */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0 min-w-0">
@@ -153,50 +96,6 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Center: Segmented Command Island (Desktop & Tablet) */}
-        <nav
-          id="header-nav-island"
-          aria-label="Navegação Principal"
-          className="hidden xl:flex items-center gap-1 p-1 rounded-2xl bg-slate-100/90 dark:bg-[#142038] border border-slate-200/80 dark:border-[#243452] shadow-2xs backdrop-blur-md"
-        >
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive =
-              activeView === item.id ||
-              (item.id === 'questions' &&
-                (activeView === 'simulados' || activeView === 'simulado-session')) ||
-              (item.id === 'compendiums' && activeView === 'compendium-reader') ||
-              (item.id === 'flashcards' && activeView === 'flashcard-session');
-
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => onSelectView(item.id)}
-                className={`relative flex items-center gap-2 px-3 xl:px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  isActive
-                    ? 'bg-white dark:bg-[#0B1220] text-teal-700 dark:text-teal-300 elev-xs border border-slate-200/70 dark:border-teal-500/40 font-bold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-white/60 dark:hover:bg-[#1A2845]/70 border border-transparent'
-                }`}
-              >
-                <Icon
-                  className={`w-3.5 h-3.5 transition-colors ${
-                    isActive ? 'text-teal-600 dark:text-teal-400' : 'text-slate-400 dark:text-slate-500'
-                  }`}
-                />
-                <span className="hidden xl:inline">{item.label}</span>
-                <span className="xl:hidden inline">{item.shortLabel}</span>
-                {item.badge !== null && item.badge !== undefined && (
-                  <span
-                    className={`px-1.5 py-0.2 text-[10px] font-bold rounded-full border ${item.badgeColor}`}
-                  >
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
 
         {/* Right: Quick Search, Streak, Theme Toggle, Profile */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">

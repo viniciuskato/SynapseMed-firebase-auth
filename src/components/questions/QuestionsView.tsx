@@ -10,8 +10,9 @@ import {
   XCircle,
   Plus,
   BookOpen,
+  ArrowLeft,
 } from 'lucide-react';
-import { Question, Discipline, Theme, MedicalCycle, DifficultyLevel, QuestionAnswerRecord, QuestionReactionValue, Compendium } from '../../types';
+import { Question, Discipline, Theme, MedicalCycle, DifficultyLevel, QuestionAnswerRecord, QuestionReactionValue, Compendium, LastReadingSession } from '../../types';
 import { StorageService } from '../../services/storage';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
@@ -34,6 +35,8 @@ interface QuestionsViewProps {
    * normalmente. Undefined mantém o padrão 'all'.
    */
   initialStatusFilter?: 'all' | 'unanswered' | 'correct' | 'incorrect' | 'bookmarked';
+  returnToCompendiumContext?: LastReadingSession | null;
+  onReturnToCompendium?: () => void;
 }
 
 export const QuestionsView: React.FC<QuestionsViewProps> = ({
@@ -46,6 +49,8 @@ export const QuestionsView: React.FC<QuestionsViewProps> = ({
   filterThemeId,
   focusQuestionId,
   initialStatusFilter,
+  returnToCompendiumContext,
+  onReturnToCompendium,
 }) => {
   const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
   const [selectedTheme, setSelectedTheme] = useState<string>(filterThemeId || 'all');
@@ -136,24 +141,49 @@ export const QuestionsView: React.FC<QuestionsViewProps> = ({
 
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-6">
-      {/* Top Banner */}
-      <div className="bg-gradient-to-r from-slate-950 via-teal-950 to-cyan-950 rounded-3xl p-6 sm:p-8 text-white elev-md border border-teal-900/40 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="max-w-2xl space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 text-xs font-semibold border border-teal-400/30">
-            <HelpCircle className="w-3.5 h-3.5" />
-            <span>Banco de Questões Médicas Comentadas · +35 XP por acerto</span>
+      {/* ── Retorno ao Compêndio em Leitura ────────────────────────── */}
+      {returnToCompendiumContext && onReturnToCompendium && (
+        <div className="p-3 sm:px-4 sm:py-2.5 rounded-2xl bg-teal-500/10 dark:bg-teal-950/40 border border-teal-500/30 dark:border-teal-700/40 elev-xs flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <BookOpen className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+            <div className="truncate text-xs">
+              <span className="font-bold text-slate-900 dark:text-slate-100">Leitura em andamento:</span>{' '}
+              <span className="text-teal-700 dark:text-teal-300 font-medium">
+                {returnToCompendiumContext.compendiumTitle}
+                {returnToCompendiumContext.sectionTitle && ` · ${returnToCompendiumContext.sectionTitle}`}
+              </span>
+            </div>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Treino Deliberado Alternativa por Alternativa
+          <button
+            type="button"
+            onClick={onReturnToCompendium}
+            className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Voltar à Leitura</span>
+            <span className="sm:hidden">Voltar</span>
+          </button>
+        </div>
+      )}
+
+      {/* Top Header */}
+      <div className="bg-gradient-to-r from-slate-950 via-teal-950 to-slate-900 rounded-3xl p-5 sm:p-6 text-white elev-sm border border-teal-900/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 text-[11px] font-semibold border border-teal-400/30">
+            <HelpCircle className="w-3.5 h-3.5" />
+            <span>+35 XP por acerto · Justificativa comentada</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">
+            Banco de Questões Médicas
           </h1>
-          <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-            Cada questão traz a justificativa individual de por que cada distrator está incorreto. Ao errar, navegue diretamente à seção correspondente do compêndio e adicione o flashcard à sua rotina de repetição espaçada.
+          <p className="text-slate-300 text-xs max-w-xl leading-relaxed">
+            Treino deliberado com análise detalhada de distratores, classificação de erros e correlação teórica.
           </p>
         </div>
 
         <button
           onClick={onOpenCreateSimulado}
-          className="px-5 py-3 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 font-extrabold text-xs elev-lg shadow-teal-500/20 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
+          className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-400 hover:to-cyan-400 text-slate-950 font-extrabold text-xs elev-md shadow-teal-500/20 transition-all flex items-center gap-2 shrink-0 cursor-pointer"
         >
           <Timer className="w-4 h-4" />
           <span>Criar Simulado Personalizado</span>

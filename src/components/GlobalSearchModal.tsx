@@ -90,56 +90,56 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
     results.cards.length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-900/60 dark:bg-black/70 backdrop-blur-xs animate-in fade-in duration-150">
       <div
-        className="w-full max-w-2xl bg-white rounded-2xl elev-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[80vh]"
+        className="w-full max-w-2xl bg-white dark:bg-[#0F172A] rounded-2xl elev-2xl border border-slate-200 dark:border-[#243452] overflow-hidden flex flex-col max-h-[80vh] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search Input Bar */}
-        <div className="flex items-center px-4 py-3.5 border-b border-slate-200 gap-3">
-          <Search className="w-5 h-5 text-teal-600 shrink-0" />
+        <div className="flex items-center px-4 py-3.5 border-b border-slate-200 dark:border-[#243452] gap-3 bg-white dark:bg-[#0F172A]">
+          <Search className="w-5 h-5 text-teal-600 dark:text-teal-400 shrink-0" />
           <input
             type="text"
             autoFocus
             placeholder="Pesquisar mecanismo, doença, droga (ex: sepse, ICFEr, noradrenalina, GINA)..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="flex-1 text-base text-slate-900 placeholder:text-slate-400 focus:outline-none bg-transparent"
+            className="flex-1 text-sm sm:text-base text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none bg-transparent"
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              className="p-1 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#142038] cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           )}
           <button
             onClick={onClose}
-            className="text-xs font-semibold px-2 py-1 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200"
+            className="text-[11px] font-semibold px-2 py-1 rounded-md bg-slate-100 dark:bg-[#142038] text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#1A2845] border border-slate-200/80 dark:border-[#243452] cursor-pointer"
           >
             ESC
           </button>
         </div>
 
         {/* Filter Pills */}
-        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-slate-100 bg-slate-50/70 text-xs overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-slate-100 dark:border-[#243452] bg-slate-50/70 dark:bg-[#0B1220]/70 text-xs overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveFilter('all')}
-            className={`px-2.5 py-1 rounded-lg font-medium transition-colors ${
+            className={`px-2.5 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${
               activeFilter === 'all'
-                ? 'bg-slate-900 text-white'
-                : 'text-slate-600 hover:bg-slate-200/70'
+                ? 'bg-slate-900 dark:bg-teal-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-[#142038]'
             }`}
           >
             Tudo ({totalResults})
           </button>
           <button
             onClick={() => setActiveFilter('compendium')}
-            className={`px-2.5 py-1 rounded-lg font-medium flex items-center gap-1.5 transition-colors ${
+            className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeFilter === 'compendium'
-                ? 'bg-teal-700 text-white'
-                : 'text-slate-600 hover:bg-slate-200/70'
+                ? 'bg-teal-700 dark:bg-teal-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-[#142038]'
             }`}
           >
             <BookOpen className="w-3.5 h-3.5" />
@@ -147,10 +147,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           </button>
           <button
             onClick={() => setActiveFilter('question')}
-            className={`px-2.5 py-1 rounded-lg font-medium flex items-center gap-1.5 transition-colors ${
+            className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeFilter === 'question'
-                ? 'bg-teal-700 text-white'
-                : 'text-slate-600 hover:bg-slate-200/70'
+                ? 'bg-teal-700 dark:bg-teal-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-[#142038]'
             }`}
           >
             <HelpCircle className="w-3.5 h-3.5" />
@@ -158,10 +158,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           </button>
           <button
             onClick={() => setActiveFilter('card')}
-            className={`px-2.5 py-1 rounded-lg font-medium flex items-center gap-1.5 transition-colors ${
+            className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
               activeFilter === 'card'
-                ? 'bg-teal-700 text-white'
-                : 'text-slate-600 hover:bg-slate-200/70'
+                ? 'bg-teal-700 dark:bg-teal-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/70 dark:hover:bg-[#142038]'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -172,28 +172,34 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
         {/* Results List */}
         <div className="flex-1 overflow-y-auto p-3 space-y-4">
           {!query.trim() ? (
-            <div className="py-12 text-center text-slate-400 space-y-2">
-              <Search className="w-8 h-8 mx-auto text-slate-300" />
-              <p className="text-sm font-medium">Digite pelo menos 2 letras para pesquisar no acervo médico completo.</p>
-              <div className="flex justify-center gap-2 pt-2 text-xs text-slate-400">
-                <span>Sugestões:</span>
-                <button onClick={() => setQuery('ICFEr')} className="underline text-teal-600">ICFEr</button>
-                <button onClick={() => setQuery('Sepse')} className="underline text-teal-600">Sepse</button>
-                <button onClick={() => setQuery('Asma')} className="underline text-teal-600">Asma</button>
-                <button onClick={() => setQuery('PBE')} className="underline text-teal-600">PBE</button>
+            <div className="py-12 text-center text-slate-400 dark:text-slate-500 space-y-2">
+              <Search className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600" />
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                Digite pelo menos 2 letras para pesquisar no acervo médico completo.
+              </p>
+              <div className="flex justify-center flex-wrap gap-2 pt-2 text-xs text-slate-500 dark:text-slate-400">
+                <span>Sugestões clínicas:</span>
+                <button onClick={() => setQuery('ICFEr')} className="underline text-teal-600 dark:text-teal-400 hover:text-teal-700 font-medium cursor-pointer">ICFEr</button>
+                <button onClick={() => setQuery('Sepse')} className="underline text-teal-600 dark:text-teal-400 hover:text-teal-700 font-medium cursor-pointer">Sepse</button>
+                <button onClick={() => setQuery('Asma')} className="underline text-teal-600 dark:text-teal-400 hover:text-teal-700 font-medium cursor-pointer">Asma</button>
+                <button onClick={() => setQuery('PBE')} className="underline text-teal-600 dark:text-teal-400 hover:text-teal-700 font-medium cursor-pointer">PBE</button>
               </div>
             </div>
           ) : totalResults === 0 ? (
-            <div className="py-12 text-center text-slate-500">
-              <p className="text-sm font-semibold">Nenhum resultado encontrado para "{query}".</p>
-              <p className="text-xs text-slate-400 mt-1">Tente pesquisar por palavras-chave clínicas ou nomes de fármacos.</p>
+            <div className="py-12 text-center text-slate-500 dark:text-slate-400">
+              <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                Nenhum resultado encontrado para "{query}".
+              </p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                Tente pesquisar por palavras-chave clínicas, diretrizes ou nomes de fármacos.
+              </p>
             </div>
           ) : (
             <>
               {/* Compendiums Match */}
               {(activeFilter === 'all' || activeFilter === 'compendium') && results.compendiums.length > 0 && (
                 <div>
-                  <div className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-teal-700 flex items-center gap-1.5">
+                  <div className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-400 flex items-center gap-1.5">
                     <BookOpen className="w-3.5 h-3.5" />
                     <span>Compêndios Teóricos & Diretrizes</span>
                   </div>
@@ -205,18 +211,18 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                           onNavigateToCompendium(comp.id);
                           onClose();
                         }}
-                        className="w-full text-left p-2.5 rounded-xl border border-slate-200/80 hover:border-teal-300 hover:bg-teal-50/50 transition-all flex items-center justify-between group"
+                        className="w-full text-left p-2.5 rounded-xl border border-slate-200/80 dark:border-[#243452] bg-white dark:bg-[#142038] hover:border-teal-300 dark:hover:border-teal-500 hover:bg-teal-50/50 dark:hover:bg-teal-950/30 transition-all flex items-center justify-between group cursor-pointer"
                       >
                         <div className="space-y-0.5">
-                          <h4 className="text-xs font-bold text-slate-900 group-hover:text-teal-800">
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-teal-800 dark:group-hover:text-teal-300">
                             {comp.title}
                           </h4>
-                          <p className="text-[11px] text-slate-500 line-clamp-1">{comp.subtitle}</p>
-                          <span className="text-[10px] text-teal-600 font-medium">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">{comp.subtitle}</p>
+                          <span className="text-[10px] text-teal-600 dark:text-teal-400 font-medium">
                             {comp.sections.length} seções • {comp.estimatedReadTimeMinutes} min de leitura
                           </span>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-teal-600 shrink-0" />
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-teal-600 dark:group-hover:text-teal-400 shrink-0" />
                       </button>
                     ))}
                   </div>
@@ -226,7 +232,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               {/* Questions Match */}
               {(activeFilter === 'all' || activeFilter === 'question') && results.questions.length > 0 && (
                 <div>
-                  <div className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-blue-700 flex items-center gap-1.5">
+                  <div className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-blue-700 dark:text-blue-400 flex items-center gap-1.5">
                     <HelpCircle className="w-3.5 h-3.5" />
                     <span>Banco de Questões Comentadas</span>
                   </div>
@@ -238,25 +244,25 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                           onNavigateToQuestion(qItem.id);
                           onClose();
                         }}
-                        className="w-full text-left p-2.5 rounded-xl border border-slate-200/80 hover:border-blue-300 hover:bg-blue-50/50 transition-all flex items-center justify-between group"
+                        className="w-full text-left p-2.5 rounded-xl border border-slate-200/80 dark:border-[#243452] bg-white dark:bg-[#142038] hover:border-blue-300 dark:hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-950/30 transition-all flex items-center justify-between group cursor-pointer"
                       >
                         <div className="space-y-0.5 max-w-[85%]">
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-100 text-blue-800">
+                            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                               {qItem.institution} {qItem.year}
                             </span>
-                            <span className="text-[10px] text-slate-400 uppercase font-semibold">
+                            <span className="text-[10px] text-slate-400 dark:text-slate-400 uppercase font-semibold">
                               Dificuldade: {qItem.difficulty}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-800 font-medium line-clamp-2">
+                          <p className="text-xs text-slate-800 dark:text-slate-200 font-medium line-clamp-2">
                             {qItem.questionStem}
                           </p>
-                          <p className="text-[10px] text-slate-500 line-clamp-1">
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1">
                             {qItem.highYieldSummary}
                           </p>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 shrink-0" />
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 shrink-0" />
                       </button>
                     ))}
                   </div>
@@ -266,7 +272,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
               {/* Flashcards Match */}
               {(activeFilter === 'all' || activeFilter === 'card') && results.cards.length > 0 && (
                 <div>
-                  <div className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
+                  <div className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5" />
                     <span>Flashcards de Repetição Espaçada</span>
                   </div>
@@ -278,24 +284,24 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                           onNavigateToFlashcards(fc.tags[0]);
                           onClose();
                         }}
-                        className="w-full text-left p-2.5 rounded-xl border border-slate-200/80 hover:border-emerald-300 hover:bg-emerald-50/50 transition-all flex items-center justify-between group"
+                        className="w-full text-left p-2.5 rounded-xl border border-slate-200/80 dark:border-[#243452] bg-white dark:bg-[#142038] hover:border-emerald-300 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 transition-all flex items-center justify-between group cursor-pointer"
                       >
                         <div className="space-y-0.5 max-w-[85%]">
-                          <p className="text-xs font-semibold text-slate-900 line-clamp-1">
+                          <p className="text-xs font-semibold text-slate-900 dark:text-slate-100 line-clamp-1">
                             {fc.front}
                           </p>
-                          <p className="text-[11px] text-slate-500 line-clamp-1">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
                             {fc.mechanismHighlight || fc.back}
                           </p>
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 flex-wrap">
                             {fc.tags.map((t) => (
-                              <span key={t} className="text-[9px] px-1 bg-slate-100 text-slate-600 rounded">
+                              <span key={t} className="text-[9px] px-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded">
                                 #{t}
                               </span>
                             ))}
                           </div>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 shrink-0" />
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 shrink-0" />
                       </button>
                     ))}
                   </div>
@@ -306,9 +312,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
         </div>
 
         {/* Footer info */}
-        <div className="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-          <span>Pressione <kbd className="px-1 py-0.5 bg-white border border-slate-300 rounded font-mono">ESC</kbd> para fechar</span>
-          <span className="text-teal-700 font-medium">Pesquisa unificada em 3 bancos de dados</span>
+        <div className="p-3 bg-slate-50 dark:bg-[#0B1220] border-t border-slate-100 dark:border-[#243452] flex items-center justify-between text-xs text-slate-400 dark:text-slate-500">
+          <span>Pressione <kbd className="px-1 py-0.5 bg-white dark:bg-[#142038] border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded font-mono text-[10px]">ESC</kbd> para fechar</span>
+          <span className="text-teal-700 dark:text-teal-400 font-medium">Pesquisa unificada em 3 bases de conhecimento</span>
         </div>
       </div>
     </div>

@@ -147,12 +147,54 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
   const handleSelectAnswer = (letter: 'A' | 'B' | 'C' | 'D' | 'E') => {
     if (isFinished) return;
     const currentQ = questions[currentIdx];
+    if (!currentQ) return;
     setAnswers((prev) => {
       const next = { ...prev, [currentQ.id]: letter };
       saveDraftAnswers(config.id, next);
       return next;
     });
   };
+
+  // Suporte a atalhos de teclado durante o simulado (A-E / 1-5 e setas)
+  useEffect(() => {
+    if (isFinished) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      if (
+        activeEl &&
+        (activeEl.tagName === 'INPUT' ||
+          activeEl.tagName === 'TEXTAREA' ||
+          (activeEl as HTMLElement).isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        if (currentIdx < questions.length - 1) {
+          e.preventDefault();
+          setCurrentIdx((prev) => prev + 1);
+        }
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        if (currentIdx > 0) {
+          e.preventDefault();
+          setCurrentIdx((prev) => prev - 1);
+        }
+      } else {
+        const keyUpper = e.key.toUpperCase();
+        if (['A', 'B', 'C', 'D', 'E'].includes(keyUpper)) {
+          handleSelectAnswer(keyUpper as 'A' | 'B' | 'C' | 'D' | 'E');
+        } else if (['1', '2', '3', '4', '5'].includes(e.key)) {
+          const letters: ('A' | 'B' | 'C' | 'D' | 'E')[] = ['A', 'B', 'C', 'D', 'E'];
+          const num = parseInt(e.key, 10) - 1;
+          const currentOptions = questions[currentIdx]?.options;
+          if (num >= 0 && currentOptions && num < currentOptions.length) {
+            handleSelectAnswer(letters[num]);
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFinished, currentIdx, questions]);
 
   const handleFinishExam = async () => {
     if (isFinished) return;
@@ -413,11 +455,11 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
           )}
 
           {/* Navigation Prev / Next Buttons */}
-          <div className="flex items-center justify-between pt-2">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
             <button
               onClick={() => setCurrentIdx((prev) => Math.max(0, prev - 1))}
               disabled={currentIdx === 0}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 border transition-colors cursor-pointer ${
+              className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition-colors cursor-pointer ${
                 currentIdx === 0
                   ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-[#243452] cursor-not-allowed'
                   : 'bg-white dark:bg-[#0F172A] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-[#243452] hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -427,10 +469,18 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
               <span>Questão Anterior</span>
             </button>
 
+            <div className="hidden sm:inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+              <span>Marcar:</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-[#142038] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[10px]">A-E</kbd>
+              <span className="text-slate-300 dark:text-slate-600">·</span>
+              <span>Navegar:</span>
+              <kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-[#142038] border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-mono text-[10px]">←/→</kbd>
+            </div>
+
             <button
               onClick={() => setCurrentIdx((prev) => Math.min(questions.length - 1, prev + 1))}
               disabled={currentIdx === questions.length - 1}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 border transition-colors cursor-pointer ${
+              className={`w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border transition-colors cursor-pointer ${
                 currentIdx === questions.length - 1
                   ? 'bg-slate-100 dark:bg-slate-800/60 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-[#243452] cursor-not-allowed'
                   : 'bg-teal-700 dark:bg-teal-600 text-white border-teal-700 dark:border-teal-600 hover:bg-teal-800 dark:hover:bg-teal-500'

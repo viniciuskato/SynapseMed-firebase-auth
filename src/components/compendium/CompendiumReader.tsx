@@ -172,6 +172,22 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
     };
   }, [compendium.id, targetSectionId]);
 
+  // Persistir sessão de leitura ativa para navegação contextual fluida
+  useEffect(() => {
+    const sec = compendium.sections.find((s) => s.id === activeSectionId) || compendium.sections[0];
+    StorageService.saveLastReadingSession({
+      compendiumId: compendium.id,
+      compendiumTitle: compendium.title,
+      sectionId: sec?.id,
+      sectionTitle: sec?.title,
+      disciplineId: compendium.disciplineId,
+      disciplineName: discipline?.name,
+      themeId: compendium.themeId,
+      themeName: theme?.name,
+      updatedAt: Date.now(),
+    });
+  }, [compendium, activeSectionId, discipline?.name, theme?.name]);
+
   const showToast = (msg: string) => {
     setNotification(msg);
     setTimeout(() => setNotification(null), 3000);
@@ -536,33 +552,6 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
 
       {/* ── Central Editorial Article (max-width between 760 and 820px) ───── */}
       <main className="max-w-[780px] w-full mx-auto px-4 sm:px-8 py-8 sm:py-12" onClick={handleContentClick}>
-        {/* Banner contextual de retorno às questões */}
-        {onReturnToQuestions && returnToQuestionsContext && (
-          <div className="mb-6 p-4 rounded-2xl bg-teal-50/90 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 elev-xs">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-[#0F766E] dark:bg-[#14B8A6] text-white dark:text-[#0B1220] flex items-center justify-center shrink-0">
-                <BookOpen className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-[#0F766E] dark:text-[#14B8A6]">
-                  Fundamentação Teórica da Questão
-                </p>
-                <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                  Você abriu este compêndio para revisar a teoria da questão. Ao concluir a leitura, retorne diretamente.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onReturnToQuestions}
-              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-colors elev-xs cursor-pointer"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>{returnToQuestionsContext.label || 'Retornar às Questões'}</span>
-            </button>
-          </div>
-        )}
-
         {/* Anotações Pessoais Panel */}
         {showNoteDrawer && (
           <div className="mb-8 p-4 sm:p-5 rounded-xl border border-[#E2E8F0] dark:border-[#263244] bg-white dark:bg-[#111827] elev-xs">
@@ -901,6 +890,54 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
             </div>
           </footer>
         )}
+
+        {/* ── Fixação do Conteúdo / Próximos Passos Interativos ────── */}
+        <section
+          aria-label="Fixação do Conteúdo"
+          className="my-10 p-6 rounded-3xl bg-gradient-to-br from-teal-500/10 via-slate-50 to-indigo-500/5 dark:from-teal-950/40 dark:via-[#111827] dark:to-indigo-950/20 border border-teal-500/30 dark:border-teal-700/40 elev-md space-y-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-teal-600 dark:bg-teal-500 text-white dark:text-slate-950 flex items-center justify-center shrink-0 elev-xs shadow-teal-600/30">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-teal-700 dark:text-teal-300">
+                Fixação & Aplicação Clínica
+              </span>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900 dark:text-slate-100">
+                Pronto para testar seus conhecimentos?
+              </h3>
+            </div>
+          </div>
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+            Consolide o que você acabou de ler resolvendo questões de prova com comentários detalhados sobre {theme?.name || compendium.title} ou revisando os flashcards de repetição espaçada.
+          </p>
+          <div className="flex flex-wrap items-center gap-2.5 pt-2">
+            <button
+              type="button"
+              onClick={() => onOpenQuestionsForTheme(compendium.themeId)}
+              className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all flex items-center gap-2 cursor-pointer elev-xs hover:scale-[1.02]"
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span>Resolver Questões deste Tema</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenFlashcardsForTheme(compendium.themeId)}
+              className="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Layers className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span>Revisar Flashcards</span>
+            </button>
+            <button
+              type="button"
+              onClick={onBack}
+              className="px-4 py-2.5 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition-colors cursor-pointer ml-auto"
+            >
+              Voltar à Biblioteca
+            </button>
+          </div>
+        </section>
       </main>
     </div>
   );

@@ -25,7 +25,7 @@ import {
   AlertCircle,
   ArrowLeft,
 } from 'lucide-react';
-import { Compendium, Discipline, Theme, StudyLens, EditorialStatus } from '../../types';
+import { Compendium, Discipline, Theme, StudyLens, EditorialStatus, LastReadingSession } from '../../types';
 import { StorageService } from '../../services/storage';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { notesRepository } from '../../repositories/NotesRepository';
@@ -44,6 +44,7 @@ interface CompendiumViewProps {
     label?: string;
   } | null;
   onReturnToQuestions?: () => void;
+  lastReadingSession?: LastReadingSession | null;
 }
 
 export const STUDY_LENSES: { id: StudyLens; label: string; description: string; icon: any }[] = [
@@ -88,6 +89,7 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
   initialDisciplineId,
   returnToQuestionsContext,
   onReturnToQuestions,
+  lastReadingSession,
 }) => {
   // Navigation State: Especialidade -> Lente de Estudo -> Material
   const [selectedDisciplineId, setSelectedDisciplineId] = useState<string>(
@@ -109,6 +111,29 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
   }>({ questions: [], compendiums: [], flashcards: [] });
   const [notes, setNotes] = useState<Record<string, string>>({});
   const highlights = StorageService.getHighlights();
+
+  // Materiais que foram começados e não terminados (para colocar no começo da biblioteca)
+  const inProgressCompendiums = useMemo(() => {
+    return compendiums
+      .filter((comp) => {
+        const prog = readingProgress[comp.id];
+        const hasStartedProgress =
+          (prog && prog.percent > 0 && prog.percent < 100) ||
+          (prog && prog.readSectionIds.length > 0 && prog.readSectionIds.length < comp.sections.length);
+        const isCurrentSessionActive =
+          lastReadingSession?.compendiumId === comp.id && (prog?.percent || 0) < 100;
+        return hasStartedProgress || isCurrentSessionActive;
+      })
+      .sort((a, b) => {
+        const isAActive = lastReadingSession?.compendiumId === a.id;
+        const isBActive = lastReadingSession?.compendiumId === b.id;
+        if (isAActive) return -1;
+        if (isBActive) return 1;
+        const progA = readingProgress[a.id]?.percent || 0;
+        const progB = readingProgress[b.id]?.percent || 0;
+        return progB - progA;
+      });
+  }, [compendiums, readingProgress, lastReadingSession]);
 
   useEffect(() => {
     let cancelled = false;
@@ -210,24 +235,20 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
     <div className="space-y-6 w-full max-w-[1600px] mx-auto">
       {/* ── Retorno contextual às questões ─────────────────────── */}
       {returnToQuestionsContext && onReturnToQuestions && (
-        <div className="p-4 rounded-2xl bg-teal-50/90 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 elev-xs">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-[#0F766E] dark:bg-[#14B8A6] text-white dark:text-[#0B1220] flex items-center justify-center shrink-0">
-              <BookOpen className="w-4 h-4" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-[#0F766E] dark:text-[#14B8A6]">
-                Navegação Originada de Questões
-              </p>
-              <p className="text-[11px] text-slate-600 dark:text-slate-300">
-                Você abriu a biblioteca para consulta de material. Você pode retornar à resolução a qualquer instante.
-              </p>
+        <div className="p-3 sm:px-4 sm:py-2.5 rounded-2xl bg-teal-500/10 dark:bg-teal-950/40 border border-teal-500/30 dark:border-teal-700/40 elev-xs flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <BookOpen className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+            <div className="truncate text-xs">
+              <span className="font-bold text-slate-900 dark:text-slate-100">Consulta originada de questões:</span>{' '}
+              <span className="text-slate-600 dark:text-slate-400 font-medium hidden sm:inline">
+                Você pode retornar à resolução a qualquer momento.
+              </span>
             </div>
           </div>
           <button
             type="button"
             onClick={onReturnToQuestions}
-            className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-bold flex items-center justify-center gap-1.5 shrink-0 transition-colors elev-xs cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>{returnToQuestionsContext.label || 'Retornar às Questões'}</span>
@@ -281,6 +302,110 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* ── MATERIAIS EM PROGRESSO (COMEÇADOS E NÃO TERMINADOS) ────── */}
+      {inProgressCompendiums.length > 0 && (
+        <section
+          aria-label="Materiais em Progresso"
+          className="p-5 sm:p-6 rounded-3xl bg-gradient-to-br from-teal-500/10 via-slate-50/80 to-emerald-500/5 dark:from-teal-950/40 dark:via-[#0F172A] dark:to-emerald-950/20 border border-teal-500/30 dark:border-teal-700/40 elev-xs space-y-4 animate-in fade-in"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-teal-600 text-white flex items-center justify-center shrink-0 elev-xs shadow-teal-600/30">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>Continuar de Onde Parou</span>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-300 font-semibold">
+                    {inProgressCompendiums.length} em andamento
+                  </span>
+                </h3>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Materiais iniciados recentemente com seções pendentes de leitura
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {inProgressCompendiums.map((comp) => {
+              const disc = disciplines.find((d) => d.id === comp.disciplineId);
+              const theme = themes.find((t) => t.id === comp.themeId);
+              const prog = readingProgress[comp.id] || { readSectionIds: [], percent: 0 };
+              const unreadSection = comp.sections.find((s) => !prog.readSectionIds.includes(s.id));
+              const nextSectionId = unreadSection?.id || comp.sections[0]?.id;
+
+              return (
+                <div
+                  key={comp.id}
+                  className="p-4 rounded-2xl bg-white/95 dark:bg-[#142038]/90 border border-teal-500/20 dark:border-teal-700/30 elev-xs hover:border-teal-500/60 hover:-translate-y-0.5 transition-all flex flex-col justify-between group shadow-sm"
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between text-[10px]">
+                      <span className="font-bold text-teal-700 dark:text-teal-300 uppercase tracking-wider truncate max-w-[170px]">
+                        {disc?.name} · {theme?.name}
+                      </span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300">
+                        {prog.percent}% concluído
+                      </span>
+                    </div>
+
+                    <h4
+                      onClick={() => onOpenCompendium(comp.id, nextSectionId)}
+                      className="font-serif-reading text-sm font-bold text-slate-900 dark:text-slate-100 group-hover:text-teal-600 dark:group-hover:text-teal-400 cursor-pointer transition-colors line-clamp-1"
+                    >
+                      {comp.title}
+                    </h4>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                      <div
+                        className="bg-gradient-to-r from-teal-500 to-emerald-500 h-full rounded-full transition-all duration-300"
+                        style={{ width: `${Math.max(5, prog.percent)}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                      <span>{prog.readSectionIds.length} de {comp.sections.length} seções</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {comp.estimatedReadTimeMinutes} min
+                      </span>
+                    </div>
+
+                    {unreadSection && (
+                      <p className="text-[11px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-[#0F172A] p-2 rounded-xl border border-slate-100 dark:border-slate-800 line-clamp-1">
+                        <span className="font-semibold text-teal-700 dark:text-teal-400">Próxima: </span>
+                        {unreadSection.title}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onOpenQuestionsForTheme(comp.themeId)}
+                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer text-xs"
+                      title="Resolver questões sobre este tema"
+                    >
+                      <HelpCircle className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenCompendium(comp.id, nextSectionId)}
+                      className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer elev-xs hover:scale-[1.02]"
+                    >
+                      <span>Continuar Leitura</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ── NAVEGAÇÃO ESTRUTURADA ETAPA 1: Especialidades Médicas ──── */}
       <div className="space-y-2">

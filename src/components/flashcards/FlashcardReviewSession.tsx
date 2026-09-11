@@ -117,15 +117,15 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
   if (sessionCompleted || !currentCard) {
     return (
       <div className="max-w-2xl mx-auto py-12 px-4 text-center space-y-6">
-        <div className="w-20 h-20 bg-teal-50 border-2 border-teal-200 text-teal-700 rounded-3xl mx-auto flex items-center justify-center elev-lg animate-in zoom-in-75">
+        <div className="w-20 h-20 bg-teal-50 dark:bg-teal-950/60 border-2 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 rounded-3xl mx-auto flex items-center justify-center elev-lg animate-in zoom-in-75">
           <Award className="w-10 h-10" />
         </div>
 
         <div className="space-y-2">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
             Sessão de Revisão Concluída!
           </h2>
-          <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
+          <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
             Você revisou <strong>{reviewedCount} cartões</strong>. O algoritmo de repetição espaçada agendou automaticamente a próxima data de cada conceito para maximizar a retenção de longo prazo.
           </p>
         </div>
@@ -133,7 +133,7 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
         <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={onFinishSession}
-            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs elev-md transition-all"
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-teal-700 hover:bg-teal-800 text-white font-bold text-xs elev-md transition-all cursor-pointer"
           >
             Voltar ao Painel de Flashcards
           </button>

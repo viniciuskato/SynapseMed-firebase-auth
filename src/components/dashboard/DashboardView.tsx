@@ -355,19 +355,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <Timer className="w-4 h-4 text-teal-400" />
               <span>Simulados & Provas</span>
             </button>
-
-            <button
-              type="button"
-              onClick={() => handleSwitchTab('errors')}
-              className={`px-4 py-2.5 rounded-2xl border text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                activeTab === 'errors'
-                  ? 'bg-rose-500 text-white border-rose-500 elev-sm'
-                  : 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/30'
-              }`}
-            >
-              <AlertTriangle className="w-4 h-4 text-rose-400" />
-              <span>Caderno de Erros ({errorLogs.length})</span>
-            </button>
           </div>
         </div>
       </div>
@@ -404,31 +391,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {errorLogs.length}
               </span>
             )}
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
-          <span className="font-semibold text-slate-400 dark:text-slate-500">Materiais de Estudo:</span>
-          <button
-            type="button"
-            onClick={() => onSelectView('compendiums')}
-            className="px-2.5 py-1 rounded-lg bg-teal-50/80 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-bold hover:bg-teal-100 transition-colors cursor-pointer"
-          >
-            Biblioteca Teórica
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectView('questions')}
-            className="px-2.5 py-1 rounded-lg bg-teal-50/80 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-bold hover:bg-teal-100 transition-colors cursor-pointer"
-          >
-            Questões
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectView('flashcards')}
-            className="px-2.5 py-1 rounded-lg bg-teal-50/80 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-bold hover:bg-teal-100 transition-colors cursor-pointer"
-          >
-            Flashcards
           </button>
         </div>
       </div>

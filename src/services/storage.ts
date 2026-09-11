@@ -12,6 +12,7 @@ import {
   ThemeMode,
   MigrationSummary,
   UserFeedback,
+  LastReadingSession,
 } from '../types';
 import {
   INITIAL_DISCIPLINES,
@@ -42,6 +43,7 @@ export const STORAGE_KEYS = {
   THEME: 'synapse_theme_v1',
   FEEDBACK: 'synapse_feedback_v1',
   QUESTION_REACTIONS: 'synapse_question_reactions_v1',
+  LAST_READING_SESSION: 'synapse_last_reading_session_v1',
 };
 
 // Current active user ID for isolated storage
@@ -305,6 +307,18 @@ export const StorageService = {
     progress[compendiumId] = compProgress;
     setItem(getUserKey(STORAGE_KEYS.READING_PROGRESS), progress);
     return compProgress.percent;
+  },
+
+  // --- Last Reading Session (Isolado por UID) ---
+  getLastReadingSession(): LastReadingSession | null {
+    return getItem<LastReadingSession | null>(getUserKey(STORAGE_KEYS.LAST_READING_SESSION), null);
+  },
+  saveLastReadingSession(session: LastReadingSession | null): void {
+    if (!session) {
+      localStorage.removeItem(getUserKey(STORAGE_KEYS.LAST_READING_SESSION));
+    } else {
+      setItem(getUserKey(STORAGE_KEYS.LAST_READING_SESSION), session);
+    }
   },
 
   // --- Bookmarks (Isolado por UID) ---
