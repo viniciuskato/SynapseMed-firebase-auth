@@ -535,6 +535,27 @@ protótipo).
     reconciliar antes; ver `docs/diretoria/retornos/11-B2.txt` para IDs
     anonimizados e proposta de reconciliação. A migration NÃO foi aplicada
     no remoto nesta etapa.
+25. **RESOLVIDO no Prompt 11-B3 (2026-09-11).** `App.tsx`: `activeCompendium
+    = compendiums.find(...) || compendiums[0]` abria arbitrariamente o
+    PRIMEIRO compêndio publicado da lista sempre que `selectedCompendiumId`
+    não batia com nenhum compêndio carregado (id inválido, despublicado ou
+    arquivado) — mesma classe de bug da armadilha #6/gate 6 do 11-B
+    (fallback por coincidência em vez de recusa honesta), só que em
+    `App.tsx`, não em `FlashcardsView`/`FlashcardReviewSession` (que já
+    tinham sido corrigidos). Encontrado testando um flashcard com
+    `compendiumRefId` apontando para um material despublicado (Prompt
+    11-B3, Teste D). Corrigido: sem fallback; quando o id não resolve, a
+    view `compendium-reader` mostra "Material não encontrado" com botão de
+    volta, em vez de abrir qualquer coisa. Também nesta etapa, em
+    `utils/bibliographicSources.ts`: o regex de DOI embutido no texto da
+    citação (`/10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i`) incluía `.` na classe de
+    caracteres, então um DOI no fim de frase ("...10.xxxx/yyyy." + espaço)
+    capturava também o ponto final, gerando link malformado
+    (`doi.org/yyyy.`). Corrigido removendo pontuação de fechamento de
+    frase (`. , ; ) ]`) do final do match — nunca legítima como último
+    caractere de um DOI real. Os dois só foram encontrados por teste de
+    navegador real (Playwright/Chromium contra Supabase local com
+    fixtures dedicadas), não por leitura de código isolada.
 
 ## Convenções de trabalho
 
@@ -1315,6 +1336,49 @@ protótipo).
   `docs/diretoria/retornos/11-B2.txt`. `main`/Supabase remoto/deploy não
   tocados; única operação remota foi a consulta somente leitura de
   inventário de duplicatas.
+- **Prompt 11-B3 (2026-09-11), mesma branch `work/integracao-
+  estabilizacao-11b`**: fechados os cenários A, B, D, E, F que o 11-B2
+  tinha deixado sem prova de navegador. Teste de navegador REAL
+  (Playwright/Chromium contra `vite build --mode development` + `vite
+  preview`, Supabase local) com fixtures dedicadas (1 conta descartável,
+  3 questões, 3 materiais, 5 fontes cobrindo URL curada/DOI/PMID/sem-
+  identificador/citação incompleta, 4 flashcards de vínculo) — 37/37
+  asserções OK. Achados e correções desta etapa: ver armadilha #25
+  acima (`App.tsx` abria arbitrariamente o primeiro compêndio da lista
+  quando o id vinculado não resolvia; regex de DOI embutido incluía o
+  ponto final de frase no link). Confirmado sem side-effect: criar/
+  editar anotação, marcar dominada e reabrir erro no Caderno integrado
+  NUNCA geram `question_attempts`/`error_notebook` novos (contagem
+  idêntica antes/depois de cada ação). Falha parcial de gabarito
+  induzida deterministicamente via `page.route` interceptando a RPC
+  `get_question_review` de UMA questão específica: a questão afetada
+  fica com o texto genérico padrão (sem gabarito real), as demais
+  carregam normalmente, 0 `pageerror` (nenhuma rejeição global não
+  tratada), sem contaminação cruzada entre questões. Vínculos com a
+  Biblioteca confirmados na UI real: flashcard com `compendiumRefId`
+  válido abre exatamente o compêndio indicado; sem `compendiumRefId`
+  não mostra ação; mesmo tema/disciplina sem ID explícito não cria
+  vínculo; `compendiumRefId` inválido (material despublicado) não abre
+  nada arbitrário — mostra "Material não encontrado" (fix desta etapa).
+  Retorno contextual questão→Biblioteca→questão de origem confirmado
+  (preserva o foco exato); fluxo de flashcard→Biblioteca não promete
+  retorno nenhum na UI (nenhuma correção necessária, nada a ampliar).
+  Referências: os 5 tipos (URL curada, DOI, PMID, sem-identificador→
+  Scholar, citação incompleta) renderizam com texto original íntegro,
+  rótulo honesto por tipo, href correto, sem metadado inventado, sem
+  promessa de acesso aberto/texto integral, sem botão ativo para a
+  citação incompleta. Duplicata remota (1 grupo, já achado no 11-B2):
+  inventário completo somente-leitura coletado (created_at, hash de
+  conteúdo, estado SRS, contagem/janela de `flashcard_reviews`,
+  dependências FK) — classificada como "duplicata equivalente sem
+  histórico divergente" (mesmo hash de conteúdo, 0 reviews nas duas
+  linhas, 0 dependências FK). Script de reconciliação parametrizado
+  criado e provado com 3 fixtures locais (ver
+  `scripts/reconcile-flashcard-duplicate.sql`) — NÃO aplicado no
+  remoto. `tsc --noEmit` e `vite build` (modo padrão e `--mode
+  development`) limpos após as correções. `main`/Supabase remoto/
+  deploy não tocados nesta etapa; nenhuma migration nova. Ver
+  `docs/diretoria/retornos/11-B3.txt` para o retorno completo.
 
 ## Manter este arquivo atualizado
 

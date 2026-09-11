@@ -1,0 +1,262 @@
+RETORNO: 11-B3
+
+Resultado:
+Fechados os cinco cenários (A, B, D, E, F) que o 11-B2 tinha deixado sem
+prova de navegador, na mesma branch work/integracao-estabilizacao-11b.
+Antes de editar: confirmada ausência de outra sessão escritora (nenhum
+lock/processo conflitante neste repositório; dois `npm run dev` do
+próprio usuário em 3000/3001 identificados e preservados intocados, um
+processo Codex de outra ferramenta rodando no sistema mas sem evidência
+de escrita nesta árvore); `git fetch` inicial trouxe um ref remoto
+desatualizado (origin/work/integracao-estabilizacao-11b apareceu em
+37e8782) — um segundo fetch com refspec explícito e `git ls-remote`
+confirmaram o HEAD real do GitHub em 9eb5fc7, idêntico ao HEAD local (o
+`git fetch` plano estava simplesmente não atualizando o ref de
+rastreamento, não uma divergência real); origin/main confirmado em
+fb989a4 antes e depois, idêntico. Nenhum fast-forward foi necessário —
+a branch já estava sincronizada. Supabase remoto e deploy não foram
+tocados (única operação remota desta etapa foi leitura, ver seção de
+inventário abaixo).
+
+Teste A — Início e Caderno:
+Playwright real contra Supabase LOCAL (vite build --mode development +
+vite preview). Conta e questão descartáveis criadas. Fluxo completo
+testado: abrir a aba integrada no Início, criar anotação, editar
+anotação, marcar erro como dominado, RECARREGAR a página, confirmar
+persistência da anotação editada e do estado "Dominada", reabrir o
+erro, confirmar novamente o estado após novo reload. Contagem de
+question_attempts e error_notebook consultada diretamente no banco
+ANTES e DEPOIS de cada uma dessas quatro ações (criar nota, editar
+nota, dominar, reabrir) — idêntica nos quatro casos (3/3, o total das 3
+respostas erradas iniciais, nunca aumentou). Rota/ação legada "errors":
+nenhum ponto do código atual (App.tsx/Header/MobileBottomNav) ainda
+chama onSelectView('errors') a partir de uma navegação nova (grep
+confirmou 0 ocorrências) — o único caminho reachable pela UI hoje é a
+aba "Caderno de Erros" DENTRO do Início, que é exatamente o alvo de
+convergência do branch morto `if (view === 'errors') { setDashboardTab
+('errors'); setActiveView('dashboard'); }` em App.tsx. Testado esse
+caminho (clique na aba), consistente com o que o 11-B já havia
+documentado como a forma prática de exercitar essa convergência.
+37/37 asserções desta etapa (contando A+B+D+E+F) OK — ver resumo
+completo abaixo.
+
+Teste B — falha parcial:
+Falha induzida DETERMINISTICAMENTE via page.route interceptando POST
+para rest/v1/rpc/get_question_review, inspecionando o corpo da
+requisição (p_question_id) e retornando 500 SÓ para uma questão
+específica; as demais chamadas passaram por route.continue() normal.
+Prova (não só inspeção do Promise.allSettled): a questão com falha
+induzida ficou com o texto genérico padrão ("Revise o mecanismo
+fisiopatológico...") em vez do comentário real; a outra questão
+carregou seu comentário real ("Comentario geral B2."); nenhum dado de
+gabarito vazou entre as duas questões; 0 "pageerror" (nenhuma rejeição
+global não tratada); a tela continuou utilizável (filtro de busca
+testado e respondeu normalmente logo em seguida). O único "console
+error" capturado foi o próprio 500 de rede esperado (log padrão do
+navegador para requisição falha), não um erro de aplicação.
+
+Testes D/E — vínculos e retorno:
+Fixtures locais mínimas: 3 materiais (1 publicado válido, 1 publicado
+"não deveria abrir por engano", 1 em rascunho/despublicado), 4
+flashcards e 1 questão com material_id+material_section_id explícitos.
+- Flashcard com compendiumRefId válido: abre EXATAMENTE o compêndio
+  indicado.
+- Flashcard sem compendiumRefId: não mostra nenhuma ação de abrir
+  Biblioteca.
+- Flashcard com mesmo tema/disciplina de um compêndio real mas SEM
+  compendiumRefId: também não mostra ação nenhuma (nenhum vínculo
+  criado por coincidência).
+- Flashcard com compendiumRefId "inválido" (aponta para um material
+  despublicado, portanto fora da lista que o estudante enxerga): o
+  clique NÃO abriu o compêndio válido nem o outro compêndio publicado
+  (que estava propositalmente primeiro/segundo na lista, para expor
+  justamente o bug de fallback arbitrário) — mostrou um estado honesto
+  de "Material não encontrado". Esse comportamento só ficou correto
+  DEPOIS de uma correção aplicada nesta etapa (ver "Arquivos, commits e
+  branch" abaixo) — antes da correção, App.tsx caía num fallback
+  `compendiums[0]` que abriria arbitrariamente o primeiro compêndio da
+  lista; o bug foi encontrado exatamente por este teste, corrigido, e
+  o teste então re-executado com sucesso.
+- Mesma verificação para uma QUESTÃO com material e seção vinculados
+  explicitamente: abre o compêndio/seção corretos.
+- Retorno contextual questão -> Biblioteca -> questão de origem:
+  confirmado, o banner "Retornar às Questões" aparece e o clique volta
+  exatamente para a questão de origem (foco preservado).
+- Retorno contextual flashcard -> Biblioteca: a interface NÃO promete
+  esse retorno neste fluxo (nenhum libraryOrigin é setado quando a
+  view de origem é 'flashcards', confirmado por leitura de código e
+  por teste — nenhum banner de "retornar" aparece). Por instrução do
+  prompt, esse fluxo não foi ampliado nem "corrigido" — não há nada
+  quebrado, é a ausência deliberada de uma promessa que o produto nunca
+  fez.
+
+Teste F — referências:
+Exercitados visualmente os 5 tipos com fontes fixture dedicadas
+(bibliografia real de uma questão respondida): URL curada (href exato
+= o URL cadastrado, rótulo "Abrir fonte"), DOI embutido no texto (href
+= doi.org/<DOI exato>, rótulo "Abrir DOI"), PMID embutido (href =
+pubmed.ncbi.nlm.nih.gov/<PMID>/, rótulo "Abrir no PubMed"), texto sem
+identificador (fallback Scholar, rótulo "Pesquisar referência (Google
+Scholar)", href de busca, nunca de acesso direto), citação incompleta
+("[3]", sem texto restante após limpeza) — confirmado que NÃO gera
+botão ativo (contagem total de links de citação = 4, não 5). Texto
+original de cada citação preservado integralmente na tela (nenhuma
+citação foi reescrita/decomposta). Nenhum autor/ano/página/volume/
+cidade/editora inventado (o modelo de dados nem tem esses campos
+estruturados — confirmado pela ausência total dessas strings na
+página). Ausência de qualquer promessa de "acesso aberto"/"texto
+integral garantido" na tela. Nenhum rótulo "ABNT NBR 6023" encontrado
+(o código já usa rótulos honestos desde o 11-B — "Bibliografia da
+questão"/verificação por status real, não uma formatação ABNT
+fabricada), então nenhuma alteração de rótulo foi necessária aqui.
+Achado e corrigido nesta etapa: o regex de DOI embutido incluía o ponto
+final de frase quando o DOI aparecia no fim de uma sentença
+("...10.xxxx/yyyy." + espaço), gerando um link malformado
+(doi.org/yyyy.) — corrigido para descartar pontuação de fechamento (.
+, ; ) ]) do final do match; teste re-executado, href passou a vir sem
+o ponto (doi.org/10.36660/abc.20220123).
+
+Inventário anonimizado da duplicata:
+Grupo já identificado no 11-B2 (user 06948458..., questão ef5c8134...,
+2 flashcards). Coletado SOMENTE LEITURA via `supabase db query
+--linked` (nenhuma escrita, nenhum dado pessoal como e-mail/nome
+consultado ou exposto):
+- Flashcard 1 (id truncado 8090042a...): created_at 2026-09-09
+  17:48:38.52, hash de conteúdo (front+back+mechanism_highlight)
+  ff341ed5..., material_id nulo (sem vínculo de biblioteca), SRS:
+  repetition_count=0/ease=2.50/interval=0/state='new', 0
+  flashcard_reviews, sem primeiro/último horário de revisão (nunca
+  revisado).
+- Flashcard 2 (id truncado de9cae09...): created_at 2026-09-09
+  17:48:39.81 (~1,3s depois do primeiro — consistente com a corrida de
+  criação concorrente já documentada no 11-B2), MESMO hash de conteúdo
+  ff341ed5..., material_id nulo, SRS idêntico ao do outro
+  (repetition_count=0/ease=2.50/interval=0/state='new'), 0
+  flashcard_reviews.
+- Dependências por FK: 0 linhas em bookmarks, 0 em notes, 0 em
+  flashcard_reviews apontando para qualquer um dos dois ids (consulta
+  direta, nenhuma suposição).
+Classificação: DUPLICATA EQUIVALENTE SEM HISTÓRICO DIVERGENTE (mesmo
+hash de conteúdo, zero revisões nos dois lados, zero dependências).
+
+Plano e dry-run da reconciliação:
+Script parametrizado versionado em
+scripts/reconcile-flashcard-duplicate.sql (SEM IDs reais — usa
+parâmetros keep_id/remove_id/expected_user_id/
+expected_question_origin_id/dry_run passados na invocação). Pré-
+condições verificadas antes de qualquer escrita (aborta com RAISE
+EXCEPTION e ROLLBACK se qualquer uma falhar): as duas linhas existem;
+pertencem ao MESMO user_id e question_origin_id informados
+explicitamente (nunca um padrão de busca solto); keep_id é de fato o
+mais antigo (created_at <= remove_id); conteúdo (front+back+
+mechanism_highlight) é IDÊNTICO entre as duas — se divergir, o script
+NÃO apaga nada: grava os dois textos completos em
+flashcard_reconciliation_review (tabela criada sob demanda, fora de
+qualquer transação que possa reverter) e aborta, para decisão humana.
+Quando as pré-condições passam: migra flashcard_reviews de remove_id
+para keep_id, mas só os eventos que NÃO são duplicata exata (mesmo
+reviewed_at+rating) de um evento já existente em keep_id — dedupe
+real, sem duplicar histórico; reaponta bookmarks/notes de remove_id
+para keep_id, descartando duplicata se keep_id já tiver o mesmo
+vínculo; adota o estado SRS de remove_id SE ele tiver progredido mais
+(mais repetições) que o de keep_id, nunca faz média; apaga a linha
+excedente; valida ao final (exatamente 1 linha restante no grupo,
+contagem de reviews bate com pré+migrados, nenhuma referência órfã).
+dry_run=true (padrão) sempre reverte no final, mesmo com tudo OK;
+dry_run=false só persiste se TODAS as validações passaram.
+Provado com 3 fixtures locais equivalentes (usuários/questões
+sintéticos, nunca os IDs reais do grupo remoto):
+1. Equivalente sem histórico (réplica exata do caso remoto real):
+   dry-run OK, execução real OK, colapsou para 1 linha (a mais
+   antiga).
+2. Conteúdo DIVERGENTE: o script recusou, preservou os dois textos
+   completos em flashcard_reconciliation_review, nenhuma linha
+   apagada (confirmado consultando a tabela e as duas linhas
+   originais depois da execução).
+3. Conteúdo equivalente com histórico NAS DUAS linhas (2 eventos em
+   keep, 2 em remove, 1 evento idêntico duplicado entre os dois, SRS
+   de remove mais avançado): resultado final teve exatamente 3 eventos
+   (dedupe correto do evento repetido) e adotou o estado SRS mais
+   avançado (repetition_count=3/ease=2.60/interval=15, o de remove_id,
+   não o de keep_id que tinha só 2 repetições).
+Fixtures de teste (3 usuários, todas as linhas de flashcards/reviews/
+srs_state envolvidas, a tabela flashcard_reconciliation_review inteira)
+removidas ao final; índice único flashcards_user_question_origin_uq
+(temporariamente removido só para simular o estado pré-migration com
+duplicatas) recriado. O script NÃO foi executado contra o remoto nesta
+etapa — só localmente, com fixtures. Recomendação para quando a
+diretoria autorizar a execução real: usar dry_run=true primeiro com os
+IDs reais truncados/confirmados por outra consulta direta, revisar a
+saída, só então rodar com dry_run=false; script real com os IDs deve
+ficar local e git-ignorado (só a versão parametrizada, sem IDs, é
+versionada).
+
+Validações e limpeza:
+tsc --noEmit: limpo. vite build (padrão) e vite build --mode
+development: limpos (mesmo aviso pré-existente de chunk >500kB, sem
+erro novo). Testes Playwright focados nesta etapa: 37/37 asserções OK
+(login, 3 respostas erradas, referências, caderno integrado com 4
+ações + 2 reloads, falha parcial de gabarito, 4 cenários de vínculo de
+biblioteca + fix, retorno contextual). Testes específicos da
+reconciliação local: 3/3 cenários (equivalente, divergente, com
+histórico) com resultado correto, descritos acima. Nenhuma migration
+nova nem mudança de schema nesta etapa — não repetido supabase test db;
+evidência já verificada no 11-B2 é 201/201 (183 anteriores + 18 da
+migration daquela etapa, sem regressão), permanece válida porque nada
+no schema mudou aqui. paginação/concorrência SRS/mobile/npm ci/lint/
+build/pgTAP já comprovados em 11-B/11-B2 não foram repetidos, conforme
+instrução do prompt.
+Limpeza: conta de teste (e2e11b3.main@example.com) e TODAS as fixtures
+desta etapa (3 questões, 3 materiais, 5 fontes, 4 flashcards custom + 3
+auto-criados pelas respostas erradas, question_attempts/error_notebook
+da conta) removidas — confirmado por contagem direta no banco: 0
+questões/materiais/sources com os prefixos desta sessão, 0 flashcards
+da conta de teste, 0 conta remanescente. Contagem de baseline (questions
+84, question_options 141... — números inflados por fixtures de pgTAP
+de sessões anteriores, comportamento já documentado/aceito no
+AGENTS.md) idêntica antes/depois desta sessão para as tabelas que só
+esta sessão tocou. Scripts temporários (scripts/_tmp-11b3-*) apagados
+do working tree antes do commit. Servidor de preview (vite preview
+porta 3098, criado só para este teste) encerrado; os dois `npm run dev`
+pré-existentes do próprio usuário (portas 3000/3001) identificados e
+preservados intocados do início ao fim da sessão.
+
+Arquivos, commits e branch:
+- src/App.tsx — activeCompendium sem fallback para compendiums[0];
+  estado "Material não encontrado" quando o id vinculado não resolve
+  para nenhum compêndio publicado carregado.
+- src/utils/bibliographicSources.ts — regex de DOI descarta pontuação
+  de fechamento de frase do final do match.
+- scripts/reconcile-flashcard-duplicate.sql — NOVO, script parametrizado
+  de reconciliação (sem IDs reais), descrito acima.
+- AGENTS.md — armadilha #25 nova; "Estado atual" atualizado com o
+  resumo desta etapa.
+- docs/diretoria/registro.md, docs/diretoria/retornos/11-B3.txt — este
+  retorno.
+Commit: 686b4f6 fix(compendio): remove abertura arbitraria de compendio
+por id invalido (branch work/integracao-estabilizacao-11b, a partir de
+9eb5fc7) — mais o commit de documentação enviado junto com este
+retorno. Push feito só para work/integracao-estabilizacao-11b — nunca
+em main.
+
+Pendências:
+- Reconciliação do grupo duplicado remoto continua não executada —
+  decisão de quando aplicar (dry-run real com os IDs verdadeiros,
+  depois execução real) permanece com a diretoria/usuário.
+- N+1 de getQuestionReview em IntegratedCadernoErros.tsx permanece
+  (achado pré-existente do 11-B/11-B2, registrado como backlog de
+  escala, não tocado nesta etapa por instrução explícita do prompt).
+- Decisão de merge em main permanece com a diretoria/usuário; aplicação
+  da migration de índice único no remoto depende da reconciliação
+  acima.
+- Safari/dispositivo físico e teclado virtual real continuam não
+  testados (limitação já registrada em etapas anteriores, fora de
+  escopo desta).
+
+Estado:
+Main, Supabase remoto e deploy permanecem inalterados nesta etapa.
+origin/main confirmado em fb989a4 antes e depois (idêntico). Única
+operação remota realizada foi a consulta SOMENTE LEITURA de inventário
+da duplicata (supabase db query --linked) — nenhuma escrita, nenhuma
+migration aplicada no remoto, nenhum dado pessoal exposto (IDs
+truncados acima).

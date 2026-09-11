@@ -644,3 +644,21 @@ Sessão executiva independente, continuação na mesma branch `work/integracao-e
 Ver `docs/diretoria/retornos/11-B2.txt` para o retorno completo no formato padrão.
 
 Ver `docs/diretoria/retornos/11-B.txt` para o retorno completo no formato padrão.
+
+## Retorno recebido — 11-B3, 2026-09-11
+
+Sessão executiva independente, continuação na mesma branch `work/integracao-estabilizacao-11b`. Pré-checagem: `git fetch` plano trouxe um ref remoto desatualizado para a branch (`37e8782`); `git fetch` com refspec explícito e `git ls-remote` confirmaram o HEAD real (`9eb5fc7`, idêntico ao local e ao que a diretoria já tinha confirmado por fora) — não era uma divergência real, só um ref de rastreamento que não se atualizava com o fetch plano nesta máquina. `origin/main` confirmado em `fb989a4` antes/depois, idêntico. Nenhum fast-forward necessário.
+
+**Cenários A/B/D/E/F fechados com Playwright real** (Supabase local, fixtures dedicadas: 1 conta, 3 questões, 3 materiais, 5 fontes, 4 flashcards) — 37/37 asserções OK. Destaques: criar/editar anotação, marcar dominada e reabrir erro no Caderno integrado confirmados SEM gerar `question_attempts`/`error_notebook` novos (contagem idêntica antes/depois de cada ação, com reload entre elas para provar persistência real). Falha parcial de gabarito induzida deterministicamente via interceptação de rede (não só leitura do `Promise.allSettled`): questão afetada fica sem gabarito real, as demais carregam normalmente, 0 rejeição global não tratada, sem contaminação cruzada. Vínculos com Biblioteca e referências por tipo (URL curada/DOI/PMID/sem-identificador/citação incompleta) confirmados na UI real, texto original preservado, nenhum metadado inventado.
+
+**Dois bugs reais encontrados e corrigidos durante os próprios testes** (ver AGENTS.md armadilha #25): `App.tsx` tinha um fallback `compendiums[0]` que abriria arbitrariamente o primeiro compêndio da lista quando um `compendiumRefId` não resolvia para nenhum compêndio publicado (mesma classe de bug do gate 6 do 11-B, mas em outro arquivo) — corrigido para mostrar "Material não encontrado"; regex de DOI embutido capturava o ponto final de frase, gerando link malformado — corrigido. `tsc --noEmit`/`vite build` limpos depois.
+
+**Duplicata remota**: inventário completo somente-leitura coletado (created_at, hash de conteúdo, estado SRS, `flashcard_reviews`, dependências FK) — classificada como duplicata equivalente sem histórico divergente (mesmo conteúdo, 0 revisões nos dois lados, 0 dependências). Script parametrizado de reconciliação criado (`scripts/reconcile-flashcard-duplicate.sql`, sem IDs reais) e provado com 3 fixtures locais (equivalente sem histórico, conteúdo divergente — recusa e preserva os dois textos —, histórico nas duas linhas com dedupe e adoção do SRS mais avançado). NÃO executado no remoto.
+
+**Validações**: nenhuma migration/schema mudou nesta etapa — não repetido `supabase test db` (evidência do 11-B2, 201/201, permanece válida); paginação/concorrência SRS/mobile/npm ci já comprovados também não repetidos, conforme prompt. Limpeza confirmada: 0 fixtures desta sessão remanescentes.
+
+**Branch e commit**: `work/integracao-estabilizacao-11b`, commit `686b4f6` (fix de App.tsx + bibliographicSources.ts + script de reconciliação) mais o de documentação. Enviada ao `origin` — nunca `main`.
+
+**Estado de publicação**: `main`/Supabase remoto/deploy NÃO tocados. Única operação remota foi a consulta somente leitura do inventário de duplicata. Reconciliação real, decisão de merge e aplicação da migration do 11-B2 no remoto continuam com a diretoria/usuário.
+
+Ver `docs/diretoria/retornos/11-B3.txt` para o retorno completo no formato padrão.
