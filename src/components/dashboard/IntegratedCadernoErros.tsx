@@ -98,18 +98,33 @@ export const IntegratedCadernoErros: React.FC<IntegratedCadernoErrosProps> = ({
     return map;
   }, [errorLogs]);
 
-  // Carregar gabaritos para questões erradas
+  // Carregar gabaritos para questões erradas. Usa `allSettled` (Prompt 11-B,
+  // gate 11): uma falha isolada em UM gabarito (rede, RPC, permissão) não
+  // pode cancelar o carregamento dos demais — antes, com `Promise.all`, uma
+  // única rejeição derrubava o `.then()` inteiro e nenhuma questão exibia
+  // seu gabarito. Não existe hoje uma API bulk equivalente a
+  // `getMyReactions`/`getAnswers`/`getBookmarks` para gabaritos de questão
+  // (só `getQuestionReview` por id) — o N+1 aqui é uma limitação conhecida,
+  // documentada em vez de "resolvida" com uma RPC nova fora do escopo desta
+  // etapa.
   useEffect(() => {
     const mistakeIds = Object.keys(answers).filter((qid) => !answers[qid].isCorrect && !reviews[qid]);
     if (mistakeIds.length === 0) return;
     let cancelled = false;
-    Promise.all(
+    Promise.allSettled(
       mistakeIds.map((id) => questionsRepository.getQuestionReview(id).then((r) => [id, r] as const))
-    ).then((pairs) => {
+    ).then((results) => {
       if (cancelled) return;
       setReviews((prev) => {
         const next = { ...prev };
-        for (const [id, r] of pairs) next[id] = r;
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            const [id, r] = result.value;
+            next[id] = r;
+          }
+          // Falha isolada: a questão correspondente simplesmente não recebe
+          // gabarito nesta rodada; as demais continuam normalmente.
+        }
         return next;
       });
     });
