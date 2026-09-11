@@ -53,13 +53,16 @@ function parseInline(text: string): React.ReactNode[] {
       if (match) {
         const linkText = match[1];
         const href = match[2];
-        // Only allow safe protocols
-        const isSafe = /^https?:\/\//i.test(href) || href.startsWith('/');
+        // Only allow safe protocols, same-page paths, or same-page anchors
+        // (ex.: [3](#ref-3) — usado para citação inline apontar pra
+        // referência correspondente no rodapé, sem depender de HTML bruto).
+        const isAnchor = href.startsWith('#');
+        const isSafe = /^https?:\/\//i.test(href) || href.startsWith('/') || isAnchor;
         return (
           <a
             key={idx}
             href={isSafe ? href : '#'}
-            target={href.startsWith('/') ? undefined : '_blank'}
+            target={href.startsWith('/') || isAnchor ? undefined : '_blank'}
             rel="noopener noreferrer"
             className="text-teal-700 dark:text-teal-400 hover:underline font-medium"
           >

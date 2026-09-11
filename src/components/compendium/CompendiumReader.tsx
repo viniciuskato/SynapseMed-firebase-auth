@@ -757,13 +757,9 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
                   </h4>
                 </div>
                 <p className="text-xs text-[#64748B] dark:text-[#94A3B8]">
-                  Trabalhamos exclusivamente com fontes de acesso aberto (artigos científicos e diretrizes). Clique na referência para acessar o material original na íntegra.
+                  Cada referência mostra a origem real da informação: link curado, DOI, PubMed, ou — quando nenhum identificador foi confirmado — uma sugestão de busca, claramente identificada como tal.
                 </p>
               </div>
-              <span className="self-start sm:self-auto inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/60 shrink-0">
-                <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
-                <span>Acesso Aberto Garantido</span>
-              </span>
             </div>
 
             <div className="space-y-3">
@@ -774,7 +770,8 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
                 return (
                   <div
                     key={rIdx}
-                    className="p-4 rounded-2xl border border-[#E2E8F0] dark:border-[#263244] bg-[#F8FAFC] dark:bg-[#1E293B]/60 transition-all shadow-xs space-y-3"
+                    id={`ref-${rIdx + 1}`}
+                    className="p-4 rounded-2xl border border-[#E2E8F0] dark:border-[#263244] bg-[#F8FAFC] dark:bg-[#1E293B]/60 transition-all shadow-xs space-y-3 scroll-mt-24 target:ring-2 target:ring-[#0F766E] dark:target:ring-[#14B8A6]"
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                       <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -819,9 +816,9 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-3 py-1.5 rounded-lg bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
-                          title="Acessar material original na íntegra em nova aba"
+                          title={abnt.actionLabel}
                         >
-                          <span>Acessar na Íntegra</span>
+                          <span>{abnt.actionLabel}</span>
                           <ExternalLink className="w-3.5 h-3.5" />
                         </a>
                       </div>
@@ -831,6 +828,15 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-800 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 px-2 py-0.5 rounded border border-teal-200/80 dark:border-teal-800/50">
                         <BookOpen className="w-2.5 h-2.5" />
                         ABNT NBR 6023
+                      </span>
+                      <span
+                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${
+                          abnt.isOpenAccess
+                            ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60'
+                            : 'text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800/60'
+                        }`}
+                      >
+                        {abnt.badgeLabel}
                       </span>
                       <span className="text-[11px] text-[#64748B] dark:text-[#94A3B8]">
                         {abnt.documentType}
