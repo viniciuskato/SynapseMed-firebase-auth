@@ -367,8 +367,14 @@ function AuthenticatedApp() {
     setActiveView('simulado-session');
   };
 
-  // Active Compendium Object
-  const activeCompendium = compendiums.find((c) => c.id === selectedCompendiumId) || compendiums[0];
+  // Active Compendium Object. SEM fallback para compendiums[0]: um
+  // selectedCompendiumId que não bate com nenhum compêndio carregado
+  // (id inválido, arquivado ou despublicado) precisa resultar em "não
+  // encontrado", nunca abrir arbitrariamente o primeiro item da lista
+  // (mesma classe de bug já corrigida em FlashcardsView/
+  // FlashcardReviewSession no Prompt 11-B, gate 6 — aqui era outra
+  // instância do mesmo padrão, em App.tsx).
+  const activeCompendium = compendiums.find((c) => c.id === selectedCompendiumId);
 
   return (
     <div className="min-h-screen bg-[#F6F7F9] dark:bg-[#0B1220] text-[#172033] dark:text-[#E5E7EB] font-sans flex flex-col selection:bg-teal-500 selection:text-white antialiased transition-colors max-w-full overflow-x-hidden">
@@ -447,6 +453,30 @@ function AuthenticatedApp() {
               returnToQuestionsContext={libraryOrigin}
               onReturnToQuestions={libraryOrigin ? handleReturnToQuestions : undefined}
             />
+          )}
+
+          {activeView === 'compendium-reader' && !activeCompendium && (
+            <div className="max-w-2xl mx-auto p-6 sm:p-8 text-center space-y-4">
+              <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                Material não encontrado
+              </h2>
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Este vínculo não aponta para um compêndio publicado disponível na Biblioteca.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  if (libraryOrigin) {
+                    handleReturnToQuestions();
+                  } else {
+                    setActiveView('compendiums');
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-teal-600 text-white text-xs font-bold cursor-pointer"
+              >
+                Voltar
+              </button>
+            </div>
           )}
 
           {activeView === 'questions' && (

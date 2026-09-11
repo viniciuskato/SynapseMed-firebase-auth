@@ -63,10 +63,16 @@ export function resolveCitationLink(citationText: string, existingUrl?: string |
     return { url: urlMatch[0], kind: 'url_curada', label: 'Abrir fonte' };
   }
 
-  // 3. DOI embutido — real identificador, link clicável.
+  // 3. DOI embutido — real identificador, link clicável. A classe de
+  // caracteres do regex inclui "." (válido dentro de um DOI real), então um
+  // DOI no fim de frase ("...10.xxxx/yyyy." seguido de espaço) capturava
+  // também o ponto final da frase, gerando um link malformado
+  // (.../yyyy.). Remove pontuação de fechamento de frase (. , ; ) ] no
+  // final do match — nunca legítima como último caractere de um DOI real.
   const doiMatch = citationText.match(/10\.\d{4,9}\/[-._;()/:A-Z0-9]+/i);
   if (doiMatch) {
-    return { url: `https://doi.org/${doiMatch[0]}`, kind: 'doi', label: 'Abrir DOI' };
+    const doi = doiMatch[0].replace(/[.,;)\]]+$/, '');
+    return { url: `https://doi.org/${doi}`, kind: 'doi', label: 'Abrir DOI' };
   }
 
   // 4. PMID embutido — real identificador, link clicável.
