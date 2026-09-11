@@ -280,12 +280,15 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
       )}
 
       {/* Botão flutuante "Voltar à leitura" — aparece depois de clicar numa
-          citação inline ([N](#ref-N)) e pular até a referência no rodapé. */}
+          citação inline ([N](#ref-N)) e pular até a referência no rodapé.
+          bottom-24 (em vez de bottom-6): o MobileBottomNav agora renderiza
+          em qualquer largura de tela como um dock fixo no rodapé — bottom-6
+          ficava embaixo dele, sobrepondo os botões de navegação. */}
       {returnScrollY !== null && (
         <button
           type="button"
           onClick={handleReturnToReading}
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-bold flex items-center gap-2 elev-lg transition-colors cursor-pointer animate-in fade-in slide-in-from-bottom-2"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-full bg-[#0F766E] hover:bg-teal-800 dark:bg-[#14B8A6] dark:hover:bg-teal-400 text-white dark:text-[#0B1220] text-xs font-bold flex items-center gap-2 elev-lg transition-colors cursor-pointer animate-in fade-in slide-in-from-bottom-2"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
           <span>Voltar à leitura</span>
