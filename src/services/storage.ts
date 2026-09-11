@@ -469,6 +469,17 @@ export const StorageService = {
     setItem(getUserKey(STORAGE_KEYS.THEME), theme);
   },
 
+  // --- Preferências de UI genéricas (aba ativa, filtro selecionado etc.) ---
+  // Isolado por UID como o resto do módulo. Chaves abertas (não cadastradas
+  // em STORAGE_KEYS) porque são muitas e de baixo risco — não são dado de
+  // conteúdo, só preferência de navegação. Ver usePersistedState.ts.
+  getUIState<T>(key: string, defaultValue: T): T {
+    return getItem<T>(getUserKey(`synapse_ui_${key}_v1`), defaultValue);
+  },
+  setUIState<T>(key: string, value: T): void {
+    setItem(getUserKey(`synapse_ui_${key}_v1`), value);
+  },
+
   // --- Aggregated Stats (Calculado dinamicamente em memória - sem criação de chaves extras) ---
   getStats(): UserStats {
     return this.getUserStats();

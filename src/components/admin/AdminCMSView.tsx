@@ -38,6 +38,8 @@ import { questionsRepository } from '../../repositories/QuestionsRepository';
 import { feedbackRepository } from '../../repositories/FeedbackRepository';
 import { supabase } from '../../lib/supabaseClient';
 import SectionEditor from './SectionEditor';
+import { usePersistedState } from '../../hooks/usePersistedState';
+import { useScrollMemory } from '../../hooks/useScrollMemory';
 
 interface AdminProfileRow {
   id: string;
@@ -65,7 +67,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
   flashcards,
   onRefreshData,
 }) => {
-  const [activeTab, setActiveTab] = useState<'compendiums' | 'questions' | 'flashcards' | 'users' | 'feedback' | 'database'>('compendiums');
+  const [activeTab, setActiveTab] = usePersistedState<
+    'compendiums' | 'questions' | 'flashcards' | 'users' | 'feedback' | 'database'
+  >('admin_active_tab', 'compendiums');
+  useScrollMemory(`admin:${activeTab}`);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [highlightedQuestionId, setHighlightedQuestionId] = useState<string | null>(null);
 

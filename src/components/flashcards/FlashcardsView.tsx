@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Layers,
   Search,
@@ -16,6 +16,8 @@ import {
 import { Flashcard, Discipline, Theme, Compendium } from '../../types';
 import { isCardDueToday } from '../../services/srsAlgorithm';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
+import { usePersistedState } from '../../hooks/usePersistedState';
+import { useScrollMemory } from '../../hooks/useScrollMemory';
 
 interface FlashcardsViewProps {
   flashcards: Flashcard[];
@@ -40,11 +42,23 @@ export const FlashcardsView: React.FC<FlashcardsViewProps> = ({
   onFlashcardUpdated,
   filterThemeId,
 }) => {
-  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
-  const [selectedTheme, setSelectedTheme] = useState<string>(filterThemeId || 'all');
-  const [selectedStatus, setSelectedStatus] = useState<'all' | 'due' | 'learning' | 'mastered'>('all');
+  // Persistido para sobreviver à troca de seção do app (App.tsx desmonta
+  // FlashcardsView ao navegar pra outra view). filterThemeId é contexto
+  // explícito de navegação e tem prioridade sobre o filtro lembrado.
+  const [selectedDiscipline, setSelectedDiscipline] = usePersistedState<string>('flashcards_discipline', 'all');
+  const [selectedTheme, setSelectedTheme] = usePersistedState<string>('flashcards_theme', filterThemeId || 'all');
+  const [selectedStatus, setSelectedStatus] = usePersistedState<'all' | 'due' | 'learning' | 'mastered'>(
+    'flashcards_status',
+    'all'
+  );
   const [searchQuery, setSearchQuery] = useState('');
   const [flippedCardIds, setFlippedCardIds] = useState<string[]>([]);
+  useScrollMemory('flashcards');
+
+  useEffect(() => {
+    if (filterThemeId) setSelectedTheme(filterThemeId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterThemeId]);
 
   const dueCards = useMemo(() => {
     return flashcards.filter((fc) => isCardDueToday(fc));

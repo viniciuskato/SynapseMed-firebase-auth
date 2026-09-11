@@ -18,6 +18,8 @@ import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
 import { questionReactionsRepository } from '../../repositories/QuestionReactionsRepository';
 import { QuestionCard } from './QuestionCard';
+import { usePersistedState } from '../../hooks/usePersistedState';
+import { useScrollMemory } from '../../hooks/useScrollMemory';
 
 interface QuestionsViewProps {
   questions: Question[];
@@ -52,13 +54,29 @@ export const QuestionsView: React.FC<QuestionsViewProps> = ({
   returnToCompendiumContext,
   onReturnToCompendium,
 }) => {
-  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('all');
-  const [selectedTheme, setSelectedTheme] = useState<string>(filterThemeId || 'all');
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<'all' | 'unanswered' | 'correct' | 'incorrect' | 'bookmarked'>(
+  // Persistido para sobreviver à troca de seção do app (App.tsx desmonta
+  // QuestionsView ao navegar pra outra view). filterThemeId/initialStatusFilter
+  // são contexto explícito de navegação (ex. veio de "Treinar questões
+  // erradas") e têm prioridade sobre o filtro lembrado — ver efeitos abaixo.
+  const [selectedDiscipline, setSelectedDiscipline] = usePersistedState<string>('questions_discipline', 'all');
+  const [selectedTheme, setSelectedTheme] = usePersistedState<string>('questions_theme', filterThemeId || 'all');
+  const [selectedDifficulty, setSelectedDifficulty] = usePersistedState<string>('questions_difficulty', 'all');
+  const [selectedStatus, setSelectedStatus] = usePersistedState<'all' | 'unanswered' | 'correct' | 'incorrect' | 'bookmarked'>(
+    'questions_status',
     initialStatusFilter || 'all'
   );
   const [searchQuery, setSearchQuery] = useState('');
+  useScrollMemory('questions');
+
+  useEffect(() => {
+    if (filterThemeId) setSelectedTheme(filterThemeId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterThemeId]);
+
+  useEffect(() => {
+    if (initialStatusFilter) setSelectedStatus(initialStatusFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialStatusFilter]);
 
   const [answers, setAnswers] = useState<Record<string, QuestionAnswerRecord>>({});
   const [bookmarks, setBookmarks] = useState<{

@@ -38,6 +38,7 @@ import {
 } from '../../types';
 import { answersRepository } from '../../repositories/AnswersRepository';
 import { readingProgressRepository } from '../../repositories/ReadingProgressRepository';
+import { useScrollMemory } from '../../hooks/useScrollMemory';
 import { errorNotebookRepository } from '../../repositories/ErrorNotebookRepository';
 import { isCardDueToday } from '../../services/srsAlgorithm';
 import { useAuth } from '../../contexts/AuthContext';
@@ -83,6 +84,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const userName = profile?.displayName || user?.user_metadata?.display_name || 'Colega';
 
   const [activeTab, setActiveTab] = useState<'overview' | 'errors'>(initialTab);
+  useScrollMemory(`dashboard:${activeTab}`);
 
   useEffect(() => {
     if (initialTab) {

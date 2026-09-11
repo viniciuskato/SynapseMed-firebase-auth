@@ -34,6 +34,7 @@ import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { readingProgressRepository } from '../../repositories/ReadingProgressRepository';
 import { SafeMarkdown } from '../common/SafeMarkdown';
 import { ContextualFeedbackPopover } from '../feedback/ContextualFeedbackPopover';
+import { useScrollMemory } from '../../hooks/useScrollMemory';
 
 interface CompendiumReaderProps {
   compendium: Compendium;
@@ -81,6 +82,10 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
   const [highlightedRefId, setHighlightedRefId] = useState<string | null>(null);
   const moreMenuTriggerRef = useRef<HTMLButtonElement>(null);
   const highlightTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Só restaura a posição de rolagem quando não veio de um targetSectionId
+  // explícito (ex. clicou num item específico do índice em outra tela) —
+  // nesse caso o pulo intencional pra seção tem prioridade sobre a memória.
+  useScrollMemory(`compendium-reader:${compendium.id}`, !targetSectionId);
 
   // Clique em citação inline (`[N](#ref-N)`, gerado pelo SafeMarkdown a
   // partir do conteúdo do compêndio): rolagem suave até a referência em vez
