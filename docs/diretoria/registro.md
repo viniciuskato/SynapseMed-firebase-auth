@@ -662,3 +662,15 @@ Sessão executiva independente, continuação na mesma branch `work/integracao-e
 **Estado de publicação**: `main`/Supabase remoto/deploy NÃO tocados. Única operação remota foi a consulta somente leitura do inventário de duplicata. Reconciliação real, decisão de merge e aplicação da migration do 11-B2 no remoto continuam com a diretoria/usuário.
 
 Ver `docs/diretoria/retornos/11-B3.txt` para o retorno completo no formato padrão.
+
+## Prompt 11-C — preparado, 2026-09-11 (reconciliação remota + migration + publicação)
+Status: preparado, aguardando envio
+Dependências: 11-B/11-B2/11-B3 (concluídos, branch `work/integracao-estabilizacao-11b` em `4068b0e`, enviada, não mesclada)
+Resumo do prompt: reconciliar a duplicata remota de flashcard (dry-run
+com ROLLBACK antes de qualquer COMMIT, exige confirmação explícita da
+diretoria entre dry-run e execução real), aplicar
+`20260911120000_flashcard_srs_unique_creation.sql` no Supabase remoto,
+revisar o diff completo contra os três retornos, e só então merge
+`--no-ff` em `main` + push + confirmação de deploy. Gates de parada
+explícitos entre cada etapa irreversível. Ver
+`docs/diretoria/prompts/11-C.txt` para o texto completo.

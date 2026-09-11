@@ -1,0 +1,168 @@
+PROMPT 11-C — Reconciliação remota, aplicação de migration e publicação
+
+PAPEL E CAMINHO
+
+Você é uma sessão executiva independente.
+
+Trabalhe somente no clone oficial:
+
+C:\Users\vinic\dev\NexusMed\firebase-auth
+
+Leia antes de editar:
+
+- AGENTS.md (em especial armadilhas #14, #18, #21, #22, #23, #24, #25);
+- docs/diretoria/MODELO-DIRETORIA.md;
+- docs/diretoria/registro.md (seções 11-B, 11-B2, 11-B3);
+- docs/diretoria/retornos/11-B.txt, 11-B2.txt, 11-B3.txt;
+- docs/diretoria/prompts/11-C.txt (este arquivo).
+
+PRÉ-CONDIÇÃO
+
+Confirme que não há outra sessão escritora no clone canônico (verifique
+processos vite/dev do próprio usuário separadamente de qualquer outra
+sessão de IA editando os mesmos arquivos).
+
+Rode `git fetch origin` com refspec explícito para a branch (não confie em
+fetch plano — ver nota do 11-B3 sobre ref de rastreamento desatualizado) e
+confirme por `git ls-remote` o HEAD real de
+`work/integracao-estabilizacao-11b` e de `main`.
+
+Se `main` tiver avançado com qualquer commit além de `fb989a4` desde o
+último retorno registrado, PARE e retorne à diretoria antes de prosseguir.
+
+CONTEXTO
+
+A branch `work/integracao-estabilizacao-11b` está completa e testada
+(retornos 11-B, 11-B2, 11-B3): `tsc --noEmit`, `npm run build`,
+`check-no-secret-key-leak.ts` (8/8) e `supabase test db` local (201/201)
+limpos; 37/37 asserções de navegador nos cenários A-G; paginação estável;
+seleção do modo prova corrigida; vínculo Biblioteca↔Flashcards restrito a
+ID explícito; referências ABNT sem metadado inventado; SRS deduplicado
+localmente por migration + RPC (`create_flashcard_from_question`).
+
+Duas pendências reais bloqueiam publicação total, nesta ordem:
+
+1. Existe 1 grupo de duplicata de flashcard no Supabase REMOTO (2 linhas,
+   mesmo usuário/questão) que impede aplicar a migration
+   `20260911120000_flashcard_srs_unique_creation.sql` no remoto sem
+   reconciliação prévia.
+2. A migration em si nunca foi aplicada no remoto.
+
+Só depois de resolver as duas é que faz sentido mesclar em `main` e
+confirmar o deploy — mesclar antes deixaria o código em produção exigindo
+uma RPC/índice que ainda não existe no banco remoto.
+
+OBJETIVO
+
+Nesta ordem, com um gate de parada real entre cada etapa irreversível:
+
+ETAPA 1 — Reconciliar a duplicata remota (leitura antes, escrita só depois
+de confirmação)
+
+1a. Releia o inventário já coletado (consulta somente leitura, sem alterar
+dados) para confirmar que a duplicata remota ainda existe e ainda tem o
+mesmo formato descrito no 11-B2/11-B3 (equivalente sem histórico
+divergente: mesmo conteúdo, 0 `flashcard_reviews` nos dois lados, 0
+dependências de FK). Se o estado mudou (por exemplo, um dos dois já foi
+revisado, ou apareceu um segundo grupo de duplicata), PARE e retorne à
+diretoria com o novo inventário — não decida sozinho um caso diferente do
+já aprovado.
+
+1b. Use `scripts/reconcile-flashcard-duplicate.sql` (já criado e provado
+localmente com 3 fixtures no 11-B3) SOMENTE para o caso já confirmado como
+"equivalente sem histórico divergente". Rode primeiro em modo
+dry-run/transação com ROLLBACK explícito contra o remoto para confirmar
+que o resultado bate com o esperado (mantém 1 linha, remove a excedente,
+preserva o SRS mais avançado se houver diferença) antes de qualquer COMMIT
+real.
+
+1c. Só execute o COMMIT real da reconciliação depois de reportar o
+dry-run à diretoria e receber confirmação explícita nesta conversa. Não
+prossiga para a etapa 2 sem essa confirmação.
+
+ETAPA 2 — Aplicar a migration no remoto
+
+2a. Só depois da reconciliação confirmada e da duplicata removida: aplicar
+`supabase/migrations/20260911120000_flashcard_srs_unique_creation.sql` no
+projeto remoto vinculado (`supabase db push` ou equivalente já usado no
+projeto).
+
+2b. Confirmar por consulta somente leitura que o índice único e a função
+`create_flashcard_from_question` existem no remoto e que a contagem de
+flashcards por (user_id, question_origin_id) não tem nenhum grupo com mais
+de 1 linha (exceto NULL, que nunca conflita).
+
+2c. Não aplicar nenhuma outra migration além desta. Se `supabase test db`
+ou qualquer verificação sugerir necessidade de migration adicional, PARE e
+volte à diretoria.
+
+ETAPA 3 — Revisão final do diff antes do merge
+
+3a. Revise `git diff origin/main...work/integracao-estabilizacao-11b`
+arquivo por arquivo, cruzando com os 13 gates do 11-B + as correções do
+11-B2/11-B3, confirmando que nada além do documentado nos três retornos
+está no diff (nenhum redesenho novo, nenhuma remoção de recurso fora do
+que já foi decidido pela diretoria).
+
+3b. Rode de novo, no HEAD atual da branch: `npm ci` (ambiente isolado via
+`git worktree add --detach`, como no 11-B2 — não tocar o `node_modules` do
+usuário), `npm run lint` (tsc --noEmit), `npm run build`, verificação do
+bundle sem `sb_secret_`/`__syncDebug`/`__setTestBackoffOverride`,
+`supabase test db` local (deve continuar 201/201 ou mais, nunca menos).
+
+ETAPA 4 — Merge e publicação
+
+4a. Só depois das etapas 1-3 completas e sem achados novos: merge
+`--no-ff` de `work/integracao-estabilizacao-11b` em `main`, local.
+
+4b. Rodar de novo `tsc --noEmit` e `npm run build` limpos pós-merge, no
+commit de merge.
+
+4c. `git push origin main` — sem force. Confirmar que o push foi
+fast-forward em relação ao `fb989a4` que a diretoria já validou como HEAD
+remoto anterior.
+
+4d. Confirmar o deploy automático (Vercel ou equivalente já usado no
+projeto, ver 10-A2 para o método): bundle publicado bate byte-a-byte com o
+build local do commit de merge; smoke test não autenticado (página carrega
+200, formulário de login renderiza, 0 erro de console, 0 requisição 5xx).
+
+4e. Se o smoke test autenticado completo (login real em produção) exigir
+criar conta em produção e isso for bloqueado por classificador de
+segurança (padrão já documentado na armadilha #3 do AGENTS.md), NÃO tente
+contornar — documente como pendência, igual ao 10-A2.
+
+FORA DE ESCOPO
+
+- Não redesenhar nada.
+- Não restaurar recursos removidos intencionalmente (recall livre,
+  answerStrategy, etc.).
+- Não criar migration além da já existente e documentada.
+- Não reconciliar nenhuma duplicata além do grupo único já inventariado e
+  confirmado.
+- Não mexer em feedbacks da Área Editorial nesta etapa.
+- Não fazer force-push em nenhuma branch.
+
+CRITÉRIOS DE PARADA (retornar à diretoria sem improvisar)
+
+- `main` avançou com commits não previstos;
+- outra sessão escrevendo nos mesmos arquivos;
+- o estado da duplicata remota mudou desde o 11-B2/11-B3;
+- o dry-run da reconciliação não bate com o esperado;
+- a migration remota falhar ou revelar dado inesperado;
+- o diff da branch tiver qualquer coisa não documentada nos retornos
+  11-B/11-B2/11-B3;
+- os testes pós-merge falharem;
+- o deploy não corresponder ao build local.
+
+FORMATO DO RETORNO
+
+RETORNO: 11-C
+Resultado:
+Etapa 1 (reconciliação): estado antes, dry-run, confirmação recebida, resultado real:
+Etapa 2 (migration remota): aplicação e verificação:
+Etapa 3 (revisão + testes pré-merge):
+Etapa 4 (merge, push, deploy, smoke test):
+Pendências/riscos:
+Commits e branch:
+Estado de publicação: main/deploy alterados ou não, com timestamp e hash.
