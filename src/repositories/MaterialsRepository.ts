@@ -1,4 +1,4 @@
-import { Discipline, Theme, Compendium } from '../types';
+import { Discipline, Theme, Compendium, CompendiumSectionSnapshot, MaterialSectionVersion } from '../types';
 import { StorageService } from '../services/storage';
 import { SupabaseMaterialsRepository } from './SupabaseMaterialsRepository';
 
@@ -15,6 +15,9 @@ export interface MaterialsRepository {
   deleteCompendium(id: string): Promise<void>;
   publishCompendium(id: string): Promise<void>;
   unpublishCompendium(id: string): Promise<void>;
+  updateSectionContent(sectionId: string, patch: Partial<CompendiumSectionSnapshot>, reason?: string): Promise<void>;
+  getSectionVersions(sectionId: string): Promise<MaterialSectionVersion[]>;
+  revertSectionToVersion(sectionId: string, versionId: string): Promise<void>;
 }
 
 class LocalStorageMaterialsRepository implements MaterialsRepository {
@@ -44,6 +47,13 @@ class LocalStorageMaterialsRepository implements MaterialsRepository {
   }
   async publishCompendium(_id: string): Promise<void> {}
   async unpublishCompendium(_id: string): Promise<void> {}
+  // Histórico de seção exige Supabase (material_section_versions não tem
+  // equivalente local) — sem-op/lista vazia quando rodando só com localStorage.
+  async updateSectionContent(_sectionId: string, _patch: Partial<CompendiumSectionSnapshot>, _reason?: string): Promise<void> {}
+  async getSectionVersions(_sectionId: string): Promise<MaterialSectionVersion[]> {
+    return [];
+  }
+  async revertSectionToVersion(_sectionId: string, _versionId: string): Promise<void> {}
 }
 
 class ResilientMaterialsRepository implements MaterialsRepository {
@@ -125,6 +135,26 @@ class ResilientMaterialsRepository implements MaterialsRepository {
     if (isSupabaseConfigured) {
       try { await this.supa.unpublishCompendium(id); } catch (err) { console.error(`[MaterialsRepository] falha ao sincronizar unpublishCompendium com Supabase:`, err); throw err; }
     }
+  }
+
+  async updateSectionContent(sectionId: string, patch: Partial<CompendiumSectionSnapshot>, reason?: string): Promise<void> {
+    if (!isSupabaseConfigured) return this.local.updateSectionContent(sectionId, patch, reason);
+    try { await this.supa.updateSectionContent(sectionId, patch, reason); } catch (err) { console.error(`[MaterialsRepository] falha ao sincronizar updateSectionContent com Supabase:`, err); throw err; }
+  }
+
+  async getSectionVersions(sectionId: string): Promise<MaterialSectionVersion[]> {
+    if (!isSupabaseConfigured) return this.local.getSectionVersions(sectionId);
+    try {
+      return await this.supa.getSectionVersions(sectionId);
+    } catch (err) {
+      console.error(`[MaterialsRepository] falha ao buscar getSectionVersions do Supabase:`, err);
+      throw err;
+    }
+  }
+
+  async revertSectionToVersion(sectionId: string, versionId: string): Promise<void> {
+    if (!isSupabaseConfigured) return this.local.revertSectionToVersion(sectionId, versionId);
+    try { await this.supa.revertSectionToVersion(sectionId, versionId); } catch (err) { console.error(`[MaterialsRepository] falha ao sincronizar revertSectionToVersion com Supabase:`, err); throw err; }
   }
 }
 

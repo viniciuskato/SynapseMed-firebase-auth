@@ -1,5 +1,5 @@
 import { sourceUrl } from '../utils/bibliographicSources';
-import { Discipline, Theme, Compendium, CompendiumSection } from '../types';
+import { Discipline, Theme, Compendium, CompendiumSection, CompendiumSectionSnapshot, MaterialSectionVersion } from '../types';
 import { supabase } from '../lib/supabaseClient';
 import { MaterialsRepository } from './MaterialsRepository';
 
@@ -104,6 +104,53 @@ interface SourceRow {
   id: string;
   verificacao: string;
   identificadores: Record<string, string> | null;
+}
+
+interface MaterialSectionVersionRow {
+  id: string;
+  material_section_id: string;
+  changed_by: string | null;
+  changed_fields: string[];
+  reason: string | null;
+  before_snapshot: CompendiumSectionSnapshot;
+  after_snapshot: CompendiumSectionSnapshot;
+  created_at: string;
+}
+
+function rowToSectionVersion(row: MaterialSectionVersionRow): MaterialSectionVersion {
+  return {
+    id: row.id,
+    materialSectionId: row.material_section_id,
+    changedBy: row.changed_by,
+    changedFields: row.changed_fields ?? [],
+    reason: row.reason,
+    beforeSnapshot: row.before_snapshot,
+    afterSnapshot: row.after_snapshot,
+    createdAt: row.created_at,
+  };
+}
+
+// Campos de prosa editáveis pelo SectionEditor — mesmo conjunto persistido em
+// cada snapshot de material_section_versions (ver plano da feature: histórico
+// guarda o objeto completo da seção, não diff incremental).
+const SECTION_SNAPSHOT_FIELDS = ['title', 'mechanismTag', 'content', 'keyTakeaways', 'clinicalPearl', 'warningAlert'] as const;
+
+function sectionToSnapshot(row: {
+  title: string;
+  mechanism_tag: string | null;
+  content: string;
+  key_takeaways: string[];
+  clinical_pearl: string | null;
+  warning_alert: string | null;
+}): CompendiumSectionSnapshot {
+  return {
+    title: row.title,
+    mechanismTag: row.mechanism_tag ?? undefined,
+    content: row.content,
+    keyTakeaways: row.key_takeaways ?? [],
+    clinicalPearl: row.clinical_pearl ?? undefined,
+    warningAlert: row.warning_alert ?? undefined,
+  };
 }
 
 function rowToDiscipline(row: DisciplineRow): Discipline {
@@ -337,6 +384,84 @@ export class SupabaseMaterialsRepository implements MaterialsRepository {
   async unpublishCompendium(id: string): Promise<void> {
     const { error } = await supabase.from('materials').update({ status: 'draft' }).eq('id', id);
     if (error) throw error;
+  }
+
+  // ── Edição segura de seção (piloto CMS) ──────────────────────────
+  // Ao contrário de saveCompendium (delete-all + insert de todas as seções e
+  // referências do compêndio), estes métodos fazem UPDATE direcionado só na
+  // seção em questão — não tocam em material_references, preservando
+  // source_id/url estruturados que o form grande de AdminCMSView perderia.
+
+  async updateSectionContent(
+    sectionId: string,
+    patch: Partial<CompendiumSectionSnapshot>,
+    reason?: string
+  ): Promise<void> {
+    const { data: current, error: readErr } = await supabase
+      .from('material_sections')
+      .select('title, mechanism_tag, content, key_takeaways, clinical_pearl, warning_alert')
+      .eq('id', sectionId)
+      .single();
+    if (readErr) throw readErr;
+
+    const before = sectionToSnapshot(current);
+    const after: CompendiumSectionSnapshot = { ...before, ...patch };
+
+    const changedFields = SECTION_SNAPSHOT_FIELDS.filter(
+      (f) => JSON.stringify(before[f]) !== JSON.stringify(after[f])
+    );
+    if (changedFields.length === 0) return;
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { error: versionErr } = await supabase.from('material_section_versions').insert({
+      material_section_id: sectionId,
+      changed_by: user?.id ?? null,
+      changed_fields: changedFields,
+      reason: reason ?? null,
+      before_snapshot: before,
+      after_snapshot: after,
+    });
+    if (versionErr) throw versionErr;
+
+    const { error: updateErr } = await supabase
+      .from('material_sections')
+      .update({
+        title: after.title,
+        mechanism_tag: after.mechanismTag ?? null,
+        content: after.content,
+        key_takeaways: after.keyTakeaways,
+        clinical_pearl: after.clinicalPearl ?? null,
+        warning_alert: after.warningAlert ?? null,
+      })
+      .eq('id', sectionId);
+    if (updateErr) throw updateErr;
+  }
+
+  async getSectionVersions(sectionId: string): Promise<MaterialSectionVersion[]> {
+    const { data, error } = await supabase
+      .from('material_section_versions')
+      .select('*')
+      .eq('material_section_id', sectionId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []).map(rowToSectionVersion);
+  }
+
+  async revertSectionToVersion(sectionId: string, versionId: string): Promise<void> {
+    const { data: version, error } = await supabase
+      .from('material_section_versions')
+      .select('before_snapshot')
+      .eq('id', versionId)
+      .eq('material_section_id', sectionId)
+      .single();
+    if (error) throw error;
+
+    // Reverter grava uma nova versão com o conteúdo antigo — nunca apaga
+    // histórico existente, igual a um "revert" do git.
+    await this.updateSectionContent(sectionId, version.before_snapshot as CompendiumSectionSnapshot, 'Revertido para versão anterior');
   }
 }
 
