@@ -82,18 +82,21 @@ export const STUDY_LENSES: { id: StudyLens; label: string; description: string; 
   },
 ];
 
-// Extrai o número do módulo de títulos como "M7 — ..." ou "Módulo 10 — ..."
-// pra ordenar os cards na sequência didática em vez da ordem de inserção no
-// banco (hoje "M7" podia aparecer antes de "M2" no grid). Materiais sem
-// número no título (ex. "Citocinas: Visão Integradora") vão pro fim, em
-// ordem alfabética.
-function moduleSortKey(title: string): number {
-  const match = title.match(/^(?:M|Módulo)\s*(\d+)/i);
+// Ordena os cards na sequência didática em vez da ordem de inserção no banco
+// (hoje "M7" podia aparecer antes de "M2" no grid). Prefere o campo
+// materials.module_number (fonte de verdade, ver migration
+// 20260911130000); cai no parsing de regex do título só como fallback pra
+// conteúdo legado/futuro que ainda não preencheu o campo. Materiais sem
+// número (ex. "Citocinas: Visão Integradora") vão pro fim, em ordem
+// alfabética.
+function moduleSortKey(comp: Compendium): number {
+  if (comp.moduleNumber) return comp.moduleNumber;
+  const match = comp.title.match(/^(?:M|Módulo)\s*(\d+)/i);
   return match ? parseInt(match[1], 10) : Number.POSITIVE_INFINITY;
 }
 
 function compareByModuleThenTitle(a: Compendium, b: Compendium): number {
-  const keyDiff = moduleSortKey(a.title) - moduleSortKey(b.title);
+  const keyDiff = moduleSortKey(a) - moduleSortKey(b);
   if (keyDiff !== 0) return keyDiff;
   return a.title.localeCompare(b.title, 'pt-BR');
 }
@@ -679,6 +682,11 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
                               onClick={() => onOpenCompendium(comp.id)}
                               className="font-serif-reading text-base font-bold text-slate-900 dark:text-slate-100 group-hover:text-teal-700 dark:group-hover:text-teal-400 cursor-pointer transition-colors leading-snug"
                             >
+                              {comp.moduleNumber && (
+                                <span className="inline-block align-middle mr-1.5 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                                  M{comp.moduleNumber}
+                                </span>
+                              )}
                               {comp.title}
                             </h4>
                             <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
@@ -832,6 +840,11 @@ export const CompendiumView: React.FC<CompendiumViewProps> = ({
                     onClick={() => onOpenCompendium(comp.id)}
                     className="font-serif-reading text-base font-bold text-slate-900 dark:text-slate-100 hover:text-teal-600 dark:hover:text-teal-400 cursor-pointer transition-colors leading-tight"
                   >
+                    {comp.moduleNumber && (
+                      <span className="inline-block align-middle mr-1.5 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                        M{comp.moduleNumber}
+                      </span>
+                    )}
                     {comp.title}
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
