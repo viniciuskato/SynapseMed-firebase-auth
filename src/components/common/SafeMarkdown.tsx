@@ -58,6 +58,24 @@ function parseInline(text: string): React.ReactNode[] {
         // referência correspondente no rodapé, sem depender de HTML bruto).
         const isAnchor = href.startsWith('#');
         const isSafe = /^https?:\/\//i.test(href) || href.startsWith('/') || isAnchor;
+        // Citação inline (ex.: [3](#ref-3)) recebe estilo distinto do link
+        // comum — menor, sobrescrito, com colchete visual via CSS (não faz
+        // parte do texto do link, então nunca "gruda" em outra citação
+        // adjacente nem no texto ao redor, ex. "...mais alto[1](#ref-1)[2]
+        // (#ref-2)." virando "12." colado). Mesma linguagem visual do badge
+        // "[1]" já usado no rodapé de referências (CompendiumReader).
+        const isCitation = isAnchor && href.startsWith('#ref-');
+        if (isCitation) {
+          return (
+            <a
+              key={idx}
+              href={href}
+              className="inline-flex items-baseline text-teal-700 dark:text-teal-400 hover:underline font-semibold text-[0.75em] align-super mx-0.5 before:content-['['] after:content-[']']"
+            >
+              {linkText}
+            </a>
+          );
+        }
         return (
           <a
             key={idx}
