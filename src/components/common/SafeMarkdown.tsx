@@ -66,11 +66,17 @@ function parseInline(text: string): React.ReactNode[] {
         // "[1]" já usado no rodapé de referências (CompendiumReader).
         const isCitation = isAnchor && href.startsWith('#ref-');
         if (isCitation) {
+          // Sobrescrito discreto: `align-super` do navegador levanta demais
+          // e junto com font-semibold chamava mais atenção que o texto ao
+          // redor (feedback do usuário vendo em produção). Ajuste manual
+          // fino (-top, tamanho, peso) pra ficar perto da linha de base,
+          // do tamanho de uma citação acadêmica comum, sem quebrar o ritmo
+          // da leitura.
           return (
             <a
               key={idx}
               href={href}
-              className="inline-flex items-baseline text-teal-700 dark:text-teal-400 hover:underline font-semibold text-[0.75em] align-super mx-0.5 before:content-['['] after:content-[']']"
+              className="relative -top-[0.5em] text-[0.68em] leading-none text-teal-600/90 dark:text-teal-400/90 hover:text-teal-700 dark:hover:text-teal-300 hover:underline font-normal mx-px before:content-['['] after:content-[']']"
             >
               {linkText}
             </a>
@@ -255,7 +261,7 @@ export const SafeMarkdown: React.FC<SafeMarkdownProps> = ({ content, className =
 
         // Standard Paragraph with soft line breaks
         return (
-          <p key={bIdx} className="leading-[1.7] text-slate-800 dark:text-slate-200 text-base">
+          <p key={bIdx} className="leading-[1.7] text-slate-800 dark:text-slate-200 text-base text-justify [text-justify:inter-word]">
             {lines.map((line, lIdx) => (
               <React.Fragment key={lIdx}>
                 {parseInline(line)}
