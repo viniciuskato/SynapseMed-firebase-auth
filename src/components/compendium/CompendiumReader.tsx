@@ -44,6 +44,16 @@ interface CompendiumReaderProps {
   onOpenQuestionsForTheme: (themeId: string) => void;
   onOpenFlashcardsForTheme: (themeId: string) => void;
   targetSectionId?: string;
+  /**
+   * Chamado uma vez, logo depois de consumir um targetSectionId (pulo
+   * intencional pra uma seção específica). O chamador deve limpar o valor
+   * que originou targetSectionId — se ficar setado pra sempre, useScrollMemory
+   * fica desligado (ready=false) em todo remount futuro deste compêndio,
+   * mesmo muito depois do pulo já ter acontecido (bug relatado pelo
+   * usuário: memória de rolagem parava de funcionar depois de usar o
+   * índice uma vez).
+   */
+  onSectionJumpHandled?: () => void;
   returnToQuestionsContext?: {
     view: string;
     questionId?: string;
@@ -60,6 +70,7 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
   onOpenQuestionsForTheme,
   onOpenFlashcardsForTheme,
   targetSectionId,
+  onSectionJumpHandled,
   returnToQuestionsContext,
   onReturnToQuestions,
 }) => {
@@ -171,11 +182,17 @@ export const CompendiumReader: React.FC<CompendiumReaderProps> = ({
         setActiveSectionId(targetSectionId);
         const elem = document.getElementById(targetSectionId);
         if (elem) elem.scrollIntoView({ behavior: 'smooth' });
+        // Consome o pulo intencional uma única vez — se o chamador não
+        // limpar o valor que originou targetSectionId, useScrollMemory fica
+        // permanentemente desligado (ready=false) em todo remount futuro
+        // deste compêndio, mesmo muito depois deste pulo específico.
+        onSectionJumpHandled?.();
       }
     })();
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compendium.id, targetSectionId]);
 
   // Persistir sessão de leitura ativa para navegação contextual fluida
