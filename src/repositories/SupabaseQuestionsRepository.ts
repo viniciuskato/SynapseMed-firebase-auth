@@ -41,6 +41,34 @@ import { mapQuestionReviewPayload } from './questionReviewMapper';
 //   LocalStorageQuestionsRepository).
 // ============================================================================
 
+// Paginação defensiva (Prompt 11-B, gate 3): o PostgREST/Supabase limita a
+// resposta padrão de qualquer `select` a um teto de linhas (tipicamente
+// 1000), mesmo sem `.limit()` explícito no código. `question_options` tem 5
+// linhas por questão — com o acervo de ~393 questões (~1965 linhas) esse
+// teto já é ultrapassado, e como a query só ordena por `sort_order` (que é
+// por-questão, não global), o corte no meio da paginação deixava muitas
+// questões truncadas com 2 ou 3 alternativas em vez de 5. Corrigido
+// buscando em páginas até esgotar os resultados, para qualquer tabela desta
+// classe que possa crescer além do teto do servidor.
+const SUPABASE_PAGE_SIZE = 1000;
+
+async function fetchAllRows<T>(
+  queryBuilder: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>
+): Promise<T[]> {
+  const all: T[] = [];
+  let from = 0;
+  for (;;) {
+    const to = from + SUPABASE_PAGE_SIZE - 1;
+    const { data, error } = await queryBuilder(from, to);
+    if (error) throw error;
+    const page = data ?? [];
+    all.push(...page);
+    if (page.length < SUPABASE_PAGE_SIZE) break;
+    from += SUPABASE_PAGE_SIZE;
+  }
+  return all;
+}
+
 interface QuestionRow {
   id: string;
   discipline_id: string;
@@ -120,23 +148,16 @@ function buildQuestion(
 
 export class SupabaseQuestionsRepository implements QuestionsRepository {
   async getQuestions(): Promise<Question[]> {
-    const [
-      { data: questions, error: qErr },
-      { data: options, error: oErr },
-      { data: optionKeys, error: okErr },
-      { data: answerKeys, error: akErr },
-    ] = await Promise.all([
-      supabase.from('questions').select('*'),
-      supabase.from('question_options').select('*').order('sort_order'),
-      supabase.from('question_option_keys').select('*'),
-      supabase.from('question_answer_keys').select('*'),
+    const [questions, options, optionKeys, answerKeys] = await Promise.all([
+      fetchAllRows<QuestionRow>((from, to) => supabase.from('questions').select('*').range(from, to)),
+      fetchAllRows<QuestionOptionRow>((from, to) =>
+        supabase.from('question_options').select('*').order('sort_order').range(from, to)
+      ),
+      fetchAllRows<QuestionOptionKeyRow>((from, to) => supabase.from('question_option_keys').select('*').range(from, to)),
+      fetchAllRows<QuestionAnswerKeyRow>((from, to) => supabase.from('question_answer_keys').select('*').range(from, to)),
     ]);
-    if (qErr) throw qErr;
-    if (oErr) throw oErr;
-    if (okErr) throw okErr;
-    if (akErr) throw akErr;
 
-    return (questions ?? []).map((q) => buildQuestion(q, options ?? [], optionKeys ?? [], answerKeys ?? []));
+    return questions.map((q) => buildQuestion(q, options, optionKeys, answerKeys));
   }
 
   async saveQuestions(questions: Question[]): Promise<void> {
