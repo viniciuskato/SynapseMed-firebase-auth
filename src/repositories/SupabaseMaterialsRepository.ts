@@ -72,6 +72,7 @@ interface MaterialRow {
   subtitle: string | null;
   mode: string | null;
   study_lens: string | null;
+  module_number: number | null;
   estimated_read_time_minutes: number | null;
   author: string | null;
   tags: string[];
@@ -230,6 +231,7 @@ function buildCompendium(
     themeId: material.theme_id,
     title: material.title,
     subtitle: material.subtitle ?? '',
+    moduleNumber: material.module_number ?? undefined,
     estimatedReadTimeMinutes: material.estimated_read_time_minutes ?? 0,
     lastUpdated: material.updated_at,
     author: material.author ?? '',
@@ -318,6 +320,7 @@ export class SupabaseMaterialsRepository implements MaterialsRepository {
       subtitle: compendium.subtitle || null,
       mode: compendium.mode ?? null,
       study_lens: compendium.studyLens ?? null,
+      module_number: compendium.moduleNumber ?? null,
       estimated_read_time_minutes: compendium.estimatedReadTimeMinutes ?? null,
       author: compendium.author || null,
       tags: compendium.tags ?? [],

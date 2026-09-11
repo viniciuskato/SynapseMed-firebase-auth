@@ -224,6 +224,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
   const [compThemeId, setCompThemeId] = useState(themes[0]?.id || 'cardio-ic');
   const [compMode, setCompMode] = useState<'atlas' | 'mecanismos'>('mecanismos');
   const [compAuthor, setCompAuthor] = useState('Dr. Roberto Albuquerque / Comitê Editorial');
+  const [compModuleNumber, setCompModuleNumber] = useState<string>('');
   const [compEstimatedTime, setCompEstimatedTime] = useState(15);
   const [compTagsStr, setCompTagsStr] = useState('Fisiopatologia, Clínica Médica, Alta Relevância');
   const [compDependenciesStr, setCompDependenciesStr] = useState('Anatomia Básica, Semiologia');
@@ -270,6 +271,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     setCompThemeId(themes[0]?.id || 'cardio-ic');
     setCompMode('mecanismos');
     setCompAuthor('Equipe Editorial NexusMed');
+    setCompModuleNumber('');
     setCompEstimatedTime(15);
     setCompTagsStr('Fisiopatologia, Alta Relevância');
     setCompDependenciesStr('Bases Fisiológicas');
@@ -296,6 +298,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
     setCompThemeId(comp.themeId);
     setCompMode(comp.mode || 'mecanismos');
     setCompAuthor(comp.author);
+    setCompModuleNumber(comp.moduleNumber ? String(comp.moduleNumber) : '');
     setCompEstimatedTime(comp.estimatedReadTimeMinutes);
     setCompTagsStr(comp.tags?.join(', ') || '');
     setCompDependenciesStr(comp.dependencies?.map((d) => d.title).join(', ') || '');
@@ -388,6 +391,7 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
       themeId: compThemeId || 'geral',
       title: compTitle.trim(),
       subtitle: compSubtitle.trim(),
+      moduleNumber: compModuleNumber.trim() ? Number(compModuleNumber) : undefined,
       estimatedReadTimeMinutes: Number(compEstimatedTime) || 15,
       lastUpdated: new Date().toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }),
       author: compAuthor.trim() || 'Equipe Editorial',
@@ -832,6 +836,20 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                     max={120}
                     value={compEstimatedTime}
                     onChange={(e) => setCompEstimatedTime(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                    Nº do módulo (opcional)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={compModuleNumber}
+                    onChange={(e) => setCompModuleNumber(e.target.value)}
+                    placeholder="Ex: 7 — só se o material pertence a um currículo numerado"
                     className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
                   />
                 </div>

@@ -98,6 +98,8 @@ export interface Compendium {
   themeId: string;
   title: string;
   subtitle: string;
+  /** Número de módulo do currículo de origem (ex. "M7"), quando aplicável — nem todo material tem. */
+  moduleNumber?: number;
   estimatedReadTimeMinutes: number;
   lastUpdated: string;
   author: string;
