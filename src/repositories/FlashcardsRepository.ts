@@ -137,6 +137,19 @@ class ResilientFlashcardsRepository implements FlashcardsRepository {
   }
 
   async createFlashcardFromQuestion(question: Question): Promise<Flashcard> {
+    // Deduplicação por questionOriginId (Prompt 11-A/11-B, gate 7): antes de
+    // criar, verifica se já existe um flashcard do usuário atual com o mesmo
+    // `questionOriginId` — via `getFlashcards()` (traz do Supabase quando
+    // configurado, com fallback local), para pegar também um card já criado
+    // por OUTRO dispositivo e ainda sincronizado. Repetir o mesmo erro ou
+    // reenviar a mesma operação (ex.: retry da fila) não pode criar um
+    // segundo card equivalente. Só deduplica cards com `questionOriginId`
+    // preenchido — cards personalizados sem origem de questão e duplicatas
+    // históricas já existentes não são tocados aqui (fora de escopo).
+    const current = await this.getFlashcards();
+    const existing = current.find((f) => f.questionOriginId === question.id);
+    if (existing) return existing;
+
     const localRes = await this.local.createFlashcardFromQuestion(question);
     const userId = getStorageUser();
     if (isSupabaseConfigured && userId) {

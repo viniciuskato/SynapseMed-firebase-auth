@@ -201,6 +201,14 @@ export const StorageService = {
   },
 
   createFlashcardFromQuestion(question: Question): Flashcard {
+    // Deduplicação local por questionOriginId (Prompt 11-A/11-B, gate 7):
+    // responder a MESMA questão errada de novo, ou reenviar a mesma
+    // operação, não pode criar um segundo flashcard equivalente. Só
+    // deduplica cards que já têm `questionOriginId` — cards personalizados
+    // sem essa origem não são tocados aqui (fora de escopo).
+    const existing = this.getFlashcards().find((f) => f.questionOriginId === question.id);
+    if (existing) return existing;
+
     const template = question.flashcardTemplate || {
       front: `[${question.institution} ${question.year}] ${question.questionStem.slice(0, 180)}...`,
       back: `Resposta Correta:\n${question.options.find((o) => o.isCorrect)?.text || ''}\n\nExplicação:\n${question.highYieldSummary}`,
