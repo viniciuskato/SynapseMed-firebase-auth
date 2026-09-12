@@ -106,6 +106,19 @@ jobs:
       - name: Resetar banco local (migrations + seed determinístico)
         run: supabase db reset
 
+      - name: Aguardar Supabase local pronto (achado real do Prompt 13-B — `supabase db reset` retorna antes dos containers reiniciados responderem em runner real, e `npm run test:db` pula tudo silenciosamente sem isso)
+        run: |
+          for i in $(seq 1 30); do
+            if supabase status -o json 2>/dev/null | grep -q '"DB_URL"'; then
+              echo "Supabase local pronto (tentativa $i)."
+              exit 0
+            fi
+            echo "Aguardando Supabase local responder (tentativa $i/30)..."
+            sleep 2
+          done
+          echo "::error::Supabase local não respondeu DB_URL após 60s de espera."
+          exit 1
+
       - name: pgTAP (contratos de servidor)
         run: npm run test:db
 
