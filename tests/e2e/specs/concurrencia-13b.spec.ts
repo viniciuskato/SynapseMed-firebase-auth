@@ -2,7 +2,6 @@ import { test, expect, Page, Browser } from '@playwright/test';
 import {
   createTestUser,
   deleteTestUser,
-  psqlLocal,
   getSeedIds,
   insertFlashcardForUser,
   countFlashcardReviews,
