@@ -791,3 +791,81 @@ escopo do 11-B (não ampliar funcionalidades/testes).
 **Liberação do 12-A**: liberado — publicação concluída, gates verdes,
 sem pendência bloqueante conhecida na área de autenticação/bloqueio de
 contas.
+
+## Retorno recebido — 12-A, 2026-09-12
+Branch `work/12a-reprodutibilidade-deps`, criada a partir de `origin/main`
+em `b67a77c` (estado do 11-B, confirmado antes de editar). Sem
+commit/push/merge/deploy — trabalho local, aguardando revisão da diretoria.
+
+Resumo técnico (detalhamento completo em `AGENTS.md`, seção "Estado
+atual"): `package-lock.json` passou a ser versionado (não existia — `npm
+ci` falhava com `ENOLOCK`); `npm ci` provado reproduzível em cópia isolada
+fora do repositório. Três dependências confirmadas sem uso real removidas
+(`express`+`@types/express`, `@google/genai`, `motion`), eliminando também
+as duas vulnerabilidades moderadas `express -> qs` — `npm audit` e `npm
+audit --omit=dev` foram de "2 vulnerabilidades moderadas" (antes, só
+depois de gerar o lockfile inicial) para 0/0. `dotenv` movido para
+`devDependencies` (só scripts operacionais); `vite` (que estava duplicado
+em dependencies E devDependencies), `@vitejs/plugin-react`,
+`@tailwindcss/vite` e `@types/canvas-confetti` também movidos para
+`devDependencies`. `clean` deixou de usar `rm -rf` (incompatível com o
+PowerShell oficial do projeto) e passou a ser `scripts/clean.mjs`,
+multiplataforma e restrito a artefatos gerados (`dist/`). Scripts
+separados: `typecheck`, `lint` (ESLint real, não só `tsc`), `test`
+(`scripts/run-db-tests.mjs`, pgTAP condicionado à disponibilidade do
+Supabase local), `build`, `verify` (agregador). ESLint configurado com
+TypeScript + só as duas regras clássicas de React Hooks (não o conjunto
+"React Compiler" da v7 do plugin, que exigiria mexer em lógica de
+hooks/efeitos de arquivos como `AuthContext.tsx`) + acessibilidade JSX +
+imports não usados; achados reais corrigidos (108 imports, 4 `catch {}`
+vazios documentados, 40 ocorrências de label sem controle associado —
+parte via id/htmlFor, parte convertida para `span` quando era cabeçalho de
+grupo, não rótulo de um controle único); ~30 achados de interatividade por
+clique em elemento não nativo e 1 de autofoco intencional rebaixados a
+aviso, com justificativa comentada em `eslint.config.js` (corrigi-los de
+verdade exige teste de teclado/foco em navegador real, fora do escopo
+desta entrega). `npm run verify` completo passou (typecheck + lint 0
+erros/93 avisos + pgTAP 183/183 em 5 arquivos com Supabase local rodando +
+build); bundle sem `__syncDebug`/`__setTestBackoffOverride`. `engines`
+adicionado ao `package.json`; `README.md`/`.env.example` atualizados
+(removida menção a `GEMINI_API_KEY`, sem uso real no código). `git diff
+--check` limpo. Nenhuma mudança funcional, de autenticação, migration ou
+dado; nenhuma escrita remota.
+
+**Incidente durante a execução, corrigido antes de prosseguir**: uma
+primeira versão do script de correção de `label-has-associated-control`
+usava regex sem trava contra cruzar dois pares `<label>`/controle
+distintos — quando um label não tinha um controle nativo imediatamente
+depois (ex.: cabeçalho de uma lista dinâmica seguido de um botão), o
+`[\s\S]*?` não-guloso "pulou" esse `</label>` e foi buscar o PRÓXIMO
+`</label>` do arquivo, associando incorretamente o `htmlFor` do label
+errado ao `id` do input errado (confirmado em `AdminCMSView.tsx`, região
+"Pontos-Chave & Mecanismos Essenciais" vs. "Pérola Clínica"). Detectado
+por inspeção manual antes de rodar lint/build, os 4 arquivos afetados
+foram revertidos via `git checkout`, o script corrigido com uma trava de
+não atravessar outro `<label`, e reaplicado — confirmado correto por
+leitura direta do resultado e por `npx tsc --noEmit` limpo.
+
+**Pendências e riscos**: ~30 achados de acessibilidade de teclado
+(cliques em `div`/`span` sem `onKeyDown`/`role`/`tabIndex`) e o achado de
+`no-autofocus` ficaram como aviso, não corrigidos — precisam de uma
+entrega dedicada com teste de navegador real. 62 avisos de
+`@typescript-eslint/no-explicit-any` e ~20 de variáveis não usadas
+(`unused-imports/no-unused-vars`) também não foram corrigidos (risco
+baixo, não bloqueiam `verify`). Chunk único de produção continua acima de
+500kB (aviso pré-existente do Vite, não é regressão desta entrega, fora de
+escopo). `eslint@9.39.5` já está fora da janela oficial de suporte do
+projeto ESLint (aviso de depreciação no install) — funcionalmente correto
+e sem vulnerabilidades, mas uma atualização para ESLint 10 fica bloqueada
+hoje só por `eslint-plugin-jsx-a11y` ainda não declarar suporte formal a
+peer `eslint@^10`; reavaliar quando a a11y-plugin atualizar essa
+declaração.
+
+**Liberação do 13-A**: recomendo liberar. A barreira técnica
+(reprodutibilidade, dependências, scripts, lint real, verify único) está
+pronta e provada localmente; nenhuma mudança de produto/autenticação foi
+feita, então não há risco novo para a suíte de navegador ainda pendente.
+Antes de liberar 13-A, a diretoria deveria revisar e aprovar o merge desta
+branch em `main` (sem deploy adicional — não há mudança de runtime, só
+build/tooling) para que a próxima sessão trabalhe sobre o `package.json`
+já reconciliado.

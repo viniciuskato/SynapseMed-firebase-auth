@@ -9,13 +9,10 @@ import {
   Compass,
   X,
   ArrowRight,
-  ArrowLeft,
   Sparkles,
   Sun,
   Moon,
   Search,
-  CheckCircle2,
-  FileQuestion,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { LastReadingSession, ThemeMode } from '../../types';

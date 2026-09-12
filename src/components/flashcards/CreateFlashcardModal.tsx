@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, X, Sparkles, BookOpen } from 'lucide-react';
+import { Layers, X } from 'lucide-react';
 import { Discipline, Theme, Flashcard } from '../../types';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 
@@ -89,8 +89,8 @@ export const CreateFlashcardModal: React.FC<CreateFlashcardModalProps> = ({
         <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Disciplina</label>
-              <select
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1" htmlFor="createflashcardmodal-disciplina-1">Disciplina</label>
+              <select id="createflashcardmodal-disciplina-1"
                 value={disciplineId}
                 onChange={(e) => {
                   setDisciplineId(e.target.value);
@@ -107,8 +107,8 @@ export const CreateFlashcardModal: React.FC<CreateFlashcardModalProps> = ({
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Tema / Capítulo</label>
-              <select
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1" htmlFor="createflashcardmodal-tema-capitulo-2">Tema / Capítulo</label>
+              <select id="createflashcardmodal-tema-capitulo-2"
                 value={themeId}
                 onChange={(e) => setThemeId(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-[#243452] bg-slate-50 dark:bg-[#142038] focus:bg-white dark:focus:bg-[#1A2845] focus:outline-none focus:ring-2 focus:ring-teal-500 text-slate-900 dark:text-slate-100"
@@ -124,10 +124,10 @@ export const CreateFlashcardModal: React.FC<CreateFlashcardModalProps> = ({
           </div>
 
           <div>
-            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1" htmlFor="createflashcardmodal-frente-do-card-pergunta-3">
               Frente do Card (Pergunta / Conceito / Caso Breve)
             </label>
-            <textarea
+            <textarea id="createflashcardmodal-frente-do-card-pergunta-3"
               required
               rows={3}
               value={front}
@@ -138,10 +138,10 @@ export const CreateFlashcardModal: React.FC<CreateFlashcardModalProps> = ({
           </div>
 
           <div>
-            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1" htmlFor="createflashcardmodal-verso-do-card-resposta-4">
               Verso do Card (Resposta Direta / Resumo)
             </label>
-            <textarea
+            <textarea id="createflashcardmodal-verso-do-card-resposta-4"
               required
               rows={3}
               value={back}
@@ -152,10 +152,10 @@ export const CreateFlashcardModal: React.FC<CreateFlashcardModalProps> = ({
           </div>
 
           <div>
-            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1" htmlFor="createflashcardmodal-destaque-do-mecanismo-mnemonico-5">
               Destaque do Mecanismo / Mnemônico (Opcional)
             </label>
-            <input
+            <input id="createflashcardmodal-destaque-do-mecanismo-mnemonico-5"
               type="text"
               value={mechanismHighlight}
               onChange={(e) => setMechanismHighlight(e.target.value)}

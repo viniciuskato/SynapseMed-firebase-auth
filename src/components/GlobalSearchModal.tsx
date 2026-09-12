@@ -5,7 +5,6 @@ import {
   BookOpen,
   HelpCircle,
   Layers,
-  ArrowRight,
   ChevronRight,
 } from 'lucide-react';
 import { Compendium, Question, Flashcard } from '../types';

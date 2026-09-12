@@ -1173,6 +1173,67 @@ protótipo).
   de setup/teste/limpeza desta sessão (locais e remotos) foram
   temporários, não commitados. Ver `docs/diretoria/registro.md`,
   entrada "PUBLICADO — 11-B", para o detalhamento completo.
+- **Prompt 12-A (2026-09-12), branch `work/12a-reprodutibilidade-deps`, NÃO
+  mesclada em `main`**: reprodutibilidade e barreira técnica pré-deploy.
+  `package-lock.json` passou a ser versionado (não era antes — `npm ci`
+  falhava com `ENOLOCK`); `npm ci` agora provado reproduzível em cópia
+  isolada. Removidas do `package.json` três dependências confirmadas sem
+  nenhum uso real no código (busca estática + leitura de todo `src/` e
+  `scripts/`): `express` (e `@types/express`), `@google/genai`, `motion` —
+  isso também eliminou as duas vulnerabilidades moderadas
+  `express -> qs` que `npm audit --omit=dev` encontrava antes (0
+  vulnerabilidades antes e depois de `npm audit` completo e `--omit=dev`
+  logo após a limpeza). `dotenv` movido para `devDependencies` (só usado em
+  `scripts/*.ts`, nunca no bundle do navegador); `vite`/`@vitejs/plugin-
+  react`/`@tailwindcss/vite`/`@types/canvas-confetti` também movidos para
+  `devDependencies` (ferramentas de build/tipos, não runtime do navegador;
+  `vite` também estava duplicado em `dependencies` E `devDependencies`
+  antes, uma das causas prováveis da instabilidade do lockfile). `clean`
+  trocado de `rm -rf dist server.js` (não funciona no PowerShell oficial do
+  projeto) para `scripts/clean.mjs`, multiplataforma, restrito a artefatos
+  gerados. Scripts separados: `typecheck`, `lint` (agora ESLint de verdade,
+  não só `tsc --noEmit`), `test` (`scripts/run-db-tests.mjs` — roda pgTAP
+  via `supabase test db` se o Supabase local estiver de pé, senão avisa e
+  sai 0 em vez de fingir sucesso ou travar o gate), `build`, e o agregador
+  `verify` (typecheck → lint → test → build). ESLint configurado
+  (`eslint.config.js`, flat config) com `typescript-eslint`, só as duas
+  regras clássicas de `eslint-plugin-react-hooks` (não as ~10 regras novas
+  de "React Compiler" da v7 do plugin — exigiriam reescrever lógica de
+  hooks/efeitos em arquivos centrais como `AuthContext.tsx`, fora de escopo
+  de uma entrega que proíbe alterar autenticação),
+  `eslint-plugin-jsx-a11y` e `eslint-plugin-unused-imports`. Achados reais
+  corrigidos (não apenas configurado e ignorado): 108 imports não usados
+  removidos, 4 blocos `catch {}` vazios documentados com comentário (sem
+  mudar comportamento), e as 40 ocorrências de
+  `jsx-a11y/label-has-associated-control` corrigidas — a maioria com
+  `id`/`htmlFor` gerados por script (revisados manualmente após o script
+  ter, numa primeira tentativa com regex sem trava, cruzado incorretamente
+  dois pares label/controle distintos quando um label não tinha controle
+  nativo diretamente depois — corrigido adicionando uma trava de não
+  atravessar outro `<label` e revertendo/reaplicando os 4 arquivos
+  afetados antes de seguir), e um punhado de labels que na verdade eram
+  cabeçalho de um grupo de botões (sem controle nativo associável)
+  convertidos para `<span>`. As regras de interatividade por clique em
+  elementos não nativos (`click-events-have-key-events`,
+  `no-static-element-interactions`, `no-noninteractive-element-
+  interactions`, ~30 ocorrências em cards de questão/flashcard/simulado) e
+  `no-autofocus` (1 ocorrência, autofoco intencional no campo de busca do
+  `GlobalSearchModal`) foram deliberadamente rebaixadas de erro para aviso
+  — corrigi-las de verdade exige adicionar `onKeyDown`/`role`/`tabIndex` e
+  validar teclado/foco em navegador real, fora do escopo desta entrega
+  (só a suíte de navegador ficou explicitamente de fora); ficam visíveis
+  como aviso (93 avisos, 0 erros — `npm run lint` sai com código 0) para
+  uma entrega futura dedicada de acessibilidade de teclado, com a
+  justificativa comentada em `eslint.config.js`. `npm run verify` completo
+  (`typecheck` + `lint` + `test` com Supabase local rodando, 183/183 pgTAP
+  em 5 arquivos + `build`) passou limpo; bundle de produção confirmado sem
+  `__syncDebug`/`__setTestBackoffOverride`. `engines` adicionado ao
+  `package.json` (`node >=20.19 <25`, `npm >=10`); `README.md` e
+  `.env.example` atualizados (removida menção a `GEMINI_API_KEY`, variável
+  sem nenhum uso real no código, resquício do template original). Nenhuma
+  mudança funcional/de autenticação/migration; nenhum merge em `main`,
+  push ou deploy. Ver `docs/diretoria/registro.md`, entrada "12-A", para o
+  detalhamento completo do retorno.
 
 ## Manter este arquivo atualizado
 

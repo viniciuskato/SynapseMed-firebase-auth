@@ -1,6 +1,5 @@
 import {
   sourceVerificationLabel,
-  resolveOpenAccessReferenceLink,
   formatToAbntCitation,
 } from '../../utils/bibliographicSources';
 import React, { useState, useEffect, useRef } from 'react';
@@ -18,9 +17,7 @@ import {
   List,
   X,
   Sparkles,
-  ChevronRight,
   BookOpen,
-  Link2,
   ExternalLink,
   MoreHorizontal,
   Copy,

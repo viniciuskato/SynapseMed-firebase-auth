@@ -1,15 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  LayoutDashboard,
-  BookOpen,
-  HelpCircle,
-  Layers,
-  Timer,
-  BookMarked,
-  Settings,
-  Menu,
-  X,
-  Search,
   ShieldAlert,
 } from 'lucide-react';
 import {
@@ -103,7 +93,6 @@ import { CreateSimuladoModal } from './components/questions/CreateSimuladoModal'
 import { FlashcardsView } from './components/flashcards/FlashcardsView';
 import { FlashcardReviewSession } from './components/flashcards/FlashcardReviewSession';
 import { CreateFlashcardModal } from './components/flashcards/CreateFlashcardModal';
-import { ErrorNotebookView } from './components/errors/ErrorNotebookView';
 import { SimuladosView } from './components/simulados/SimuladosView';
 import { AdminCMSView } from './components/admin/AdminCMSView';
 

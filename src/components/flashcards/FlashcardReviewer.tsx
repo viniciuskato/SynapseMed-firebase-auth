@@ -5,12 +5,7 @@ import {
   RotateCw,
   Sparkles,
   BookOpen,
-  CheckCircle2,
-  AlertTriangle,
   Award,
-  Layers,
-  ChevronRight,
-  Flame,
   Link2,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
@@ -77,7 +72,10 @@ export const FlashcardReviewer: React.FC<FlashcardReviewerProps> = ({
           spread: 60,
           origin: { y: 0.6 },
         });
-      } catch (e) {}
+      } catch {
+        // Confete é só um efeito decorativo — falhar aqui não deve
+        // impedir o fluxo real de revisão do flashcard.
+      }
     }
   };
 

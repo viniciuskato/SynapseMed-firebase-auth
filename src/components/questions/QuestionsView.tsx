@@ -2,18 +2,11 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   HelpCircle,
   Search,
-  Filter,
-  Sparkles,
   Timer,
-  Bookmark,
-  CheckCircle2,
-  XCircle,
-  Plus,
   BookOpen,
   ArrowLeft,
 } from 'lucide-react';
-import { Question, Discipline, Theme, MedicalCycle, DifficultyLevel, QuestionAnswerRecord, QuestionReactionValue, Compendium, LastReadingSession } from '../../types';
-import { StorageService } from '../../services/storage';
+import { Question, Discipline, Theme, QuestionAnswerRecord, QuestionReactionValue, Compendium, LastReadingSession } from '../../types';
 import { bookmarksRepository } from '../../repositories/BookmarksRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
 import { questionReactionsRepository } from '../../repositories/QuestionReactionsRepository';

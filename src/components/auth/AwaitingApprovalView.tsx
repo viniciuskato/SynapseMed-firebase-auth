@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, ShieldCheck, Mail, CheckCircle2, ArrowRight, LogOut, Users, Sparkles } from 'lucide-react';
+import { Clock, ShieldCheck, Mail, CheckCircle2, LogOut, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface AwaitingApprovalViewProps {

@@ -1,16 +1,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   BookMarked,
-  Tag,
   BookOpen,
   Layers,
   Sparkles,
   CheckCircle2,
-  AlertTriangle,
-  HelpCircle,
-  Clock,
   Play,
-  Filter,
   Search,
   RotateCcw,
   FileEdit,

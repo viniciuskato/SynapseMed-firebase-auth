@@ -5,7 +5,6 @@ import {
   BookOpen,
   HelpCircle,
   Layers,
-  Stethoscope,
   Trash2,
   CheckCircle2,
   AlertTriangle,
@@ -15,13 +14,10 @@ import {
   Edit3,
   Search,
   Clock,
-  Compass,
-  Activity,
   Lightbulb,
   FileText,
   X,
   ChevronDown,
-  ChevronUp,
   Users,
   ShieldBan,
   ShieldCheck,
@@ -30,7 +26,7 @@ import {
   ThumbsUp,
   ThumbsDown,
 } from 'lucide-react';
-import { Discipline, Theme, Question, Compendium, Flashcard, CompendiumSection, UserFeedback, FeedbackStatus } from '../../types';
+import { Discipline, Theme, Question, Compendium, Flashcard, CompendiumSection, UserFeedback } from '../../types';
 import { StorageService } from '../../services/storage';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { materialsRepository } from '../../repositories/MaterialsRepository';
@@ -733,10 +729,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
               {/* General Metadata */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="md:col-span-2">
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-titulo-principal-do-compendio-1">
                     Título Principal do Compêndio *
                   </label>
-                  <input
+                  <input id="admincmsview-titulo-principal-do-compendio-1"
                     type="text"
                     required
                     value={compTitle}
@@ -747,10 +743,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-modalidade-categoria-2">
                     Modalidade / Categoria
                   </label>
-                  <select
+                  <select id="admincmsview-modalidade-categoria-2"
                     value={compMode}
                     onChange={(e) => setCompMode(e.target.value as 'atlas' | 'mecanismos')}
                     className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 font-semibold text-xs"
@@ -762,10 +758,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
               </div>
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-subtitulo-descricao-sintetica-3">
                   Subtítulo / Descrição Sintética *
                 </label>
-                <input
+                <input id="admincmsview-subtitulo-descricao-sintetica-3"
                   type="text"
                   required
                   value={compSubtitle}
@@ -777,10 +773,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-disciplina-4">
                     Disciplina
                   </label>
-                  <select
+                  <select id="admincmsview-disciplina-4"
                     value={compDisciplineId}
                     onChange={(e) => setCompDisciplineId(e.target.value)}
                     className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
@@ -794,10 +790,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-tema-vinculado-5">
                     Tema Vinculado
                   </label>
-                  <select
+                  <select id="admincmsview-tema-vinculado-5"
                     value={compThemeId}
                     onChange={(e) => setCompThemeId(e.target.value)}
                     className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100 text-xs"
@@ -814,10 +810,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-autor-curador-6">
                     Autor / Curador
                   </label>
-                  <input
+                  <input id="admincmsview-autor-curador-6"
                     type="text"
                     value={compAuthor}
                     onChange={(e) => setCompAuthor(e.target.value)}
@@ -827,10 +823,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-tempo-est-minutos-7">
                     Tempo Est. (minutos)
                   </label>
-                  <input
+                  <input id="admincmsview-tempo-est-minutos-7"
                     type="number"
                     min={1}
                     max={120}
@@ -841,10 +837,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-nº-do-modulo-opcional-8">
                     Nº do módulo (opcional)
                   </label>
-                  <input
+                  <input id="admincmsview-nº-do-modulo-opcional-8"
                     type="number"
                     min={1}
                     value={compModuleNumber}
@@ -857,10 +853,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-tags-clinicas-separadas-por-9">
                     Tags Clínicas (separadas por vírgula)
                   </label>
-                  <input
+                  <input id="admincmsview-tags-clinicas-separadas-por-9"
                     type="text"
                     value={compTagsStr}
                     onChange={(e) => setCompTagsStr(e.target.value)}
@@ -870,10 +866,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-nos-de-conexao-pre-requisitos-10">
                     Nós de Conexão / Pré-requisitos (separados por vírgula)
                   </label>
-                  <input
+                  <input id="admincmsview-nos-de-conexao-pre-requisitos-10"
                     type="text"
                     value={compDependenciesStr}
                     onChange={(e) => setCompDependenciesStr(e.target.value)}
@@ -931,10 +927,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <div className="sm:col-span-2">
-                          <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                          <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-titulo-da-secao-11">
                             Título da Seção
                           </label>
-                          <input
+                          <input id="admincmsview-titulo-da-secao-11"
                             type="text"
                             required
                             value={sec.title}
@@ -945,10 +941,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                         </div>
 
                         <div>
-                          <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                          <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-tag-de-mecanismo-ancora-12">
                             Tag de Mecanismo / Âncora
                           </label>
-                          <input
+                          <input id="admincmsview-tag-de-mecanismo-ancora-12"
                             type="text"
                             value={sec.mechanismTag || ''}
                             onChange={(e) => handleUpdateSection(secIdx, 'mechanismTag', e.target.value)}
@@ -959,10 +955,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                       </div>
 
                       <div>
-                        <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                        <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-conteudo-teorico-markdown-texto-13">
                           Conteúdo Teórico (Markdown / Texto / Tabelas)
                         </label>
-                        <textarea
+                        <textarea id="admincmsview-conteudo-teorico-markdown-texto-13"
                           rows={4}
                           required
                           value={sec.content}
@@ -975,9 +971,12 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                       {/* Key Takeaways Builder */}
                       <div className="space-y-2 pt-2">
                         <div className="flex items-center justify-between">
-                          <label className="font-bold text-stone-700 dark:text-slate-300 block">
+                          {/* Rótulo de uma lista dinâmica (não de um único controle
+                              nativo) — `span`, não `label`, para não disparar falso
+                              positivo de jsx-a11y/label-has-associated-control. */}
+                          <span className="font-bold text-stone-700 dark:text-slate-300 block">
                             Pontos-Chave & Mecanismos Essenciais
-                          </label>
+                          </span>
                           <button
                             type="button"
                             onClick={() => handleAddTakeaway(secIdx)}
@@ -1011,11 +1010,11 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                         <div>
-                          <label className="font-bold text-stone-700 dark:text-slate-300 flex items-center gap-1 mb-1">
+                          <label className="font-bold text-stone-700 dark:text-slate-300 flex items-center gap-1 mb-1" htmlFor="admincmsview-perola-clinica-aplicacao-opcional-14">
                             <Lightbulb className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                             <span>Pérola Clínica & Aplicação (Opcional)</span>
                           </label>
-                          <input
+                          <input id="admincmsview-perola-clinica-aplicacao-opcional-14"
                             type="text"
                             value={sec.clinicalPearl || ''}
                             onChange={(e) => handleUpdateSection(secIdx, 'clinicalPearl', e.target.value)}
@@ -1025,11 +1024,11 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                         </div>
 
                         <div>
-                          <label className="font-bold text-stone-700 dark:text-slate-300 flex items-center gap-1 mb-1">
+                          <label className="font-bold text-stone-700 dark:text-slate-300 flex items-center gap-1 mb-1" htmlFor="admincmsview-alerta-de-armadilha-erro-15">
                             <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
                             <span>Alerta de Armadilha / Erro Comum (Opcional)</span>
                           </label>
-                          <input
+                          <input id="admincmsview-alerta-de-armadilha-erro-15"
                             type="text"
                             value={sec.warningAlert || ''}
                             onChange={(e) => handleUpdateSection(secIdx, 'warningAlert', e.target.value)}
@@ -1045,10 +1044,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
               {/* References */}
               <div>
-                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-referencias-bibliograficas-diretrizes-oficiais-16">
                   Referências Bibliográficas & Diretrizes Oficiais (uma por linha)
                 </label>
-                <textarea
+                <textarea id="admincmsview-referencias-bibliograficas-diretrizes-oficiais-16"
                   rows={2}
                   value={compReferencesStr}
                   onChange={(e) => setCompReferencesStr(e.target.value)}
@@ -1287,8 +1286,8 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Disciplina</label>
-                  <select
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-disciplina-17">Disciplina</label>
+                  <select id="admincmsview-disciplina-17"
                     value={newQDiscipline}
                     onChange={(e) => setNewQDiscipline(e.target.value)}
                     className="w-full p-2.5 rounded-lg border border-stone-200 dark:border-[#243452] bg-stone-50 dark:bg-[#142038] text-stone-900 dark:text-slate-100"
@@ -1302,8 +1301,8 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Instituição / Banca</label>
-                  <input
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-instituicao-banca-18">Instituição / Banca</label>
+                  <input id="admincmsview-instituicao-banca-18"
                     type="text"
                     required
                     value={newQInstitution}
@@ -1314,8 +1313,8 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
                 </div>
 
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Ano</label>
-                  <input
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-ano-19">Ano</label>
+                  <input id="admincmsview-ano-19"
                     type="number"
                     required
                     value={newQYear}
@@ -1326,10 +1325,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
               </div>
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-enunciado-clinico-caso-vinheta-20">
                   Enunciado Clínico (Caso / Vinheta)
                 </label>
-                <textarea
+                <textarea id="admincmsview-enunciado-clinico-caso-vinheta-20"
                   rows={2}
                   value={newQVignette}
                   onChange={(e) => setNewQVignette(e.target.value)}
@@ -1339,10 +1338,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
               </div>
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-comando-da-questao-pergunta-21">
                   Comando da Questão (Pergunta)
                 </label>
-                <input
+                <input id="admincmsview-comando-da-questao-pergunta-21"
                   type="text"
                   required
                   value={newQStem}
@@ -1407,10 +1406,10 @@ export const AdminCMSView: React.FC<AdminCMSViewProps> = ({
               </div>
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="admincmsview-perola-high-yield-resumo-para-22">
                   Pérola High-Yield (Resumo para fixação rápida)
                 </label>
-                <input
+                <input id="admincmsview-perola-high-yield-resumo-para-22"
                   type="text"
                   value={newQHighYield}
                   onChange={(e) => setNewQHighYield(e.target.value)}

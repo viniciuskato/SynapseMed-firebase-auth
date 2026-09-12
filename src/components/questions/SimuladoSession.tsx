@@ -1,16 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   Timer,
-  CheckCircle2,
-  XCircle,
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
   BookOpen,
-  Layers,
-  Sparkles,
-  BarChart3,
-  Flame,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Question, SimuladoConfig, Discipline, Theme, SimuladoSessionData, QuestionReviewResult, Compendium } from '../../types';
@@ -76,7 +70,10 @@ function clearDraftAnswers(simuladoId: string): void {
   if (!key) return;
   try {
     localStorage.removeItem(key);
-  } catch {}
+  } catch {
+    // Rascunho é só cache local best-effort — falha ao limpar não deve
+    // interromper o fim do simulado.
+  }
 }
 
 interface SimuladoSessionProps {
@@ -269,7 +266,10 @@ export const SimuladoSession: React.FC<SimuladoSessionProps> = ({
           spread: 70,
           origin: { y: 0.6 },
         });
-      } catch (e) {}
+      } catch {
+        // Confete é só um efeito decorativo — falhar aqui não deve
+        // impedir o encerramento real do simulado.
+      }
     }
   };
 

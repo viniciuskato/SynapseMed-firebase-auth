@@ -212,8 +212,8 @@ export default function SectionEditor({ compendium, onClose, onSaved }: SectionE
               )}
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Título da seção</label>
-                <input
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="sectioneditor-titulo-da-secao-1">Título da seção</label>
+                <input id="sectioneditor-titulo-da-secao-1"
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -222,8 +222,8 @@ export default function SectionEditor({ compendium, onClose, onSaved }: SectionE
               </div>
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Tag de mecanismo</label>
-                <input
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="sectioneditor-tag-de-mecanismo-2">Tag de mecanismo</label>
+                <input id="sectioneditor-tag-de-mecanismo-2"
                   type="text"
                   value={mechanismTag}
                   onChange={(e) => setMechanismTag(e.target.value)}
@@ -232,8 +232,8 @@ export default function SectionEditor({ compendium, onClose, onSaved }: SectionE
               </div>
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Conteúdo (markdown)</label>
-                <textarea
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="sectioneditor-conteudo-markdown-3">Conteúdo (markdown)</label>
+                <textarea id="sectioneditor-conteudo-markdown-3"
                   value={content}
                   onChange={(e) => setContent(e.target.value)}
                   rows={10}
@@ -242,8 +242,8 @@ export default function SectionEditor({ compendium, onClose, onSaved }: SectionE
               </div>
 
               <div>
-                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Pontos-chave (um por linha)</label>
-                <textarea
+                <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="sectioneditor-pontos-chave-um-por-linha-4">Pontos-chave (um por linha)</label>
+                <textarea id="sectioneditor-pontos-chave-um-por-linha-4"
                   value={keyTakeawaysStr}
                   onChange={(e) => setKeyTakeawaysStr(e.target.value)}
                   rows={3}
@@ -253,8 +253,8 @@ export default function SectionEditor({ compendium, onClose, onSaved }: SectionE
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Pérola clínica</label>
-                  <textarea
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="sectioneditor-perola-clinica-5">Pérola clínica</label>
+                  <textarea id="sectioneditor-perola-clinica-5"
                     value={clinicalPearl}
                     onChange={(e) => setClinicalPearl(e.target.value)}
                     rows={2}
@@ -262,8 +262,8 @@ export default function SectionEditor({ compendium, onClose, onSaved }: SectionE
                   />
                 </div>
                 <div>
-                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1">Alerta</label>
-                  <textarea
+                  <label className="font-bold text-stone-700 dark:text-slate-300 block mb-1" htmlFor="sectioneditor-alerta-6">Alerta</label>
+                  <textarea id="sectioneditor-alerta-6"
                     value={warningAlert}
                     onChange={(e) => setWarningAlert(e.target.value)}
                     rows={2}

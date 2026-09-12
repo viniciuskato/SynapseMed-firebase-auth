@@ -12,7 +12,6 @@ export function usePersistedState<T>(key: string, defaultValue: T) {
 
   useEffect(() => {
     StorageService.setUIState(key, value);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, value]);
 
   return [value, setValue] as const;

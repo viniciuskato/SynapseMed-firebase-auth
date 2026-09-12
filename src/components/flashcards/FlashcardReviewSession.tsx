@@ -4,20 +4,14 @@ import {
   RotateCcw,
   Sparkles,
   BookOpen,
-  CheckCircle2,
-  AlertTriangle,
-  HelpCircle,
-  Clock,
-  Layers,
   Award,
-  Link2,
   ExternalLink,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Flashcard, Discipline, Theme, Compendium } from '../../types';
 import { calculateNextSRS } from '../../services/srsAlgorithm';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
-import { sourceVerificationLabel, formatToAbntCitation } from '../../utils/bibliographicSources';
+import { formatToAbntCitation } from '../../utils/bibliographicSources';
 
 interface FlashcardReviewSessionProps {
   cards: Flashcard[];
@@ -86,7 +80,10 @@ export const FlashcardReviewSession: React.FC<FlashcardReviewSessionProps> = ({
             spread: 70,
             origin: { y: 0.6 },
           });
-        } catch (e) {}
+        } catch {
+          // Confete é só um efeito decorativo — falhar aqui não deve
+          // impedir o fluxo real de revisão do flashcard.
+        }
       }
     },
     [currentCard, currentIdx, queue.length]

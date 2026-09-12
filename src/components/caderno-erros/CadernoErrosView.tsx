@@ -1,17 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import {
   AlertCircle,
-  BookOpen,
   Layers,
   Timer,
   Sparkles,
-  Tag,
   CheckCircle2,
-  HelpCircle,
-  Flame,
 } from 'lucide-react';
 import { Question, Discipline, Theme, QuestionAnswerRecord, Compendium } from '../../types';
-import { StorageService } from '../../services/storage';
 import { flashcardsRepository } from '../../repositories/FlashcardsRepository';
 import { answersRepository } from '../../repositories/AnswersRepository';
 import { QuestionCard } from '../questions/QuestionCard';
