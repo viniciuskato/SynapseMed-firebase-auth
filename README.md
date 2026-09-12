@@ -6,8 +6,8 @@ O **SynapseMed** é uma plataforma acadêmica e clínica de estudos voltada para
 
 ## 📋 Requisitos do Sistema
 
-- **Node.js**: v20.x ou v22.x (LTS recomendado)
-- **npm**: v10.x ou superior
+- **Node.js**: `>=20.19 <25` (testado com v24.18.0; `engines` em `package.json`)
+- **npm**: `>=10` (testado com v11.16.0)
 - **Navegador**: Navegadores modernos com suporte a ES Modules (Chrome, Firefox, Safari, Edge)
 - **Projeto no Supabase**: Com URL e chave anônima (`anon key`) disponíveis
 
@@ -17,10 +17,17 @@ O **SynapseMed** é uma plataforma acadêmica e clínica de estudos voltada para
 
 ### 1. Clonar e Instalar Dependências
 
-O projeto utiliza o **npm** como gerenciador oficial de pacotes.
+O projeto utiliza o **npm** como gerenciador oficial de pacotes, com
+`package-lock.json` versionado — use `npm ci` sempre que possível (instalação
+limpa e reprodutível a partir do lockfile, mesma árvore de dependências em
+qualquer máquina). Use `npm install` só quando for de propósito alterar
+dependências.
 
 ```bash
-# Instalar todas as dependências do projeto
+# Instalação limpa e reprodutível (recomendado)
+npm ci
+
+# Instalar/atualizar dependências (só quando for mudar o package.json)
 npm install
 ```
 
@@ -36,7 +43,6 @@ Preencha o arquivo `.env` com as chaves do seu projeto Supabase. **Atenção**: 
 
 - `VITE_SUPABASE_URL`: URL do projeto Supabase (`https://<project-ref>.supabase.co`).
 - `VITE_SUPABASE_ANON_KEY`: Chave anônima (`anon key`) do projeto, segura para uso no cliente desde que a Row Level Security esteja configurada corretamente.
-- `GEMINI_API_KEY`: Chave da API Gemini (uso exclusivamente server-side).
 
 > ⚠️ **AVISO DE SEGURANÇA CRÍTICO**:
 > - **NUNCA** versione arquivos `.env`, `.env.*` ou `.env.local` no Git.
@@ -74,21 +80,46 @@ Inicia o servidor de desenvolvimento local na porta 3000:
 npm run dev
 ```
 
-### Validação de Tipos e Lint
+### Validação de Tipos, Lint, Testes e Build
 
-Executa a checagem rigorosa de tipos TypeScript sem emitir arquivos:
-
-```bash
-npm run lint
-```
-
-### Compilação para Produção
-
-Gera o build otimizado da aplicação na pasta `dist/`:
+Scripts separados por finalidade — cada um pode ser rodado isoladamente:
 
 ```bash
-npm run build
+npm run typecheck   # tsc --noEmit
+npm run lint        # ESLint real: TypeScript + React Hooks + acessibilidade JSX
+                     # (--max-warnings 93: baseline transitório, não sobe)
+npm run test        # pgTAP (supabase/tests/database) contra o Supabase LOCAL;
+                     # OBRIGATÓRIO — falha (exit != 0) se CLI/stack local
+                     # não estiverem disponíveis, nunca pula em silêncio
+npm run test:optional  # mesma coisa, mas pula com aviso e exit 0 se CLI/
+                        # stack não estiverem disponíveis — conveniência
+                        # explícita, NÃO faz parte de `npm run verify`
+npm run build       # vite build -> dist/
+npm run clean       # remove artefatos gerados (dist/ etc.), nunca código-fonte
 ```
+
+`npm run verify` roda os quatro primeiros em sequência (typecheck → lint →
+test → build) — é a barreira técnica única a rodar antes de commitar/publicar,
+equivalente ao que esta seção descrevia separadamente antes. Requer Supabase
+local rodando (`supabase start`) — sem isso, `npm run verify` falha no passo
+de teste em vez de ficar verde sem ter rodado o pgTAP:
+
+```bash
+npm run verify
+```
+
+Fluxo reproduzível completo, do zero:
+
+```bash
+npm ci
+npm run verify
+```
+
+`npm run lint` cobre TypeScript (`typescript-eslint`), regras clássicas de
+React Hooks (`rules-of-hooks`/`exhaustive-deps`) e acessibilidade JSX
+(`eslint-plugin-jsx-a11y`), além de detectar imports/variáveis não usados
+(`eslint-plugin-unused-imports`) — ver `eslint.config.js` para as regras
+deliberadamente rebaixadas a aviso (e por quê) em vez de bloquear o gate.
 
 ### Pré-visualização do Build
 

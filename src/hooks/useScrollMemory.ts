@@ -45,6 +45,5 @@ export function useScrollMemory(key: string, ready: boolean = true): void {
       // não na mesma linha"). O listener contínuo já é suficiente: a última
       // posição de scroll real do usuário já ficou salva antes de desmontar.
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, ready]);
 }

@@ -1,23 +1,16 @@
-import { sourceVerificationLabel, formatToAbntCitation } from '../../utils/bibliographicSources';
+import { formatToAbntCitation } from '../../utils/bibliographicSources';
 import React, { useState, useEffect } from 'react';
 import {
   CheckCircle2,
   XCircle,
   BookOpen,
-  Layers,
   Sparkles,
   Bookmark,
   AlertCircle,
-  HelpCircle,
-  ChevronDown,
-  ChevronUp,
   Tag,
-  Clock,
   EyeOff,
-  Stethoscope,
   ThumbsUp,
   ThumbsDown,
-  Link2,
   ExternalLink,
 } from 'lucide-react';
 import { Question, QuestionAnswerRecord, QuestionReviewResult, Discipline, Theme, QuestionReactionValue, Compendium } from '../../types';

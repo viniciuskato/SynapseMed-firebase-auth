@@ -128,9 +128,12 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
 
             {/* Type selector */}
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+              {/* Rótulo de um grupo de botões (não de um único controle nativo) —
+                  `span`, não `label`, para não disparar falso positivo de
+                  jsx-a11y/label-has-associated-control. */}
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
                 Tipo de Relato
-              </label>
+              </span>
               <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
@@ -175,9 +178,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ isOpen, onClose })
 
             {/* Quick Topic Chips */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                 Assunto Rápido (clique para preencher o título)
-              </label>
+              </span>
               <div className="flex flex-wrap gap-1.5">
                 {(type === 'problema'
                   ? [

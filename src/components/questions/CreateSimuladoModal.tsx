@@ -2,13 +2,7 @@ import React, { useState } from 'react';
 import {
   Timer,
   X,
-  Sparkles,
   Check,
-  Layers,
-  HelpCircle,
-  Clock,
-  BookOpen,
-  Filter,
 } from 'lucide-react';
 import { Discipline, Theme, DifficultyLevel, MedicalCycle, SimuladoConfig } from '../../types';
 
@@ -103,9 +97,9 @@ export const CreateSimuladoModal: React.FC<CreateSimuladoModalProps> = ({
         <div className="p-6 space-y-6 overflow-y-auto flex-1 text-xs">
           {/* Mode Selection */}
           <div>
-            <label className="font-bold text-slate-700 dark:text-slate-200 block mb-2">
+            <span className="font-bold text-slate-700 dark:text-slate-200 block mb-2">
               Modo de Resolução
-            </label>
+            </span>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -147,10 +141,10 @@ export const CreateSimuladoModal: React.FC<CreateSimuladoModalProps> = ({
 
           {/* Title */}
           <div>
-            <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1.5">
+            <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1.5" htmlFor="createsimuladomodal-nome-da-sessao-de-1">
               Nome da Sessão de Estudo
             </label>
-            <input
+            <input id="createsimuladomodal-nome-da-sessao-de-1"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -182,7 +176,7 @@ export const CreateSimuladoModal: React.FC<CreateSimuladoModalProps> = ({
           {/* Disciplines Selection */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="font-bold text-slate-700 dark:text-slate-200">Disciplinas Médicas</label>
+              <span className="font-bold text-slate-700 dark:text-slate-200">Disciplinas Médicas</span>
               <button
                 onClick={() =>
                   setSelectedDisciplines(
@@ -222,10 +216,10 @@ export const CreateSimuladoModal: React.FC<CreateSimuladoModalProps> = ({
           {/* Question Count & Time Limit (Time limit is only displayed in Prova mode) */}
           <div className={`grid gap-4 ${isExamMode ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1.5">
+              <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1.5" htmlFor="createsimuladomodal-quantidade-de-questoes-questioncount-2">
                 Quantidade de Questões: <strong className="text-teal-700 dark:text-teal-400">{questionCount}</strong>
               </label>
-              <input
+              <input id="createsimuladomodal-quantidade-de-questoes-questioncount-2"
                 type="range"
                 min={2}
                 max={Math.max(5, totalAvailableQuestions)}
@@ -237,10 +231,10 @@ export const CreateSimuladoModal: React.FC<CreateSimuladoModalProps> = ({
 
             {isExamMode ? (
               <div>
-                <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1.5">
+                <label className="font-bold text-slate-700 dark:text-slate-200 block mb-1.5" htmlFor="createsimuladomodal-tempo-limite-timelimitminutes-minutos-3">
                   Tempo Limite: <strong className="text-teal-700 dark:text-teal-400">{timeLimitMinutes} minutos</strong>
                 </label>
-                <input
+                <input id="createsimuladomodal-tempo-limite-timelimitminutes-minutos-3"
                   type="range"
                   min={5}
                   max={120}

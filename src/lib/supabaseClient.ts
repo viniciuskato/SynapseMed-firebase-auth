@@ -66,7 +66,6 @@ const resolved = resolveConfig();
 export const isSupabaseConfigured = resolved.isConfigured;
 
 if (!isSupabaseConfigured) {
-  // eslint-disable-next-line no-console
   console.warn(
     '[supabaseClient] VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY não configuradas ou inválidas. ' +
       'Operando em modo local resiliente com dados simulados.'
@@ -77,7 +76,6 @@ function initSupabase() {
   try {
     return createClient(resolved.url, resolved.anonKey);
   } catch (err) {
-    // eslint-disable-next-line no-console
     console.error('[supabaseClient] Falha ao inicializar createClient, usando fallback seguro:', err);
     return createClient('https://placeholder.supabase.co', 'placeholder-anon-key');
   }

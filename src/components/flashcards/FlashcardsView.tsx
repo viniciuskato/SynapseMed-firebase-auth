@@ -4,12 +4,8 @@ import {
   Search,
   Plus,
   Play,
-  RotateCcw,
-  Sparkles,
-  CheckCircle2,
   Clock,
   BookOpen,
-  Filter,
   Brain,
   Trash2,
 } from 'lucide-react';

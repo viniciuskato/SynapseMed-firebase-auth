@@ -16,13 +16,8 @@ import {
   MessageSquare,
   UserCheck,
   Calendar,
-  Layers,
-  Filter,
   Stethoscope,
   Pill,
-  FileCheck2,
-  RefreshCw,
-  AlertCircle,
   ArrowLeft,
 } from 'lucide-react';
 import { Compendium, Discipline, Theme, StudyLens, EditorialStatus, LastReadingSession } from '../../types';

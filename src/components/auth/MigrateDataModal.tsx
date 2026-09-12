@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Database, CheckCircle2, AlertTriangle, ShieldCheck, Copy, ArrowRight, X } from 'lucide-react';
+import { Database, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { MigrationSummary } from '../../types';
 import { StorageService } from '../../services/storage';
 
@@ -109,6 +109,7 @@ export const MigrateDataModal: React.FC<MigrateDataModalProps> = ({
               id="checkbox-keep-copy"
               checked={keepCopy}
               onChange={(e) => setKeepCopy(e.target.checked)}
+              aria-label="Manter cópia de segurança dos dados originais"
               className="mt-0.5 rounded text-teal-600 focus:ring-teal-500"
             />
             <div className="text-xs">
