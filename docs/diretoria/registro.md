@@ -960,3 +960,141 @@ entregas dedicadas, não bloqueadas por este prompt). Antes de liberar
 13-A, a diretoria deveria revisar e aprovar o merge de
 `work/12a-reprodutibilidade-deps` (agora incluindo 12-A + 12-A2) em
 `main`.
+
+## Retorno recebido — 12-B, 2026-09-12 (sessão executiva)
+Revisão e integração de `work/12a-reprodutibilidade-deps` em `main`.
+**PUBLICADO**.
+
+**Estado inicial/final**: `origin/main` em `b67a77c` no início e
+reconfirmado igual antes de publicar (sem reconciliação necessária).
+Branch de trabalho em `0a33b20` (era `c667424` antes da correção
+documental — ver abaixo), sem push anterior a nenhum remoto. Working
+tree limpo do início ao fim; um único worktree
+(`C:/Users/vinic/dev/NexusMed/firebase-auth`).
+
+**Reconciliação e revisão de escopo**: `origin/main` não avançou durante
+toda a janela de trabalho — sem merge/rebase necessário. Diff completo
+(35 arquivos, `git diff origin/main...work/12a-reprodutibilidade-deps`)
+lido por inteiro: nenhuma mudança de regra de negócio, autenticação ou
+cálculo; nenhum arquivo fora do escopo de reprodutibilidade/deps/
+acessibilidade. As 26 alterações de label/id em componentes de UI
+seguem um padrão sistemático único — `label`/`htmlFor`/`id` adicionados
+em pares reais (título+controle), ou `label` convertido para `span`
+apenas quando o rótulo é cabeçalho de um grupo sem controle nativo
+associável (ex.: "Pontos-Chave & Mecanismos Essenciais" em
+`AdminCMSView.tsx`, "Tipo de Relato" em `FeedbackModal.tsx`) — confirmado
+intencional (acessibilidade), não mudança de comportamento.
+
+**Correção documental**: a entrada "Retorno recebido — 12-A2" em
+`docs/diretoria/registro.md` (commit `c667424` à época) afirmava, em
+duas passagens, que "nenhum commit novo" existia — desatualizado, pois
+o próprio commit que carregava essa frase já existia. Reescrita para
+deixar explícito que a frase descrevia o working tree ANTES do commit
+final ter sido criado, sem alterar nenhum outro conteúdo funcional do
+commit. Como a branch nunca havia sido publicada em nenhum remoto
+(`git ls-remote origin` não listava `work/12a-reprodutibilidade-deps`),
+a correção foi aplicada via `git commit --amend` local — sem
+force-push, sem reescrever `main`, sem afetar histórico compartilhado.
+O commit passou a ser `0a33b20` (era `c667424`).
+
+**Validações técnicas** (todas revalidadas do zero, Supabase local
+rodando): `npm ci` — exit 0, 0 vulnerabilidades; `npm audit` — exit 0,
+0 vulnerabilidades; `npm audit --omit=dev` — exit 0, 0 vulnerabilidades;
+`npm run typecheck` — exit 0, limpo; `npm run lint` — exit 0, 93
+problemas (0 erros, 93 avisos), dentro do teto; `npm test` (pgTAP) —
+exit 0, 183/183 testes em 5 arquivos (`rls_policies`,
+`sync_reliability`, `sync_reliability_07e3_conflict_serialization`,
+`sync_reliability_categorias_3_a_7`, `sync_reliability_categorias_8_9`);
+`npm run build` — exit 0, limpo (aviso pré-existente de chunk >500kB,
+não é regressão); `npm run verify` — exit 0, completo; `git diff
+--check` (worktree e `origin/main...HEAD`) — exit 0, limpo; bundle de
+produção (`dist/assets/*.js`) inspecionado por busca textual — sem
+`vitest`/`jest`/`mocha`/`testing-library`/`sinon`/`__mock`/
+`__syncDebug`/`__setTestBackoffOverride`.
+
+**Provas negativas** (mutação temporária aplicada, provada, revertida
+sem resíduo — `git status`/`git diff` confirmados limpos após cada
+uma): (1) `PATH` restrito sem o diretório do binário `supabase` →
+`node scripts/run-db-tests.mjs` (modo obrigatório) saiu 1 com mensagem
+explícita; `npm run verify` no mesmo `PATH` também saiu 1; `node
+scripts/run-db-tests.mjs --optional` saiu 0 com aviso de skip. (2) 94º
+aviso de lint introduzido (`const __temp_warning_94: any = 1` em
+`src/utils/supabaseAuthErrors.ts`) → `npm run lint` e `npm run verify`
+saíram 1 com "ESLint found too many warnings (maximum: 93)"; arquivo
+restaurado do backup, `lint` voltou a 93/93 exit 0.
+
+**Validação de UI** (Playwright + Chromium, desktop 1440×900 e mobile
+390×844, sem dados reais criados): contra `npm run dev` (sessão de
+demonstração local automática do modo dev, ver `AuthContext.tsx`) —
+Feedback (abrir modal, clicar label "Tipo de Relato"/"Assunto Rápido"
+não aplicável pois viraram `span`; IDs únicos; fechar via botão X: OK
+em ambas viewports), Criar Flashcard (abrir via "Cards"→"Criar
+Flashcard"; 5 labels clicados, foco correto em todos; IDs únicos;
+cancelar fecha o modal: OK em ambas viewports), Criar Simulado (abrir
+via "Simulados & Provas"→"novo"; 3 labels clicados, foco correto; IDs
+únicos; cancelar fecha o modal: OK em ambas viewports) — sem erros de
+console em nenhum caso. Tela de login real (`LoginView.tsx`, não
+alterada nesta branch) alcançada via `npm run preview` (modo produção,
+sem o bypass de usuário de demonstração do dev mode) — apontava para o
+Supabase remoto de produção por `.env.local`; nenhum dado foi
+submetido, apenas inspeção de labels/IDs/clique/Tab, sem risco à
+produção; 2 labels (E-mail, Senha) com foco correto, IDs únicos, Tab
+move o foco para um elemento interativo real ("Esqueci minha senha"),
+sem erros de console, em ambas viewports. Navegação por teclado básica
+(Tab) confirmada funcional na tela inicial autenticada em ambas
+viewports. **Não testado ao vivo**: Área Editorial (`AdminCMSView`,
+22 das 40 correções de label/id do diff) — a conta de demonstração
+local não tem `role=admin` (seed local não cria administrador com
+senha fixa, por design — ver `supabase/seed.sql`) e não havia meio
+seguro disponível nesta sessão de promover uma conta local a admin sem
+acesso a `docker exec`/`psql` direto (bloqueado pelo classificador de
+permissões do ambiente). A revisão de diff (linha a linha) já confirmou
+que as 22 correções em `AdminCMSView.tsx`/`SectionEditor.tsx` seguem
+exatamente o mesmo padrão sistemático testado ao vivo nos outros
+formulários — risco residual considerado baixo, mas fica registrado
+como pendência explícita, não como validação concluída.
+
+**Publicação**: branch `work/12a-reprodutibilidade-deps` empurrada para
+`origin` pela primeira vez (`git push origin work/12a-reprodutibilidade-
+deps`). Merge em `main` com commit explícito (`git merge --no-ff`,
+convenção do repositório de não usar fast-forward silencioso em
+integrações) — commit `e90fcee`. `npm run verify` repetido em `main`
+pós-merge: exit 0, completo. Push de `main`: `b67a77c..e90fcee`. Deploy
+automático (Vercel conectado ao GitHub, push-to-deploy — sem pipeline
+de CI/CD com GitHub Actions no repositório) confirmado por comparação
+dos hashes de asset do bundle publicado em produção
+(`assets/index-C6B6pPEV.js`, `assets/index-C2LuE45k.css`) com os hashes
+do build local pós-merge — idênticos, portanto a build nova está no ar.
+
+**Smoke de produção** (não destrutivo, `https://synapse-med-firebase-
+auth.vercel.app`): página carrega (HTTP 200, `networkidle`), tela de
+login real renderiza (título, formulário E-mail/Senha, "Entrar com
+Google"), 9 IDs na página todos únicos, sem erros de console. Nenhum
+dado criado, alterado ou submetido. Não foi feita navegação além da
+tela de login (sem credenciais de produção disponíveis nesta sessão,
+e não é objetivo do smoke test autenticar).
+
+**Dados de teste e limpeza**: nenhuma conta ou dado real criado.
+Servidores locais (`npm run dev` porta 3011, `npm run preview` porta
+4173) encerrados ao final (`taskkill` nos PIDs correspondentes). `npm
+run clean` executado após cada build para remover `dist/` antes do
+próximo passo. Nenhum arquivo temporário de teste commitado; scripts
+de inspeção Playwright ficaram apenas no diretório de scratchpad da
+sessão (fora do repositório). `git status` confirmado limpo em `main`
+antes e depois de cada operação relevante.
+
+**Pendências e riscos**: (1) Área Editorial (`AdminCMSView`) sem prova
+de navegador ao vivo — recomenda-se sessão futura com conta de teste
+`role=admin` local antes de considerar a acessibilidade de teclado
+totalmente validada nesse formulário. (2) Pendências já conhecidas do
+12-A/12-A2 continuam sem mudança: ~30 achados de acessibilidade de
+clique/teclado e 1 de `no-autofocus` rebaixados a aviso (fora de escopo
+desta fase), chunk único de produção >500kB (pré-existente), `eslint@
+9.39.5` fora da janela oficial por peer dependency de
+`eslint-plugin-jsx-a11y`. Nenhuma migration foi necessária ou criada.
+
+**Liberação do 13-A**: publicação bem-sucedida — isso autoriza uma
+sessão diretoria futura a avaliar a liberação do 13-A (suíte de
+navegador/acessibilidade de teclado), condicionada a cobrir a pendência
+de Área Editorial acima. Esta sessão executiva não libera nem declara
+início do 13-A.

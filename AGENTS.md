@@ -1258,6 +1258,57 @@ protótipo).
   limpo, `lint` 93/93 (exit 0), pgTAP 183/183 em 5 arquivos (exit 0),
   `build` limpo, `npm run verify` completo passou. Nenhuma mudança de
   produto/RLS/migration; nenhum merge, push ou deploy.
+- **Prompt 12-B (2026-09-12), sessão executiva — PUBLICADO**: revisão e
+  integração de `work/12a-reprodutibilidade-deps` (12-A + 12-A2) em
+  `main`. `origin/main` confirmado parado em `b67a77c` durante toda a
+  janela (sem reconciliação necessária). Diff completo (35 arquivos)
+  revisado linha a linha: nenhuma mudança de regra de negócio; as 26
+  alterações de label/id em componentes de UI seguem um padrão
+  sistemático único (associação `label`/`htmlFor`/`id`, ou `label`→`span`
+  quando o rótulo é cabeçalho de um grupo sem controle nativo único) —
+  confirmado consistente, sem lógica alterada. Corrigida a inconsistência
+  documental apontada no prompt: uma redação em `docs/diretoria/
+  registro.md` (entrada 12-A2) afirmava, de forma desatualizada, "nenhum
+  commit novo" quando o commit já existia (`c667424`) — reescrita para
+  deixar claro que a frase descrevia o estado ANTES do commit final; a
+  branch não estava publicada em nenhum remoto, então o commit foi
+  reescrito localmente via `git commit --amend` (sem force-push, sem
+  histórico compartilhado afetado) e passou a ser `0a33b20`. Revalidação
+  completa do zero: `npm ci` limpo (0 vulnerabilidades), `npm audit` e
+  `npm audit --omit=dev` 0/0, `typecheck` limpo, `lint` 93/93 avisos (0
+  erros, exit 0), pgTAP 183/183 em 5 arquivos via `npm test` (Supabase
+  local rodando), `build` limpo (mesmo aviso pré-existente de chunk
+  >500kB, não é regressão), `npm run verify` completo passou, `git diff
+  --check` limpo, bundle de produção inspecionado sem `vitest`/`jest`/
+  `testing-library`/mocks/`__syncDebug`/`__setTestBackoffOverride`.
+  Provas negativas repetidas e revertidas sem resíduo: `npm run
+  test`/`npm run verify` falham (exit 1) com Supabase indisponível (CLI
+  fora do PATH); `npm run test:optional` sai 0 no mesmo cenário; um 94º
+  aviso de lint introduzido temporariamente derrubou `lint` e `verify`
+  (exit 1), revertido e `lint` voltou a 93/93. Testes de UI (Playwright/
+  Chromium, desktop 1440×900 e mobile 390×844): Feedback, Criar
+  Flashcard e Criar Simulado (sessão de demonstração local, dev mode) —
+  IDs únicos, clique no label focando o controle correto, abertura/
+  fechamento/cancelamento de modal, sem erros de console, todos OK; tela
+  de login real (`LoginView`, alcançada via `npm run preview` — modo
+  produção, sem o bypass de usuário de demonstração do dev mode; nenhum
+  dado enviado) com o mesmo resultado. Área Editorial (`AdminCMSView`,
+  incluída no diff com 22 correções de label/id) não pôde ser testada ao
+  vivo nesta sessão por falta de conta de teste com `role=admin` local —
+  revisão de diff já confirmou o mesmo padrão sistemático; pendência
+  registrada abaixo. Merge feito com commit explícito (`--no-ff`,
+  convenção do repositório — sem fast-forward silencioso), `npm run
+  verify` repetido em `main` pós-merge (passou), push de `main`
+  (`b67a77c..e90fcee`). Deploy automático (Vercel, push-to-deploy)
+  confirmado pelos hashes de asset do bundle publicado (`index-
+  C6B6pPEV.js`/`index-C2LuE45k.css`) baterem exatamente com o build local
+  pós-merge. Smoke de produção não destrutivo: tela de login carrega, sem
+  erros de console, IDs únicos, nenhum dado criado/alterado. Nenhuma
+  migration, mudança de RLS ou dado de produção. Ver `docs/diretoria/
+  registro.md`, entrada "12-B", para o detalhamento completo.
+  **Pendência**: suíte de acessibilidade de teclado do `AdminCMSView`
+  (Área Editorial) ainda sem prova de navegador — recomenda-se cobri-la
+  numa sessão futura com conta de teste `role=admin`.
 
 ## Manter este arquivo atualizado
 
