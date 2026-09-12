@@ -1133,19 +1133,46 @@ protótipo).
   branch tecnicamente pronta para revisão de merge em `main` (decisão de
   mesclar continua sendo do usuário/diretoria; nenhum merge/push/deploy foi
   feito nesta sessão). Categorias 3-9 continuam fora de escopo.
-- **Implementado localmente em 2026-09-11 (Prompt 11-A), NÃO publicado**:
-  gate de acesso fail-closed (só `profile.status === 'active'` entra no
-  app; `blocked`/qualquer outro valor vai para `<BlockedAccountView>`
-  nova) e `isAdmin` agora exige `role === 'admin' && status === 'active'`
-  — ver armadilha #21 para o detalhamento completo, incluindo a
-  investigação (sem reprodução) da corrida `getSession()`/
-  `onAuthStateChange`. Branch local `work/11a-bloqueio-contas-auth`
-  (commit `0e20009`, a partir de `origin/main` `7fb3400`), sem push nem
-  merge em `main`. `tsc --noEmit` limpo, `supabase test db` 183/183 sem
-  regressão (nenhuma migration/RLS tocada), Playwright real contra
-  Supabase local confirmou os 6 cenários do gate (pending/active/blocked
-  para estudante e admin + logout) e reproduziu o bug original antes da
-  correção. Decisão de merge/publicação pendente.
+- **PUBLICADO em produção em 2026-09-12 (11-B, revisão/publicação do
+  11-A)**: gate de acesso fail-closed (só `profile.status === 'active'`
+  entra no app; `blocked`/qualquer outro valor vai para
+  `<BlockedAccountView>` nova) e `isAdmin` agora exige `role === 'admin'
+  && status === 'active'` — ver armadilha #21 para o detalhamento
+  completo, incluindo a investigação (sem reprodução) da corrida
+  `getSession()`/`onAuthStateChange`. Sem migration (só frontend).
+  `origin/main` confirmado sem avanço durante todo o gate (`7fb3400`
+  antes da branch, antes e imediatamente antes do merge e do push);
+  branch `work/11a-bloqueio-contas-auth` (commits `0e20009`, `1b977a0`)
+  enviada ao origin e mesclada em `main` com `--no-ff` (commit de merge
+  `a9ed258`, `main`/`origin/main` `7fb3400` → `a9ed258`), diff final
+  revisado ponto a ponto contra o checklist do 11-A antes do merge —
+  só o código e a documentação do 11-A, nenhum arquivo alheio. Gates
+  locais revalidados nesta sessão: `tsc --noEmit` limpo, `npm run build`
+  limpo (bundle byte-idêntico antes/depois do merge,
+  `assets/index-DTnG8z78.js`), `supabase test db` 183/183 sem regressão,
+  7/7 cenários Playwright reais contra Supabase local — os 6 do 11-A
+  (pending aguarda, active entra, blocked não entra para estudante e
+  admin, admin ativo acessa Área Editorial, logout remove a sessão da
+  UI) mais um novo: reload após logout não reexibe a sessão antiga —
+  e 0 ocorrências de `__syncDebug`/`__setTestBackoffOverride` no bundle
+  de teste. Deploy automático do Vercel confirmado: bundle publicado
+  idêntico byte-a-byte ao build local, strings novas presentes ("Acesso
+  bloqueado", texto de segurança revisado), 0 instrumentação de teste.
+  Smoke test real em produção (Playwright/Chromium contra
+  `https://synapse-med-firebase-auth.vercel.app`) com 3 contas
+  descartáveis (`smoke11b-active`/`smoke11b-blocked`/
+  `smoke11b-adminblocked@synapsemed.local`, criadas via
+  `admin.auth.admin.createUser` e promovidas via `supabase db query
+  --linked` — conexão real como `postgres`): conta ativa entra
+  normalmente, conta bloqueada cai em `BlockedAccountView`, admin
+  bloqueado cai em `BlockedAccountView` sem item de Área Editorial,
+  logout + reload não reexibem a sessão antiga — 4/4, 0 erros de console
+  recorrentes, 0 requisições 5xx. As 3 contas removidas ao final via
+  `admin.auth.admin.deleteUser`; `profiles` remoto confirmado 12→9
+  (baseline restaurado), 0 linhas `smoke11b-*` remanescentes. Scripts
+  de setup/teste/limpeza desta sessão (locais e remotos) foram
+  temporários, não commitados. Ver `docs/diretoria/registro.md`,
+  entrada "PUBLICADO — 11-B", para o detalhamento completo.
 
 ## Manter este arquivo atualizado
 

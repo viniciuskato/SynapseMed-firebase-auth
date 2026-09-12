@@ -688,3 +688,106 @@ conversa/sessão antes de decidir publicar; (3) concorrência real
 observada na árvore (10 dev servers, múltiplas branches `hotfix/*` do
 mesmo dia) não foi investigada a fundo — só confirmado que os arquivos
 específicos tocados aqui não tinham working tree sujo no início.
+
+## PUBLICADO — 11-B, 2026-09-12 (revisão e publicação do 11-A)
+
+Sessão executiva no caminho oficial `C:\Users\vinic\dev\NexusMed\
+firebase-auth`. Estado inicial: branch `work/11a-bloqueio-contas-auth`
+em `1b977a0` (dois commits à frente de `origin/main`: `0e20009` código,
+`1b977a0` documentação), `main` local e `origin/main` idênticos em
+`7fb3400`, working tree limpo, único worktree (o próprio clone). `git
+fetch` não trouxe avanço nenhum de `origin/main` em nenhum momento do
+gate (verificado antes da branch, antes do merge e imediatamente antes
+de cada push) — reconciliação por rebase/merge de `origin/main` não foi
+necessária.
+
+**Revisão do diff**: `git diff --stat origin/main
+work/11a-bloqueio-contas-auth` mostrou só 6 arquivos (`AGENTS.md`,
+`docs/diretoria/registro.md`, `src/App.tsx`,
+`src/components/auth/BlockedAccountView.tsx`,
+`src/components/auth/LoginView.tsx`, `src/contexts/AuthContext.tsx`) —
+lidos ponto a ponto e conferidos contra a descrição do 11-A: gate
+fail-closed em `App.tsx` (`profile?.status !== 'active'` →
+`BlockedAccountView`), `isAdmin = role === 'admin' && status ===
+'active'`, `AuthContext.logout()` sem `catch {}` silencioso (expõe erro
+via `loginError`, sempre limpa sessão local), texto de "criptografia de
+ponta a ponta" trocado por afirmação verificável. Nenhum arquivo alheio,
+nenhuma ampliação de escopo.
+
+**Validações locais (revalidadas nesta sessão, não só herdadas do
+11-A)**: `tsc --noEmit` limpo; `npm run build` limpo
+(`assets/index-DTnG8z78.js`, 961589 bytes, confirmado byte-idêntico
+antes e depois do merge em `main`); `supabase test db` 183/183 (5
+arquivos de teste, sem regressão, nenhuma migration/RLS tocada); bundle
+de teste com 0 ocorrências de `__syncDebug`/`__setTestBackoffOverride`.
+
+**Playwright real contra Supabase local** (build `vite build --mode
+development` + `vite preview` na porta 4173, evitando o auto-login de
+demonstração do `npm run dev`): 6 contas descartáveis `test11b-*`
+cobrindo as 5 combinações de status/role do 11-A mais uma sexta conta
+dedicada ao cenário novo — criadas via `admin.auth.admin.createUser` e
+promovidas via `docker exec -i supabase_db_synapsemed psql -U postgres`
+(conexão real como `postgres`). 7/7 cenários: pending aguarda
+(`AwaitingApprovalView`), active entra (cockpit do dashboard visível),
+blocked (estudante) cai em `BlockedAccountView`, admin ativo vê o item
+"Área Editorial / CMS" no menu, admin bloqueado cai em
+`BlockedAccountView` sem esse item, logout leva de volta à tela de
+login, e o cenário **novo pedido pelo 11-B** — reload da página depois
+do logout não reexibe a sessão antiga (confirmado comparando o corpo da
+página antes/depois do reload: continua na tela de login, nunca volta
+ao cockpit). As 6 contas removidas ao final via
+`admin.auth.admin.deleteUser` — `profiles` local confirmado 36→30 antes/
+depois, 0 linhas `test11b-*` remanescentes.
+
+**Publicação**: branch `work/11a-bloqueio-contas-auth` enviada ao
+origin sem alteração; `origin/main` reconfirmado em `7fb3400`
+imediatamente antes do merge; merge `--no-ff` em `main` (commit
+`a9ed258`), diff do merge idêntico ao diff revisado; `tsc --noEmit`/
+`npm run build` repetidos limpos pós-merge; novo `git fetch` confirmou
+`origin/main` ainda em `7fb3400` imediatamente antes do `git push origin
+main` (sem force) — `main`/`origin/main` `7fb3400` → `a9ed258`. Deploy
+automático do Vercel confirmado: `assets/index-DTnG8z78.js` publicado é
+byte-a-byte idêntico ao build local (961589 bytes), contém as strings
+novas ("Acesso bloqueado", "Este perfil não tem acesso ao NexusMed",
+"HTTPS/TLS") e 0 ocorrências de instrumentação de teste.
+
+**Smoke test de produção**: criação de conta descartável em produção
+NÃO foi bloqueada pelo classificador nesta sessão (diferente do 10-A2 —
+ver armadilha #3 do `AGENTS.md`, bloqueio é não determinístico). 3
+contas `smoke11b-active`/`smoke11b-blocked`/
+`smoke11b-adminblocked@synapsemed.local` criadas via
+`admin.auth.admin.createUser` (service role, do `.env.local`) e
+promovidas via `supabase db query --linked` (conexão real como
+`postgres` no remoto, binário completo
+`C:\Users\vinic\bin\supabase.exe` — necessário porque `npx.cmd` quebrou
+a resolução de path com espaços neste ambiente). Playwright/Chromium
+real contra `https://synapse-med-firebase-auth.vercel.app`: conta ativa
+entra normalmente (cockpit visível, 0 requisições 5xx), conta bloqueada
+cai em `BlockedAccountView`, admin bloqueado cai em `BlockedAccountView`
+sem item de Área Editorial, logout + reload não reexibem a sessão antiga
+— 4/4, 0 erros de console recorrentes, 0 requisições 5xx em nenhum dos 4
+cenários. As 3 contas removidas ao final via
+`admin.auth.admin.deleteUser`; `profiles` remoto confirmado 12→9
+(baseline restaurado), 0 linhas `smoke11b-*` remanescentes.
+
+**Dados de teste e limpeza**: todos os scripts de setup/teste/limpeza
+(locais e remotos) foram criados como arquivos temporários na raiz do
+repositório para contornar resolução de módulo do `tsx`/`npx`, e
+removidos ao final da sessão — nenhum commitado. `playwright` (pacote
+usado só nesta sessão para os testes de navegador, não é dependência do
+projeto) foi instalado com `npm install --no-save` e revertido com `npm
+install` simples ao final; como o projeto não tem lockfile versionado,
+o `package-lock.json` gerado como efeito colateral desses installs foi
+removido manualmente nas duas vezes — `git status` confirmado limpo
+antes de cada push. `dist-test11b`/`dist` (builds locais de teste) apagados.
+
+**Pendências e riscos**: nenhum encontrado durante o gate desta sessão
+— sem teste falhando, sem conflito semântico, sem avanço de
+`origin/main`, sem alteração alheia no diff. Risco teórico já registrado
+no 11-A (corrida `getSession()`/`onAuthStateChange`) permanece
+investigado-mas-não-reproduzido, sem mudança nesta sessão, conforme
+escopo do 11-B (não ampliar funcionalidades/testes).
+
+**Liberação do 12-A**: liberado — publicação concluída, gates verdes,
+sem pendência bloqueante conhecida na área de autenticação/bloqueio de
+contas.
