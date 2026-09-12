@@ -27,8 +27,15 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Node/npm mínimos declarados em package.json#engines
-  NODE_VERSION: '20.19'
+  # package.json#engines aceita >=20.19 <25, mas o cliente Supabase
+  # (@supabase/supabase-js/realtime-js) exige `WebSocket` nativo do runtime
+  # — indisponível antes do Node 22 — e falha já na criação do client
+  # (import de src/lib/supabaseClient.ts), não só ao conectar de verdade.
+  # Achado real do Prompt 13-B: nunca tinha sido testado no Node fixado
+  # aqui (20.19) até esta validação em runner real; todas as sessões
+  # anteriores rodaram localmente em Node mais novo. Fixado em 22 (LTS
+  # dentro da faixa permitida) em vez de adicionar polyfill de WebSocket.
+  NODE_VERSION: '22'
 
 jobs:
   fast:
