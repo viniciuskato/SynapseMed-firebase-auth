@@ -102,6 +102,9 @@ jobs:
       - name: pgTAP (contratos de servidor)
         run: npm run test:db
 
+      - name: Resetar banco local de novo — pgTAP (pg_prove) grava permanentemente, sem rollback (achado do Prompt 13-B)
+        run: supabase db reset
+
       - name: Criar .env.test.local para o build do Playwright (Supabase LOCAL, nunca remoto)
         run: |
           API_URL=$(supabase status -o json | node -e "process.stdin.once('data', d => console.log(JSON.parse(d).API_URL))")

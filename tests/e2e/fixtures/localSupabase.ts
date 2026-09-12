@@ -211,3 +211,102 @@ export function countRemainingE2EFixtures(): { authUsers: number; profiles: numb
   );
   return { authUsers, profiles };
 }
+
+// ============================================================================
+// Helpers do Prompt 13-B (cenários concorrentes complementares) — leem o seed
+// mínimo (supabase/seed.sql, disciplina Cardiologia) e criam apenas fixtures
+// que pertencem ao usuário de teste (flashcard próprio), nunca dado
+// compartilhado/global.
+// ============================================================================
+
+export interface SeedIds {
+  disciplineId: string;
+  themeId: string;
+  materialId: string;
+  questionId: string;
+}
+
+let cachedSeedIds: SeedIds | null = null;
+
+/** Ids do seed mínimo (1 disciplina/tema/material/questão) — resolvidos uma vez por processo de teste. */
+export function getSeedIds(): SeedIds {
+  if (cachedSeedIds) return cachedSeedIds;
+  const disciplineId = psqlLocal(`select id from public.disciplines where code = 'CARDIO' limit 1;`);
+  const themeId = psqlLocal(`select id from public.themes where discipline_id = '${disciplineId}' limit 1;`);
+  const materialId = psqlLocal(`select id from public.materials where discipline_id = '${disciplineId}' limit 1;`);
+  const questionId = psqlLocal(`select id from public.questions where discipline_id = '${disciplineId}' limit 1;`);
+  if (!disciplineId || !themeId || !materialId || !questionId) {
+    throw new Error('[tests/e2e] seed mínimo não encontrado — supabase/seed.sql rodou (supabase db reset)?');
+  }
+  cachedSeedIds = { disciplineId, themeId, materialId, questionId };
+  return cachedSeedIds;
+}
+
+/** Cria um flashcard PRÓPRIO do usuário de teste (com flashcard_srs_state inicial) para exercitar submit_flashcard_review em concorrência real. */
+export function insertFlashcardForUser(userId: string, seed: SeedIds = getSeedIds()): string {
+  // `psql -t -A` suprime cabeçalho mas NÃO suprime a tag de conclusão
+  // ("INSERT 0 1") quando a instrução tem `returning` — fica numa segunda
+  // linha da mesma saída. Só a primeira linha é o valor retornado.
+  const insertOutput = psqlLocal(
+    `insert into public.flashcards (user_id, discipline_id, theme_id, front, back, difficulty) ` +
+      `values ('${userId}', '${seed.disciplineId}', '${seed.themeId}', 'Frente demonstrativa 13-B', 'Verso demonstrativo 13-B', 'medio') ` +
+      `returning id;`
+  );
+  const flashcardId = insertOutput.split('\n')[0].trim();
+  psqlLocal(`insert into public.flashcard_srs_state (flashcard_id) values ('${flashcardId}');`);
+  return flashcardId;
+}
+
+export function countFlashcardReviews(flashcardId: string): number {
+  return Number(psqlLocal(`select count(*) from public.flashcard_reviews where flashcard_id = '${flashcardId}';`));
+}
+
+export function getFlashcardSrsState(flashcardId: string): { repetitionCount: number; intervalDays: number } {
+  const row = psqlLocal(
+    `select repetition_count, interval_days from public.flashcard_srs_state where flashcard_id = '${flashcardId}';`
+  );
+  const [repetitionCount, intervalDays] = row.split('|').map(Number);
+  return { repetitionCount, intervalDays };
+}
+
+export function countQuestionReactions(userId: string, questionId: string): number {
+  return Number(
+    psqlLocal(`select count(*) from public.question_reactions where user_id = '${userId}' and question_id = '${questionId}';`)
+  );
+}
+
+export function countNotesForMaterial(materialId: string, userId: string): number {
+  return Number(
+    psqlLocal(`select count(*) from public.notes where material_id = '${materialId}' and user_id = '${userId}';`)
+  );
+}
+
+export function getNoteText(materialId: string, userId: string): string | null {
+  const text = psqlLocal(
+    `select note_text from public.notes where material_id = '${materialId}' and user_id = '${userId}';`
+  );
+  return text || null;
+}
+
+export function getReadingProgress(materialId: string, userId: string): { readSectionIds: string[]; percent: number } | null {
+  const row = psqlLocal(
+    `select coalesce(array_to_string(read_section_ids, ','), ''), percent from public.reading_progress ` +
+      `where material_id = '${materialId}' and user_id = '${userId}';`
+  );
+  if (!row) return null;
+  const [sectionsRaw, percentRaw] = row.split('|');
+  return { readSectionIds: sectionsRaw ? sectionsRaw.split(',') : [], percent: Number(percentRaw) };
+}
+
+export function countSimulationRows(simulationId: string): { simulations: number; questions: number; answers: number } {
+  const simulations = Number(psqlLocal(`select count(*) from public.simulations where id = '${simulationId}';`));
+  const questions = Number(psqlLocal(`select count(*) from public.simulation_questions where simulation_id = '${simulationId}';`));
+  const answers = Number(
+    psqlLocal(
+      `select count(*) from public.simulation_answers a ` +
+        `join public.simulation_questions q on q.id = a.simulation_question_id ` +
+        `where q.simulation_id = '${simulationId}';`
+    )
+  );
+  return { simulations, questions, answers };
+}
