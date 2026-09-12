@@ -478,13 +478,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      StorageService.setActiveUser(null);
-      setUser(null);
-      setProfile(null);
-      setIsEmailVerified(false);
     } catch (err: any) {
+      // Falha real ao encerrar sessão no Supabase não deve ficar escondida:
+      // registra em loginError (exibido pela LoginView) em vez de um
+      // catch {} silencioso. O estado local ainda é limpo abaixo — do ponto
+      // de vista do usuário, "Sair da conta" sempre remove o acesso deste
+      // dispositivo à interface, mesmo que a invalidação da sessão no
+      // servidor não tenha sido confirmada.
       console.error('Erro ao encerrar sessão:', err);
+      setLoginError(getSupabaseAuthErrorMessage(err));
     }
+    StorageService.setActiveUser(null);
+    setUser(null);
+    setProfile(null);
+    setIsEmailVerified(false);
   };
 
   const clearError = () => setLoginError(null);

@@ -622,3 +622,69 @@ origin — NÃO mesclada em `main`, decisão de publicação com o usuário.
 continuam com id no formato antigo — vão continuar falhando ao
 sincronizar mesmo depois desse hotfix publicado (o fix só vale para
 flashcards criados DEPOIS dele). Não tratado nesta etapa.
+
+## Retorno — 11-A, 2026-09-11 (implementado localmente, não publicado)
+
+Prompt recebido diretamente por uma sessão nova, sem passar pela fila de
+envio confirmado deste registro — executado por não haver evidência de
+escritor concorrente nos arquivos específicos tocados (`src/App.tsx`,
+`src/contexts/AuthContext.tsx`, `src/components/auth/LoginView.tsx`,
+novo `src/components/auth/BlockedAccountView.tsx`), apesar de forte
+concorrência confirmada na árvore como um todo (10 portas de dev server
+em uso simultâneo ao iniciar esta sessão, várias branches `hotfix/*`
+com commits do mesmo dia em `main`).
+
+Estado inicial verificado: `C:\Users\vinic\dev\NexusMed\firebase-auth`,
+branch `main`, HEAD e `origin/main` idênticos em `7fb3400`, working tree
+limpo. Branch de trabalho criada: `work/11a-bloqueio-contas-auth`.
+
+Diagnóstico reproduzido com Playwright real (build `vite build --mode
+development` + `vite preview`, para evitar o auto-login de demonstração
+que `npm run dev` faz quando não há sessão ativa) contra Supabase local,
+com 7 contas descartáveis `test11a-*` cobrindo as 5 combinações de
+status/role pedidas mais 2 para o teste de corrida: confirmado que, no
+código anterior, `blocked` (estudante e admin) atravessava o gate e
+acessava o app inteiro — inclusive Área Editorial para o admin bloqueado
+— igual ao que a auditoria original de `fb989a4` descrevia. Depois da
+correção, 6/6 cenários passaram (pending aguarda, active entra, blocked
+não entra para estudante e admin, logout remove a sessão da UI). Corrida
+`getSession()`/`onAuthStateChange`: tentativa de reprodução com
+interceptação de rede (atraso de 3.5s na resposta do perfil da conta A,
+seguido de logout+login rápido como conta B) não corrompeu o estado —
+o supabase-js serializou as chamadas de auth, e o segundo login só
+efetivamente disparou depois da resposta atrasada de A já ter sido
+liberada. Nenhuma mudança feita nessa parte, conforme instrução do
+prompt de só corrigir corrida reproduzida.
+
+Alterações: gate fail-closed (`profile?.status !== 'active'` →
+`<BlockedAccountView>`, novo componente, mesmo padrão visual de
+`AwaitingApprovalView`); `isAdmin = role === 'admin' && status ===
+'active'`; `logout()` não esconde mais falha de `signOut()` num
+`catch {}` silencioso (expõe via `loginError`, sempre limpa a sessão
+local); texto "criptografia de ponta a ponta" da tela de login trocado
+por afirmação verificável (hash de senha + HTTPS/TLS via Supabase
+Auth). Detalhamento completo em `AGENTS.md`, armadilha #21.
+
+Validações: `tsc --noEmit` limpo; `supabase test db` 183/183 (sem
+regressão, nenhuma migration/RLS tocada nesta entrega); bundle de teste
+sem `__syncDebug`/`__setTestBackoffOverride` (0 ocorrências, grep
+direto no `dist/`); 7 contas `test11a-*` criadas via
+`admin.auth.admin.createUser` e promovidas via `docker exec -i
+supabase_db_synapsemed psql -U postgres` (conexão real como
+`postgres`), todas removidas ao final via `admin.auth.admin.deleteUser`
+— 0 remanescentes confirmado por contagem direta no Postgres local.
+
+Estado de publicação: **não publicado**. Commit local único `0e20009`
+na branch `work/11a-bloqueio-contas-auth` (a partir de `origin/main`
+`7fb3400`), sem push, sem merge em `main`, sem deploy, sem escrita no
+Supabase remoto.
+
+Pendências e riscos: (1) decisão de merge/publicação fica com a
+diretoria/usuário; (2) esta sessão não seguiu o protocolo de envio
+confirmado do `MODELO-DIRETORIA.md` — o prompt chegou diretamente, sem
+passar pela fila deste registro; sessões futuras devem reconciliar este
+retorno com qualquer outro andamento do "11-A" que já exista em outra
+conversa/sessão antes de decidir publicar; (3) concorrência real
+observada na árvore (10 dev servers, múltiplas branches `hotfix/*` do
+mesmo dia) não foi investigada a fundo — só confirmado que os arquivos
+específicos tocados aqui não tinham working tree sujo no início.

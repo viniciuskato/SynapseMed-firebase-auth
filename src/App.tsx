@@ -84,6 +84,7 @@ import { LoginView } from './components/auth/LoginView';
 import { EmailVerificationScreen } from './components/auth/EmailVerificationScreen';
 import { MigrateDataModal } from './components/auth/MigrateDataModal';
 import { AwaitingApprovalView } from './components/auth/AwaitingApprovalView';
+import { BlockedAccountView } from './components/auth/BlockedAccountView';
 import { FeedbackModal } from './components/feedback/FeedbackModal';
 
 // Header & Navigation
@@ -292,12 +293,27 @@ function AuthenticatedApp() {
     return <AwaitingApprovalView />;
   }
 
+  // Gate fail-closed: só `status === 'active'` acessa o app. Qualquer outro
+  // valor (`blocked`, ausente, ou um valor inesperado que não seja nem
+  // 'pending' nem 'active') cai aqui e NUNCA renderiza a aplicação normal —
+  // não é uma lista de exclusão de estados conhecidos, é uma lista de
+  // permissão de um único estado conhecido. O backend (RLS/RPCs) continua
+  // sendo a autoridade de segurança; este gate é defesa em profundidade da UI.
+  if (profile?.status !== 'active') {
+    return <BlockedAccountView />;
+  }
+
   // Dados pessoais/de conteúdo (Supabase) ainda carregando
   if (dataLoading) {
     return <LoadingScreen message="Carregando seus dados de estudo..." />;
   }
 
-  const isAdmin = profile?.role === 'admin';
+  // `isAdmin` exige simultaneamente role E status ativo — um admin bloqueado
+  // nunca deve ser tratado como admin pela interface (embora o gate acima já
+  // impeça qualquer perfil não-`active` de chegar até aqui, esta checagem
+  // explícita evita que a UI administrativa dependa só do gate de nível
+  // superior para essa garantia).
+  const isAdmin = profile?.role === 'admin' && profile?.status === 'active';
 
   // Calculate badges
   const unansweredCount = questions.filter((q) => !answers[q.id]).length;

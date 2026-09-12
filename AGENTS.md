@@ -429,6 +429,45 @@ protótipo).
     real contra Supabase local: clicar no botão abre `<SimuladosView>` com
     os 3 presets visíveis. Cronômetro dos simulados reais (via "Criar
     Simulado Personalizado") confirmado intacto no mesmo teste.
+21. **RESOLVIDO no Prompt 11-A (2026-09-11).** `src/App.tsx` só tratava
+    explicitamente `profile.status === 'pending'`; `'blocked'` (e qualquer
+    valor além de `'pending'`/`'active'`) atravessava o gate e renderizava
+    o app normalmente — reproduzido com Playwright real (build local em
+    modo `development`, contas descartáveis com cada combinação de
+    role/status): antes da correção, estudante e admin bloqueados
+    acessavam a interface completa, inclusive a Área Editorial para o
+    admin bloqueado. `isAdmin` também considerava só `role === 'admin'`,
+    sem checar `status`. **Corrigido**: gate trocado para permitir só
+    `status === 'active'` (qualquer outro valor — incluindo um futuro
+    valor de enum ainda não tratado no código — cai em
+    `<BlockedAccountView>`, novo componente); `isAdmin` agora exige
+    `role === 'admin' && status === 'active'`. O backend continua sendo a
+    autoridade real (RLS/RPCs, `profiles_status_check` no Postgres limita
+    `status` a `pending`/`active`/`blocked` — não existe hoje um caso real
+    de "status desconhecido" vindo do banco; o gate cobre esse caso por
+    construção, não por já ter sido observado). Também corrigido:
+    `AuthContext.logout()` escondia falha real de `signOut()` num
+    `catch {}` silencioso sem nunca limpar o estado local — agora sempre
+    limpa a sessão local (sem apagar dados de estudo) e expõe o erro via
+    `loginError` em vez de engolir. Removida a alegação "criptografia de
+    ponta a ponta" da tela de login (não é o que o Supabase Auth garante),
+    substituída por uma afirmação verificável (hash de senha + HTTPS/TLS).
+    **Corrida `getSession()`/`onAuthStateChange` e troca rápida de
+    conta — investigada, NÃO reproduzida**: tentativa deliberada de
+    provocar sobrescrita cross-user (login como conta A com a resposta do
+    `SELECT` em `profiles` atrasada artificialmente 3.5s via interceptação
+    de rede, seguida quase imediatamente de logout+login como conta B, sem
+    atraso) não corrompeu o estado — a chamada de `signOut()`/segundo
+    `signInWithPassword()` só efetivamente disparou DEPOIS que a resposta
+    atrasada de A já havia sido liberada, indicando que o supabase-js
+    (`GoTrueClient`) serializa a execução dos callbacks de
+    `onAuthStateChange`/operações de auth internamente, impedindo o
+    interleaving fora de ordem que o código, lido isoladamente, sugeriria
+    ser possível. Nenhuma mudança feita em `AuthContext.tsx` para essa
+    parte — não é escopo redescoberto, é um risco teórico verificado e não
+    confirmado nesta versão do SDK; se o padrão de chamadas mudar (ex.:
+    deixar de depender só de `signInWithPassword`/`signOut`, ou trocar de
+    SDK), reavaliar.
 
 ## Convenções de trabalho
 
@@ -1094,6 +1133,19 @@ protótipo).
   branch tecnicamente pronta para revisão de merge em `main` (decisão de
   mesclar continua sendo do usuário/diretoria; nenhum merge/push/deploy foi
   feito nesta sessão). Categorias 3-9 continuam fora de escopo.
+- **Implementado localmente em 2026-09-11 (Prompt 11-A), NÃO publicado**:
+  gate de acesso fail-closed (só `profile.status === 'active'` entra no
+  app; `blocked`/qualquer outro valor vai para `<BlockedAccountView>`
+  nova) e `isAdmin` agora exige `role === 'admin' && status === 'active'`
+  — ver armadilha #21 para o detalhamento completo, incluindo a
+  investigação (sem reprodução) da corrida `getSession()`/
+  `onAuthStateChange`. Branch local `work/11a-bloqueio-contas-auth`
+  (commit `0e20009`, a partir de `origin/main` `7fb3400`), sem push nem
+  merge em `main`. `tsc --noEmit` limpo, `supabase test db` 183/183 sem
+  regressão (nenhuma migration/RLS tocada), Playwright real contra
+  Supabase local confirmou os 6 cenários do gate (pending/active/blocked
+  para estudante e admin + logout) e reproduziu o bug original antes da
+  correção. Decisão de merge/publicação pendente.
 
 ## Manter este arquivo atualizado
 
