@@ -87,15 +87,22 @@ Scripts separados por finalidade — cada um pode ser rodado isoladamente:
 ```bash
 npm run typecheck   # tsc --noEmit
 npm run lint        # ESLint real: TypeScript + React Hooks + acessibilidade JSX
+                     # (--max-warnings 93: baseline transitório, não sobe)
 npm run test        # pgTAP (supabase/tests/database) contra o Supabase LOCAL;
-                     # pula com aviso claro se o Supabase local não estiver rodando
+                     # OBRIGATÓRIO — falha (exit != 0) se CLI/stack local
+                     # não estiverem disponíveis, nunca pula em silêncio
+npm run test:optional  # mesma coisa, mas pula com aviso e exit 0 se CLI/
+                        # stack não estiverem disponíveis — conveniência
+                        # explícita, NÃO faz parte de `npm run verify`
 npm run build       # vite build -> dist/
 npm run clean       # remove artefatos gerados (dist/ etc.), nunca código-fonte
 ```
 
 `npm run verify` roda os quatro primeiros em sequência (typecheck → lint →
 test → build) — é a barreira técnica única a rodar antes de commitar/publicar,
-equivalente ao que esta seção descrevia separadamente antes:
+equivalente ao que esta seção descrevia separadamente antes. Requer Supabase
+local rodando (`supabase start`) — sem isso, `npm run verify` falha no passo
+de teste em vez de ficar verde sem ter rodado o pgTAP:
 
 ```bash
 npm run verify

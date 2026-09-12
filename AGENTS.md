@@ -1234,6 +1234,30 @@ protótipo).
   mudança funcional/de autenticação/migration; nenhum merge em `main`,
   push ou deploy. Ver `docs/diretoria/registro.md`, entrada "12-A", para o
   detalhamento completo do retorno.
+- **Prompt 12-A2 (2026-09-12), mesma branch `work/12a-reprodutibilidade-
+  deps`, NÃO mesclada em `main`**: fechados dois falsos positivos da
+  barreira encontrados pela revisão da diretoria no 12-A. (1) `npm run
+  test`/`npm run verify` **NÃO pulam mais em silêncio com exit 0** quando
+  CLI/Supabase local estão indisponíveis — agora falham (exit 1) por
+  padrão, porque um gate obrigatório que "passa" sem rodar pgTAP nenhum é
+  pior que nenhum gate. A conveniência de pular ficou num comando à parte,
+  `npm run test:optional` (`scripts/run-db-tests.mjs --optional`), que
+  nunca é chamado por `verify` — só serve para quem quer validar apenas
+  TypeScript/lint/build sem Docker de pé, e não deve ser confundido com
+  "testes passaram". (2) `npm run lint` ganhou `--max-warnings 93`
+  (baseline exato dos avisos existentes, documentado aqui e no README) —
+  o 94º aviso novo agora derruba `lint`/`verify`; os 93 avisos existentes
+  (rebaixados deliberadamente no 12-A, ver acima) não foram corrigidos
+  nem o teto foi alterado, só travado contra crescimento silencioso.
+  Ambos os contratos provados com simulação real (PATH restrito sem
+  `supabase`/stack local parado → exit 1 obrigatório / exit 0 opcional;
+  aviso temporário nº 94 introduzido e revertido → `lint`/`verify` exit 1
+  com o aviso, exit 0 sem ele) — mutações de teste revertidas antes de
+  seguir, sem diff residual. Revalidado com infraestrutura disponível:
+  `npm ci` limpo, `npm audit`/`npm audit --omit=dev` zerados, `typecheck`
+  limpo, `lint` 93/93 (exit 0), pgTAP 183/183 em 5 arquivos (exit 0),
+  `build` limpo, `npm run verify` completo passou. Nenhuma mudança de
+  produto/RLS/migration; nenhum merge, push ou deploy.
 
 ## Manter este arquivo atualizado
 

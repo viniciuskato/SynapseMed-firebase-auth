@@ -12,8 +12,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 93",
     "test": "node scripts/run-db-tests.mjs",
+    "test:optional": "node scripts/run-db-tests.mjs --optional",
     "clean": "node scripts/clean.mjs",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
   },

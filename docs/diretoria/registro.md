@@ -869,3 +869,94 @@ Antes de liberar 13-A, a diretoria deveria revisar e aprovar o merge desta
 branch em `main` (sem deploy adicional — não há mudança de runtime, só
 build/tooling) para que a próxima sessão trabalhe sobre o `package.json`
 já reconciliado.
+
+## Retorno recebido — 12-A2, 2026-09-12
+Mesma branch `work/12a-reprodutibilidade-deps`, sem push/merge/deploy.
+Fecha dois falsos positivos da barreira `npm run verify` encontrados
+pela revisão da diretoria no retorno do 12-A acima. As alterações desta
+sessão foram commitadas ao final sobre `2f9e34c` (base `origin/main`
+`b67a77c`) — a frase abaixo, mantida por fidelidade ao estado observado
+durante a execução, descreve o working tree ANTES desse commit ter sido
+criado. (Nota de correção documental, revisão 12-B: uma redação anterior
+desta entrada afirmava, de forma desatualizada, que "nenhum commit novo"
+existia — a frase se referia apenas ao estado no meio da sessão, antes
+do commit final; o commit local com estas mudanças existe e integra a
+branch.)
+
+**Estado inicial/final**: branch `work/12a-reprodutibilidade-deps` no
+commit `2f9e34c` no início da sessão, criada sobre `origin/main`
+`b67a77c` — confirmado igual antes e depois de todo o trabalho de
+verificação (nenhum commit novo tinha sido criado ATÉ esse ponto da
+sessão; as mudanças ainda estavam no working tree). Ao final, essas
+mudanças foram commitadas em um único commit local nesta branch.
+`origin/main` reconfirmado em `b67a77c` (sem avanço remoto). Working
+tree limpo no início; antes do commit final, só os 4 arquivos do
+escopo estavam modificados (`package.json`, `scripts/run-db-tests.mjs`,
+`README.md`, `AGENTS.md` — `git diff --stat`: 60 inserções/22 remoções,
+sem mudança em `src/`/`supabase/`). Um único worktree
+(`C:/Users/vinic/dev/NexusMed/firebase-auth`), sem escritor concorrente.
+
+**Teste obrigatório**: `scripts/run-db-tests.mjs` agora falha (exit 1)
+por padrão quando a CLI da Supabase está ausente do PATH ou o stack
+local não responde `DB_URL`, em vez de `process.exit(0)`. A conveniência
+de pular ficou isolada em `npm run test:optional` (`--optional`), que
+NÃO é chamado por `npm run verify`. Contrato provado com PATH restrito
+(`$env:Path = "C:\Program Files\nodejs"`, sem o diretório do binário
+`supabase`): modo obrigatório → exit 1 com mensagem explícita
+orientando `supabase start` ou o uso deliberado de `test:optional`; modo
+`--optional` no mesmo cenário → exit 0 com aviso claro de skip. Com o
+Supabase local real de pé (`supabase status` retornando `DB_URL`),
+`npm test`/`npm run verify` rodam `supabase test db` de verdade: pgTAP
+183/183 em 5 arquivos, exit 0.
+
+**Lint**: `npm run lint` passou a rodar com `eslint . --max-warnings 93`
+— 93 é a contagem exata de avisos pré-existentes do 12-A (confirmada por
+`npx eslint .` antes de qualquer mudança), documentada como baseline
+transitório em `README.md`/`AGENTS.md`; nenhum dos 93 avisos foi
+corrigido nem o teto foi ampliado. Prova de regressão: um aviso
+temporário (`const __temp: any = 1`) foi acrescentado a
+`src/utils/supabaseAuthErrors.ts`, elevando a contagem para 94 —
+`npm run lint` e `npm run verify` falharam (exit 1) com "ESLint found
+too many warnings (maximum: 93)"; a mutação foi revertida
+(`cp` do backup) e `npm run lint` voltou a passar em 93/93 (exit 0) —
+`git diff`/`git status` confirmaram 0 resíduo em `src/` antes de seguir.
+
+**Validações positivas** (infraestrutura disponível: CLI da Supabase
+2.116.0, stack local já em pé): `npm ci` limpo (reprodutível, mesmos
+avisos de `allow-scripts` já conhecidos do 12-A, nenhum erro); `npm
+audit` e `npm audit --omit=dev` seguem em 0 vulnerabilidades; `npm run
+typecheck` limpo; `npm run lint` 93/93 avisos, 0 erros, exit 0; pgTAP
+183/183 em 5 arquivos via `npm test`, exit 0; `npm run build` limpo
+(mesmo aviso pré-existente de chunk >500kB do Vite, não é regressão);
+`npm run verify` completo (typecheck → lint → test → build) passou,
+exit 0.
+
+**Alterações**: `package.json` (`lint` ganhou `--max-warnings 93`;
+`test:optional` novo script); `scripts/run-db-tests.mjs` (skip vira
+falha por padrão, `--optional` isola o comportamento antigo, comentário
+de topo reescrito para não chamar isso de decisão aprovada); `README.md`
+e `AGENTS.md` (documentam os dois comandos, o baseline de avisos e uma
+nova entrada "Prompt 12-A2" no histórico do `AGENTS.md` — a entrada
+"12-A" original não foi reescrita, só complementada). Nenhuma mudança em
+`src/`, `supabase/migrations/`, RLS ou dado.
+
+**Pendências e riscos**: os mesmos já registrados no retorno do 12-A
+(achados de acessibilidade de teclado rebaixados a aviso, chunk único de
+produção >500kB, `eslint@9.39.5` fora da janela oficial por peer
+dependency de `eslint-plugin-jsx-a11y`) continuam sem mudança — fora do
+escopo desta entrega. Nenhuma pendência nova identificada.
+
+**Estado de publicação**: não publicado — commit local na branch
+existente (ver nota de estado inicial/final acima), sem merge em
+`main`, sem push, sem deploy.
+
+**Liberação do 12-B/13-A**: recomendo liberar. Os dois falsos positivos
+apontados pela diretoria estão fechados e provados por simulação
+reprodutível (não só por leitura de código); a barreira `npm run verify`
+agora falha de verdade tanto por teste obrigatório ausente quanto por
+regressão de lint, sem exigir nenhuma correção de conteúdo (os 93 avisos
+existentes e a suíte de navegador do 13-A continuam como próximas
+entregas dedicadas, não bloqueadas por este prompt). Antes de liberar
+13-A, a diretoria deveria revisar e aprovar o merge de
+`work/12a-reprodutibilidade-deps` (agora incluindo 12-A + 12-A2) em
+`main`.
