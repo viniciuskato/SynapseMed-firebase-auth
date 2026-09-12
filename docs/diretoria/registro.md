@@ -1222,3 +1222,57 @@ vão direto para `main` por convenção. O gate `full` é, portanto,
 procedimental (a diretoria/sessão executiva respeita CI vermelho como
 bloqueio), não um bloqueio técnico imposto pelo GitHub. Registrado, não
 tratado como impeditivo — mesma situação já aceita no 12-B.
+
+**Integração/publicação**: com CI real 100% verde no commit final da
+candidata (`5cef8a4`, confirmado de novo após aguardar o rate limit da
+API pública do GitHub resetar — 0 requisições restantes por polling
+excessivo, achado da própria sessão sobre o próprio processo, sem
+impacto no código), `origin/main` reconfirmado parado em `0c7834a`
+antes de cada push (5 vezes ao longo da janela de correção de CI + 1
+vez antes do merge). Merge com commit explícito (`--no-ff`,
+convenção do repositório) — `af1dbd4`. `npm run verify` repetido em
+`main` pós-merge: typecheck limpo, lint 0 erros/90 avisos, pgTAP
+183/183, build limpo — exit 0. Push de `main`: `0c7834a..af1dbd4`.
+
+**Deploy**: automático (Vercel, push-to-deploy). Confirmado por
+comparação de hashes de asset — bundle local pós-merge
+(`assets/index-Bhkq9Os8.js`, `assets/index-Ci4HehPr.css`) idêntico ao
+servido em produção (`curl` direto no HTML de
+`https://synapse-med-firebase-auth.vercel.app/`) — sem precisar
+aguardar propagação, já estava no ar no momento da checagem.
+
+**Smoke de produção** (não destrutivo, navegador real via Playwright/
+Chromium contra a URL de produção, nenhuma credencial usada): título
+"NexusMed" correto, tela de login real renderiza
+(`#auth-email-input` visível — não é o atalho de demo do dev mode),
+9 ids na página, todos únicos, 0 erros de console. Nenhum dado criado,
+alterado ou submetido; script temporário de smoke removido do
+repositório após a checagem (nunca commitado).
+
+**Dados de teste e limpeza**: nenhuma conta ou dado real de produção
+tocado. Todas as fixtures E2E (`e2e-13a-*`, `two-tabs-*`, `srs-*`,
+`simulado-*`) criadas e removidas exclusivamente contra o Supabase
+LOCAL (trava `assertLocal`) — confirmado 0 residual por query direta
+após as duas execuções completas locais e após cada run de CI real
+(passo "Verificação de limpeza" do workflow, sempre verde). `git
+status` confirmado limpo em `main` antes e depois de cada operação
+relevante.
+
+**Pendências e riscos**: (1) duas abas do MESMO `BrowserContext`
+competem sem trava na fila local (`syncQueue`) — achado registrado
+acima, correção é uma frente própria (Web Locks API/`BroadcastChannel`
+entre abas). (2) pendência já conhecida do 12-B continua sem mudança:
+acessibilidade de teclado do `AdminCMSView` (Área Editorial) ainda sem
+prova de navegador ao vivo. (3) chunk único de produção >500kB
+(pré-existente, sem regressão). (4) API pública do GitHub usada para
+diagnosticar CI tem limite de 60 req/hora sem autenticação — qualquer
+sessão futura que precise investigar CI de novo deve espaçar as
+chamadas ou obter autenticação (`gh auth login`/token), não instalado
+nesta máquina.
+
+**Liberação das próximas frentes**: sim. A suíte crítica está publicada,
+validada em CI real e em produção. Duas frentes ficam abertas para uma
+sessão futura decidir prioridade: (a) corrigir a corrida entre abas do
+mesmo `BrowserContext` na fila de sincronização (achado desta sessão);
+(b) cobertura de acessibilidade de teclado do `AdminCMSView` (pendência
+já herdada do 12-B/13-A).
